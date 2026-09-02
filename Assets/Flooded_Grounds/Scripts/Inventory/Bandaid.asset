@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc743c008ca2f28498cceb8a6873f822, type: 3}
+  m_Name: Bandaid
+  m_EditorClassIdentifier: 
+  itemID: bandaid_01
+  itemName: "B\u0103ng g\u1EA1c"
+  description: "Gi\xFAp h\u1ED3i ph\u1EE5c m\u1ED9t l\u01B0\u1EE3ng m\xE1u nh\u1ECF.
+    C\u1EA7n thi\u1EBFt \u0111\u1EC3 sinh t\u1ED3n"
+  icon: {fileID: 21300000, guid: b9cb70dd58d5e204e954db75c5388b66, type: 3}
+  itemType: 0
+  isStackable: 0
+  maxStack: 1
+  itemPrefab: {fileID: 0}
