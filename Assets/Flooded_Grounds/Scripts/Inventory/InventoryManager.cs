@@ -178,46 +178,16 @@ namespace HorrorGame.Inventory
             return false;
         }
 
-        public void SwapItems(int indexA, int indexB)
+        public void OpenInventory()
         {
-            if (indexA < 0 || indexA >= slots.Count || indexB < 0 || indexB >= slots.Count) return;
+            if (isInventoryOpen) return;
+            ToggleInventory();
+        }
 
-            InventorySlot slotA = slots[indexA];
-            InventorySlot slotB = slots[indexB];
-
-            // Nếu kéo vào chính ô đó thì bỏ qua
-            if (slotA == slotB) return;
-
-            // Nếu thả vào ô chứa item giống nhau và có thể stack
-            if (slotA.item != null && slotB.item != null && slotA.item == slotB.item && slotA.item.isStackable)
-            {
-                int totalAmount = slotA.amount + slotB.amount;
-                if (totalAmount <= slotA.item.maxStack)
-                {
-                    slotB.amount = totalAmount;
-                    slotA.ClearSlot();
-                }
-                else
-                {
-                    int leftover = totalAmount - slotA.item.maxStack;
-                    slotB.amount = slotA.item.maxStack;
-                    slotA.amount = leftover;
-                }
-            }
-            else
-            {
-                // Hoán đổi vị trí bình thường
-                ItemData tempItem = slotA.item;
-                int tempAmount = slotA.amount;
-
-                slotA.item = slotB.item;
-                slotA.amount = slotB.amount;
-
-                slotB.item = tempItem;
-                slotB.amount = tempAmount;
-            }
-
-            if (onInventoryChangedEvent != null) onInventoryChangedEvent();
+        public void CloseInventory()
+        {
+            if (!isInventoryOpen) return;
+            ToggleInventory();
         }
 
         /// <summary>

@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 using HorrorGame.Inventory;
 
 namespace HorrorGame.Environment
@@ -19,24 +20,81 @@ namespace HorrorGame.Environment
         [Header("Optional Animation")]
         public Animator chestAnimator;
         public string openTriggerName = "Open";
-
         private bool playerInRange = false;
+
+        [Header("Chest Inventory")]
+        public int maxSlots = 12;
+        public List<InventorySlot> chestSlots = new List<InventorySlot>();
 
         private void Start()
         {
-            // Tự động chỉnh lại kích thước rương cho chuẩn khi bắt đầu game
-            transform.localScale = new Vector3(1.5f, 0.75f, 1f);
+            // Initialize empty slots
+            for (int i = 0; i < maxSlots; i++)
+            {
+                chestSlots.Add(new InventorySlot(null, 0));
+            }
+
+            // Optional: Auto-fill initial loot if not yet looted/initialized
+            // This happens once when game starts. 
+            // If you want saving/loading, you will override these slots later.
+            if (gunItem != null)
+            {
+                chestSlots[0].item = gunItem;
+                chestSlots[0].amount = gunAmount;
+            }
+            if (ammoItem != null)
+            {
+                chestSlots[1].item = ammoItem;
+                chestSlots[1].amount = ammoAmount;
+            }
         }
+
+        private Transform playerTransform;
+        public float interactRange = 3f;
 
         private void Update()
         {
-            if (playerInRange && !isOpened)
+            // Tim nguoi choi neu chua co
+            if (playerTransform == null)
             {
-                // Here you could link to a UI text to show "Press E to Open"
-                
-                if (Input.GetKeyDown(KeyCode.E))
+                GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+                if (playerObj != null)
                 {
-                    OpenChest();
+                    playerTransform = playerObj.transform;
+                }
+            }
+
+            // Kiem tra khoang cach
+            if (playerTransform != null)
+            {
+                float distance = Vector3.Distance(transform.position, playerTransform.position);
+                
+                if (distance <= interactRange)
+                {
+                    playerInRange = true;
+                    
+                    if (Input.GetKeyDown(KeyCode.E))
+                    {
+                        Debug.Log("=> Da bam E vao ruong. isOpened hien tai: " + isOpened);
+                        if (!isOpened)
+                        {
+                            OpenChest();
+                        }
+                        else
+                        {
+                            CloseChest();
+                        }
+                    }
+                }
+                else
+                {
+                    playerInRange = false;
+                    
+                    // Tu dong dong ruong neu di ra xa
+                    if (isOpened)
+                    {
+                        CloseChest();
+                    }
                 }
             }
         }
@@ -44,6 +102,7 @@ namespace HorrorGame.Environment
         private void OpenChest()
         {
             isOpened = true;
+            Debug.Log("=> Dang mo ruong...");
             
             // Play animation if available
             if (chestAnimator != null)
@@ -51,50 +110,38 @@ namespace HorrorGame.Environment
                 chestAnimator.SetTrigger(openTriggerName);
             }
 
-            // Add items to inventory
-            if (InventoryManager.Instance != null)
+            // Open Chest UI
+            if (HorrorGame.Inventory.UI.ChestUI.Instance != null)
             {
-                bool gotGun = false;
-                bool gotAmmo = false;
+                Debug.Log("=> Tim thay ChestUI, dang bat UI len...");
+                HorrorGame.Inventory.UI.ChestUI.Instance.OpenChest(this);
                 
-                if (gunItem != null)
+                // Open Player Inventory as well
+                if (InventoryManager.Instance != null)
                 {
-                    gotGun = InventoryManager.Instance.AddItem(gunItem, gunAmount);
-                    if(gotGun) Debug.Log("Looted: " + gunItem.itemName);
-                }
-                
-                if (ammoItem != null)
-                {
-                    gotAmmo = InventoryManager.Instance.AddItem(ammoItem, ammoAmount);
-                    if(gotAmmo) Debug.Log("Looted: " + ammoItem.itemName);
-                }
-                
-                if (!gotGun && !gotAmmo)
-                {
-                    Debug.Log("Inventory Full! Could not loot chest.");
-                    isOpened = false; // Allow trying again
+                    InventoryManager.Instance.OpenInventory();
                 }
             }
             else
             {
-                Debug.LogWarning("InventoryManager not found in scene!");
+                Debug.LogError("=> LOI: ChestUI.Instance dang bi NULL. Vui long kiem tra lai xem ChestUIPanel da duoc bat truoc khi Play chua, va co script ChestUI chua!");
             }
         }
 
-        private void OnTriggerEnter(Collider other)
+        private void CloseChest()
         {
-            if (other.CompareTag("Player") && !isOpened)
-            {
-                playerInRange = true;
-                Debug.Log(promptText); // For testing
-            }
-        }
+            isOpened = false;
+            Debug.Log("=> Dang dong ruong...");
 
-        private void OnTriggerExit(Collider other)
-        {
-            if (other.CompareTag("Player"))
+            if (HorrorGame.Inventory.UI.ChestUI.Instance != null)
             {
-                playerInRange = false;
+                HorrorGame.Inventory.UI.ChestUI.Instance.CloseChest();
+                
+                // Close Player Inventory as well
+                if (InventoryManager.Instance != null)
+                {
+                    InventoryManager.Instance.CloseInventory();
+                }
             }
         }
 

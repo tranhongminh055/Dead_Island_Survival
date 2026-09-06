@@ -134,8 +134,44 @@ namespace HorrorGame.Inventory.UI
             if (InventorySlotUI.draggedSlot != null && InventorySlotUI.draggedSlot != this)
             {
                 Debug.Log("Đổi chỗ: " + InventorySlotUI.draggedSlot.slotIndex + " và " + this.slotIndex);
-                // Gọi InventoryManager để hoán đổi dữ liệu
-                InventoryManager.Instance.SwapItems(InventorySlotUI.draggedSlot.slotIndex, this.slotIndex);
+                
+                InventorySlot slotA = InventorySlotUI.draggedSlot.currentSlot;
+                InventorySlot slotB = this.currentSlot;
+
+                if (slotA == null || slotB == null) return;
+
+                // Nếu thả vào ô chứa item giống nhau và có thể cộng dồn (stack)
+                if (slotA.item != null && slotB.item != null && slotA.item == slotB.item && slotA.item.isStackable)
+                {
+                    int totalAmount = slotA.amount + slotB.amount;
+                    if (totalAmount <= slotA.item.maxStack)
+                    {
+                        slotB.amount = totalAmount;
+                        slotA.ClearSlot();
+                    }
+                    else
+                    {
+                        int leftover = totalAmount - slotA.item.maxStack;
+                        slotB.amount = slotA.item.maxStack;
+                        slotA.amount = leftover;
+                    }
+                }
+                else
+                {
+                    // Hoán đổi vị trí bình thường
+                    ItemData tempItem = slotA.item;
+                    int tempAmount = slotA.amount;
+
+                    slotA.item = slotB.item;
+                    slotA.amount = slotB.amount;
+
+                    slotB.item = tempItem;
+                    slotB.amount = tempAmount;
+                }
+
+                // Cập nhật lại UI cho cả 2 ô
+                InventorySlotUI.draggedSlot.UpdateSlot(slotA);
+                this.UpdateSlot(slotB);
             }
         }
         

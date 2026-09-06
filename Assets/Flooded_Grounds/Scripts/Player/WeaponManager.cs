@@ -121,7 +121,7 @@ namespace HorrorGame.Player
             }
         }
 
-        // Cuộn lên = Chuyển sang súng tiếp theo
+        // Cuộn lên = Chuyển sang s úng tiếp theo
         private void SwitchToNextWeapon()
         {
             if (weaponSlots.Length == 0) return;

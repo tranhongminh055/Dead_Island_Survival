@@ -69,7 +69,7 @@ Material:
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _EmissionScaleUI: 0
-    - _Exposure: 0.5
+    - _Exposure: 0.05
     - _Glossiness: 0.5
     - _Metallic: 0
     - _Mode: 0
@@ -87,4 +87,4 @@ Material:
     - _EmissionColorUI: {r: 1, g: 1, b: 1, a: 1}
     - _GroundColor: {r: 0.369, g: 0.349, b: 0.341, a: 1}
     - _SkyTint: {r: 0.6367705, g: 0.80784315, b: 0.75780797, a: 1}
-    - _Tint: {r: 1, g: 1, b: 1, a: 0.5019608}
+    - _Tint: {r: 0.1, g: 0.1, b: 0.1, a: 1}
