@@ -92,11 +92,12 @@ public class FPSWeapon : MonoBehaviour
         // TẠO ĐÈN CHỚP LỬA (Muzzle Flash Light) tự động
         GameObject lightObj = new GameObject("MuzzleFlashLight");
         lightObj.transform.parent = transform; 
-        lightObj.transform.localPosition = new Vector3(0, -0.1f, 1f); // Đặt đèn trước mũi súng
+        // Đặt đèn ra phía trước nòng súng một chút và nhô lên trên để sáng rõ thân súng
+        lightObj.transform.localPosition = new Vector3(0, 0.15f, 0.6f); 
         flashLight = lightObj.AddComponent<Light>();
         flashLight.type = LightType.Point;
         flashLight.color = new Color(1f, 0.7f, 0.1f); // Màu cam vàng của lửa
-        flashLight.range = 10f;
+        flashLight.range = 25f; // Tăng tầm chiếu xa để nhìn thẳng vẫn thấy sáng
         flashLight.intensity = 0f; // Ban đầu tắt đèn
 
         // TỰ ĐỘNG CĂN CHỈNH CAMERA VÀO ĐÚNG MẮT NHÂN VẬT
@@ -325,8 +326,8 @@ public class FPSWeapon : MonoBehaviour
         // Bật tia lửa (nếu có Particle)
         if (muzzleFlash != null) muzzleFlash.Play();
         
-        // Bật ánh sáng chớp lửa
-        if (flashLight != null) flashLight.intensity = 3f;
+        // Bật ánh sáng chớp lửa (tăng cường độ sáng)
+        if (flashLight != null) flashLight.intensity = 8f;
 
         // Phát tiếng súng (Reset lại mỗi lần bắn để không bị dội âm)
         if (shootSound != null)

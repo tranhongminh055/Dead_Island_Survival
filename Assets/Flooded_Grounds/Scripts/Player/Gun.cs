@@ -23,6 +23,7 @@ namespace HorrorGame.Player
         public AudioSource shootSound;           // Âm thanh tiếng súng nổ
 
         private float nextTimeToFire = 0f;
+        private Light flashLight; // Đèn chớp lửa khi bắn
 
         void Start()
         {
@@ -33,6 +34,17 @@ namespace HorrorGame.Player
             {
                 fpsCam = Camera.main;
             }
+
+            // Tạo đèn chớp lửa (Muzzle Flash Light) tự động
+            GameObject lightObj = new GameObject("MuzzleFlashLight");
+            lightObj.transform.parent = transform; 
+            // Vị trí tương đối so với súng, đặt nhô lên và ra trước để sáng rõ thân súng
+            lightObj.transform.localPosition = new Vector3(0, 0.15f, 0.6f); 
+            flashLight = lightObj.AddComponent<Light>();
+            flashLight.type = LightType.Point;
+            flashLight.color = new Color(1f, 0.7f, 0.1f); // Màu cam vàng của lửa
+            flashLight.range = 25f; // Tăng tầm chiếu xa
+            flashLight.intensity = 0f; // Ban đầu tắt đèn
         }
 
         void OnEnable()
@@ -42,6 +54,12 @@ namespace HorrorGame.Player
 
         void Update()
         {
+            // Làm mờ dần ánh sáng chớp lửa súng nếu đang bật
+            if (flashLight != null && flashLight.intensity > 0)
+            {
+                flashLight.intensity = Mathf.Lerp(flashLight.intensity, 0f, Time.deltaTime * 30f);
+            }
+
             if (isReloading) return;
 
             // Hết đạn hoặc bấm R -> Thay đạn
@@ -82,6 +100,10 @@ namespace HorrorGame.Player
             // 1. Phát tia lửa đầu nòng
             if (muzzleFlash != null)
                 muzzleFlash.Play();
+            
+            // Bật ánh sáng chớp lửa với cường độ mạnh
+            if (flashLight != null)
+                flashLight.intensity = 8f;
 
             // 2. Phát âm thanh tiếng súng
             if (shootSound != null)

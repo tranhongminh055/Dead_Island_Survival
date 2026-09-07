@@ -97,6 +97,9 @@
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Runtime\Utils\RenderTextureFactory.cs" />
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Utilities\CustomMotionTexture\ExampleWheelController.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\AdvancedDistanceCulling.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplaneCrashCutscene.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\CameraShake.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\IntroCutsceneManager.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\DisableRenderer.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\CinematicCamera.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\Enemy\EnemyAI.cs" />

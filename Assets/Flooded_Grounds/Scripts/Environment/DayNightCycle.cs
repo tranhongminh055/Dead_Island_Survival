@@ -10,9 +10,9 @@ namespace HorrorGame.Environment
         [Tooltip("Một ngày trong game kéo dài bao nhiêu phút ngoài đời thực")]
         public float dayDurationInMinutes = 10f;
 
-        [Tooltip("Giờ bắt đầu khi vào game (0-24). VD: 8 = 8h sáng")]
+        [Tooltip("Giờ bắt đầu khi vào game (0-24). VD: 6 = 6h sáng")]
         [Range(0f, 24f)]
-        public float startHour = 8f;
+        public float startHour = 6f;
 
         [Header("Ánh sáng Mặt Trời")]
         [Tooltip("Kéo thả Directional Light (SUN) trong Scene vào đây")]
@@ -44,7 +44,8 @@ namespace HorrorGame.Environment
         private float originalAmbientIntensity;
         private float originalReflectionIntensity;
         private float originalSkyboxExposure = 1f;
-        private Color originalSkyboxTint = Color.white;
+        private Color originalSkyboxTint = Color.gray; // Giá trị an toàn
+        private Material originalSkyboxMaterial; // Lưu lại Material gốc
         private bool originalFogEnabled;
         private Color originalFogColor;
 
@@ -74,11 +75,25 @@ namespace HorrorGame.Environment
 
             if (RenderSettings.skybox != null)
             {
-                if (RenderSettings.skybox.HasProperty("_Exposure"))
-                    originalSkyboxExposure = RenderSettings.skybox.GetFloat("_Exposure");
+                // LƯU MATERIAL GỐC VÀ TẠO BẢN SAO (Clone) ĐỂ KHÔNG LÀM HỎNG ASSET KHI CHẠY EDITOR
+                originalSkyboxMaterial = RenderSettings.skybox;
+                Material skyboxClone = new Material(originalSkyboxMaterial);
+                RenderSettings.skybox = skyboxClone;
+
+                if (skyboxClone.HasProperty("_Exposure"))
+                {
+                    originalSkyboxExposure = skyboxClone.GetFloat("_Exposure");
+                    // Tự sửa lỗi: nếu lần trước tắt game lúc trời tối làm file gốc bị đen thui
+                    if (originalSkyboxExposure <= 0.1f) originalSkyboxExposure = 1f;
+                }
                 
-                if (RenderSettings.skybox.HasProperty("_Tint"))
-                    originalSkyboxTint = RenderSettings.skybox.GetColor("_Tint");
+                if (skyboxClone.HasProperty("_Tint"))
+                {
+                    originalSkyboxTint = skyboxClone.GetColor("_Tint");
+                    // Tự sửa lỗi: nếu Tint đang quá tối (đen xì)
+                    if (originalSkyboxTint.r <= 0.2f && originalSkyboxTint.g <= 0.2f && originalSkyboxTint.b <= 0.2f)
+                        originalSkyboxTint = Color.gray; // Hoặc Color.white tuỳ loại skybox
+                }
             }
 
             // Tìm Directional Light (SUN) tự động nếu chưa gắn
@@ -124,6 +139,7 @@ namespace HorrorGame.Environment
         {
             currentHour += timeSpeed * Time.deltaTime;
 
+            // Chạy đủ 24h rồi mới qua ngày mới
             if (currentHour >= 24f)
             {
                 currentHour -= 24f;
@@ -160,16 +176,16 @@ namespace HorrorGame.Environment
                 // Màu bình minh: cam ấm
                 sunLight.color = Color.Lerp(new Color(1f, 0.5f, 0.2f), originalSunColor, t);
             }
-            else if (currentHour >= 6f && currentHour < 17f)
+            else if (currentHour >= 6f && currentHour < 17.5f)
             {
-                // Ban ngày (6h - 17h): sáng bình thường
+                // Ban ngày (6h - 17h30): sáng bình thường
                 intensity = originalSunIntensity;
                 sunLight.color = originalSunColor;
             }
-            else if (currentHour >= 17f && currentHour < 18f)
+            else if (currentHour >= 17.5f && currentHour < 18f)
             {
-                // Hoàng hôn: tối dần (17h-18h)
-                float t = (currentHour - 17f) / 1f;
+                // Hoàng hôn: tối dần (17h30-18h)
+                float t = (currentHour - 17.5f) / 0.5f;
                 intensity = Mathf.Lerp(originalSunIntensity, 0f, t);
                 // Màu hoàng hôn: đỏ cam
                 sunLight.color = Color.Lerp(originalSunColor, new Color(1f, 0.3f, 0.1f), t);
@@ -271,16 +287,16 @@ namespace HorrorGame.Environment
                 skyboxTintTarget = Color.Lerp(new Color(0.1f, 0.1f, 0.1f), originalSkyboxTint, t);
                 skyboxExposureTarget = Mathf.Lerp(0.05f, originalSkyboxExposure, t);
             }
-            else if (currentHour >= 6f && currentHour < 17f)
+            else if (currentHour >= 6f && currentHour < 17.5f)
             {
-                // Ban ngày (6h - 17h)
+                // Ban ngày (6h - 17h30)
                 ambientTarget = originalAmbientColor;
                 intensityTarget = originalAmbientIntensity;
             }
-            else if (currentHour >= 17f && currentHour < 18f)
+            else if (currentHour >= 17.5f && currentHour < 18f)
             {
-                // Hoàng hôn (17h - 18h)
-                float t = (currentHour - 17f) / 1f;
+                // Hoàng hôn (17h30 - 18h)
+                float t = (currentHour - 17.5f) / 0.5f;
                 ambientTarget = Color.Lerp(originalAmbientColor, new Color(0.05f, 0.05f, 0.1f), t);
                 intensityTarget = Mathf.Lerp(originalAmbientIntensity, 0.15f * originalAmbientIntensity, t);
                 skyboxTintTarget = Color.Lerp(originalSkyboxTint, new Color(0.1f, 0.1f, 0.1f), t);
@@ -326,15 +342,15 @@ namespace HorrorGame.Environment
                 float t = (currentHour - 5f) / 1f;
                 fogTarget = Color.Lerp(Color.black, originalFogColor, t);
             }
-            else if (currentHour >= 6f && currentHour < 17f)
+            else if (currentHour >= 6f && currentHour < 17.5f)
             {
                 // Ban ngày
                 fogTarget = originalFogColor;
             }
-            else if (currentHour >= 17f && currentHour < 18f)
+            else if (currentHour >= 17.5f && currentHour < 18f)
             {
                 // Hoàng hôn
-                float t = (currentHour - 17f) / 1f;
+                float t = (currentHour - 17.5f) / 0.5f;
                 fogTarget = Color.Lerp(originalFogColor, Color.black, t);
             }
             else
@@ -378,6 +394,12 @@ namespace HorrorGame.Environment
                 sunLight.color = originalSunColor;
                 sunLight.intensity = originalSunIntensity;
                 sunLight.shadows = LightShadows.Soft;
+            }
+            
+            // Trả lại Skybox gốc
+            if (originalSkyboxMaterial != null)
+            {
+                RenderSettings.skybox = originalSkyboxMaterial;
             }
         }
     }

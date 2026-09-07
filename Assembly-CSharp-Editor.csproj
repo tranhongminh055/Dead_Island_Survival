@@ -89,6 +89,7 @@
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Editor\Utils\FxStyles.cs" />
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Editor\Utils\ReflectionUtils.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\CreateAmmoItem.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\IntroSetupWizard.cs" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\DepthOfField.shader" />
      <None Include="Assets\Flooded_Grounds\Content\Shaders\FG_PBR_Water.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\MotionBlur.cginc" />
