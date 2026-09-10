@@ -50,6 +50,10 @@ namespace HorrorGame.Player
 
         void Update()
         {
+            // Không nhận input điều khiển khi đang chạy Cutscene mở đầu
+            if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+                return;
+
             // Kiểm tra xem túi đồ có đang mở không (nếu có thì không cho xoay chuột/di chuyển)
             // Giả sử có InventoryManager
             if (Inventory.InventoryManager.Instance != null && Inventory.InventoryManager.Instance.isInventoryOpen)

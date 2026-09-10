@@ -14,6 +14,11 @@ namespace HorrorGame.Cutscenes
 
         private bool isShaking = false;
 
+        /// <summary>Khi bật (ví dụ người chơi tự do lia chuột trong cabin máy bay), CameraShake sẽ không ghi đè trực tiếp localRotation</summary>
+        public bool preventRotationOverride = false;
+        [HideInInspector]
+        public Vector3 currentRotJitter = Vector3.zero;
+
         void OnEnable()
         {
             originalPos = transform.localPosition;
@@ -28,15 +33,20 @@ namespace HorrorGame.Cutscenes
                 {
                     Vector3 randomPos = originalPos + Random.insideUnitSphere * currentShakeMagnitude;
                     
-                    // Thêm rung lắc ngẫu nhiên vào góc xoay (tuỳ chọn)
-                    Quaternion randomRot = originalRot * Quaternion.Euler(
+                    // Thêm rung lắc ngẫu nhiên vào góc xoay
+                    currentRotJitter = new Vector3(
                         Random.Range(-currentShakeMagnitude, currentShakeMagnitude) * 5f,
                         Random.Range(-currentShakeMagnitude, currentShakeMagnitude) * 5f,
                         Random.Range(-currentShakeMagnitude, currentShakeMagnitude) * 5f
                     );
 
                     transform.localPosition = Vector3.Lerp(transform.localPosition, randomPos, Time.deltaTime * currentShakeRoughness * 10f);
-                    transform.localRotation = Quaternion.Lerp(transform.localRotation, randomRot, Time.deltaTime * currentShakeRoughness * 10f);
+
+                    if (!preventRotationOverride)
+                    {
+                        Quaternion randomRot = originalRot * Quaternion.Euler(currentRotJitter);
+                        transform.localRotation = Quaternion.Lerp(transform.localRotation, randomRot, Time.deltaTime * currentShakeRoughness * 10f);
+                    }
 
                     currentShakeDuration -= Time.deltaTime;
                 }
@@ -44,9 +54,17 @@ namespace HorrorGame.Cutscenes
                 {
                     currentShakeDuration = 0f;
                     isShaking = false;
+                    currentRotJitter = Vector3.zero;
                     transform.localPosition = originalPos;
-                    transform.localRotation = originalRot;
+                    if (!preventRotationOverride)
+                    {
+                        transform.localRotation = originalRot;
+                    }
                 }
+            }
+            else
+            {
+                currentRotJitter = Vector3.zero;
             }
         }
 

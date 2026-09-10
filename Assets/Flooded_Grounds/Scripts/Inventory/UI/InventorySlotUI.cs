@@ -25,7 +25,11 @@ namespace HorrorGame.Inventory.UI
             {
                 iconImage.sprite = null;
                 iconImage.color = new Color(1, 1, 1, 0);
-                if(amountText != null) amountText.text = "";
+                if (amountText != null) 
+                {
+                    amountText.text = "";
+                    amountText.raycastTarget = false;
+                }
                 iconImage.raycastTarget = false; // Ô trống không cần nhận Raycast từ chuột (ngoại trừ ô nền)
             }
             else
@@ -34,10 +38,14 @@ namespace HorrorGame.Inventory.UI
                 iconImage.color = new Color(1, 1, 1, 1);
                 iconImage.raycastTarget = true; // Để có thể click/kéo
 
-                if (slot.amount > 1 && amountText != null)
-                    amountText.text = slot.amount.ToString();
-                else if (amountText != null)
-                    amountText.text = "";
+                if (amountText != null)
+                {
+                    amountText.raycastTarget = false; // Tránh chữ số lượng chặn click chuột vào icon
+                    if (slot.amount > 1)
+                        amountText.text = slot.amount.ToString();
+                    else
+                        amountText.text = "";
+                }
             }
         }
 
@@ -46,45 +54,133 @@ namespace HorrorGame.Inventory.UI
             Debug.Log("<color=cyan>CHUỘT ĐÃ CHẠM VÀO Ô SỐ:</color> " + slotIndex);
         }
 
-        // --- CLICK (Dùng đồ) ---
+        // --- CLICK (Dùng đồ - bấm chuột trái hoặc chuột phải đều dùng được) ---
         public void OnPointerClick(PointerEventData eventData)
         {
-            if (eventData.button == PointerEventData.InputButton.Right)
+            UseCurrentItem();
+        }
+
+        public void UseCurrentItem()
+        {
+            if (currentSlot == null || currentSlot.IsEmpty() || currentSlot.item == null) return;
+
+            ItemData item = currentSlot.item;
+            string id = !string.IsNullOrEmpty(item.itemID) ? item.itemID.ToLower() : "";
+            string name = !string.IsNullOrEmpty(item.itemName) ? item.itemName.ToLower() : "";
+            ItemType type = item.itemType;
+
+            Debug.Log(string.Format("<color=yellow>[USE ITEM]</color> Click sử dụng: {0} (ID: {1}, Type: {2})", item.itemName, item.itemID, type));
+
+            // Tìm PlayerStats trên Player
+            var stats = FindObjectOfType<Player.PlayerStats>();
+            if (stats == null)
             {
-                // Tách đồ (Split) - nếu cần làm giống Minecraft
-                // Để mở rộng sau này
+                var playerObj = GameObject.FindGameObjectWithTag("Player");
+                if (playerObj != null) stats = playerObj.GetComponent<Player.PlayerStats>();
             }
-            else if (eventData.button == PointerEventData.InputButton.Left)
+
+            // Tìm FPSWeapon trên Player
+            var fpsWeapon = FindObjectOfType<FPSWeapon>();
+            if (fpsWeapon == null)
             {
-                if (currentSlot != null && !currentSlot.IsEmpty())
+                var playerObj = GameObject.FindGameObjectWithTag("Player");
+                if (playerObj != null) fpsWeapon = playerObj.GetComponentInChildren<FPSWeapon>();
+            }
+
+            bool itemUsed = false;
+            string feedbackMsg = "";
+
+            // 1. HỒI MÁU (Băng cứu thương / Medkit)
+            if (id.Contains("medkit") || id.Contains("bandaid") || id.Contains("bandage") || name.Contains("băng") || name.Contains("cứu thương") || name.Contains("thuốc"))
+            {
+                if (stats != null)
                 {
-                    Debug.Log("Bạn vừa click vào: " + currentSlot.item.itemName + " | Phân loại: " + currentSlot.item.itemType);
-                    
-                    // Nếu bấm vào Súng
-                    if (currentSlot.item.itemType == ItemType.Weapon)
-                    {
-                        var fpsWeapon = FindObjectOfType<FPSWeapon>();
-                        
-                        if (fpsWeapon == null)
-                        {
-                            Debug.Log("<color=red>LỖI:</color> Không tìm thấy script FPSWeapon trên Camera!");
-                        }
-                        else if (fpsWeapon.weaponItemData == null || fpsWeapon.weaponItemData.itemID != currentSlot.item.itemID)
-                        {
-                            Debug.Log("<color=red>LỖI:</color> Khẩu súng ở Camera CHƯA được gắn file GunItem vào ô Weapon Item Data, hoặc bị sai ID!");
-                        }
-                        else
-                        {
-                            Debug.Log("<color=green>THÀNH CÔNG!</color> Đã rút súng!");
-                            fpsWeapon.ToggleWeapon();
-                            InventoryManager.Instance.ToggleInventory();
-                        }
-                    }
-                    else
-                    {
-                        Debug.Log("<color=yellow>CẢNH BÁO:</color> Bạn chưa đổi Item Type của file GunItem thành Weapon!");
-                    }
+                    stats.Heal(40f);
+                    itemUsed = true;
+                    feedbackMsg = string.Format("💚 Đã dùng Băng cứu thương: Hồi +40 Máu! ({0:F0}/{1} HP)", stats.currentHealth, stats.maxHealth);
                 }
+            }
+            // 2. LƯƠNG THỰC / ĐỒ HỘP (Hộp lương thực dự trữ / Food)
+            else if (id.Contains("food") || id.Contains("ration") || id.Contains("canned") || name.Contains("lương thực") || name.Contains("thịt") || name.Contains("ăn"))
+            {
+                if (stats != null)
+                {
+                    stats.Eat(45f);
+                    stats.Heal(15f); // Thức ăn dinh dưỡng hồi thêm 15 HP!
+                    stats.currentStamina = Mathf.Min(stats.maxStamina, stats.currentStamina + 35f);
+                    stats.RestoreSanity(20f);
+                    itemUsed = true;
+                    feedbackMsg = string.Format("🍖 Đã ăn Hộp lương thực: +45 Đói, +15 Máu, +35 Thể lực!");
+                }
+            }
+            // 3. ĐẠN DƯỢC (Hộp đạn dã chiến / Ammo)
+            else if (type == ItemType.Ammunition || id.Contains("ammo") || name.Contains("đạn"))
+            {
+                if (fpsWeapon != null)
+                {
+                    fpsWeapon.AddAmmo(30);
+                    itemUsed = true;
+                    feedbackMsg = "🔫 Đã nạp thêm +30 viên đạn vào súng!";
+                }
+                else
+                {
+                    feedbackMsg = "⚠️ Chưa trang bị súng để nạp đạn!";
+                }
+            }
+            // 4. ĐÈN PIN CHIẾN THUẬT
+            else if (id.Contains("flashlight") || name.Contains("đèn pin"))
+            {
+                var fl = FindObjectOfType<Player.PlayerFlashlight>();
+                if (fl == null)
+                {
+                    var playerObj = GameObject.FindGameObjectWithTag("Player");
+                    if (playerObj != null) fl = playerObj.AddComponent<Player.PlayerFlashlight>();
+                }
+
+                if (fl != null)
+                {
+                    fl.hasFlashlight = true;
+                    fl.ToggleFlashlight();
+                    feedbackMsg = fl.isOn ? "💡 Đèn pin: BẬT" : "💡 Đèn pin: TẮT";
+                }
+            }
+            // 5. VŨ KHÍ (Súng / Lựu đạn)
+            else if (type == ItemType.Weapon)
+            {
+                if (fpsWeapon != null)
+                {
+                    fpsWeapon.ToggleWeapon();
+                    feedbackMsg = "🗡️ Đã đổi / trang bị vũ khí!";
+                    if (InventoryManager.Instance != null) InventoryManager.Instance.ToggleInventory();
+                }
+            }
+            // 6. BẤT KỲ VẬT PHẨM TIÊU HAO KHÁC
+            else if (type == ItemType.Consumable)
+            {
+                if (stats != null)
+                {
+                    stats.Heal(25f);
+                    itemUsed = true;
+                    feedbackMsg = string.Format("✨ Đã sử dụng {0} (+25 Máu)", item.itemName);
+                }
+            }
+
+            // Nếu vật phẩm tiêu thụ thành công: trừ trực tiếp 1 số lượng khỏi ô hiện tại
+            if (itemUsed)
+            {
+                currentSlot.RemoveAmount(1);
+                if (InventoryManager.Instance != null && InventoryManager.Instance.onInventoryChangedEvent != null)
+                {
+                    InventoryManager.Instance.onInventoryChangedEvent();
+                }
+            }
+
+            // Hiển thị thông báo và in Log rõ ràng
+            if (!string.IsNullOrEmpty(feedbackMsg))
+            {
+                Debug.Log("<color=green>[INVENTORY ACTION]:</color> " + feedbackMsg);
+                var fl = FindObjectOfType<Player.PlayerFlashlight>();
+                if (fl != null) fl.ShowNotice(feedbackMsg);
             }
         }
 

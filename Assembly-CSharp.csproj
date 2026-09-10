@@ -97,6 +97,7 @@
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Runtime\Utils\RenderTextureFactory.cs" />
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Utilities\CustomMotionTexture\ExampleWheelController.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\AdvancedDistanceCulling.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplaneCabinExterior.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplaneCrashCutscene.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\CameraShake.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\IntroCutsceneManager.cs" />
@@ -106,6 +107,7 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\Enemy\ZombieSpawner.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\FlyCam.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\SanityEffects.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\AirplaneCrashSite.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\DayNightCycle.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\ItemSpawner.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\LootChest.cs" />
@@ -122,6 +124,7 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\FPSWeapon.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\Gun.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\PlayerController.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Player\PlayerFlashlight.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\PlayerStats.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\PlayerUI.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\WeaponManager.cs" />
@@ -146,6 +149,7 @@
      <None Include="Assets\Flooded_Grounds\Resources\TreeCreator\TreeCreatorLeavesOptimized.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Editor Resources\Monitors\HistogramCompute.compute" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\Uber.shader" />
+     <None Include="Assets\Flooded_Grounds\Shaders\SkyBeaconBeam.shader" />
      <None Include="Assets\Flooded_Grounds\Resources\TreeCreator\TreeCreatorBarkOptimized.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\Blit.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Editor Resources\Monitors\WaveformRender.shader" />

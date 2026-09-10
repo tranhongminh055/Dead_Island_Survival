@@ -51,9 +51,12 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+     <Compile Include="Assets\Editor\AirplaneCabinBuilder.cs" />
      <Compile Include="Assets\Editor\AutoStaticBatcher.cs" />
+     <Compile Include="Assets\Editor\CrashWreckageBuilder.cs" />
      <Compile Include="Assets\Editor\FixChestPrefab.cs" />
      <Compile Include="Assets\Editor\FixWaterBug.cs" />
+     <Compile Include="Assets\Editor\IslandLootSpawner.cs" />
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Editor\Attributes\PostProcessingModelEditorAttribute.cs" />
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Editor\Models\AmbientOcclusionModelEditor.cs" />
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Editor\Models\AntialiasingModelEditor.cs" />
@@ -110,6 +113,7 @@
      <None Include="Assets\Flooded_Grounds\Resources\TreeCreator\TreeCreatorLeavesOptimized.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Editor Resources\Monitors\HistogramCompute.compute" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\Uber.shader" />
+     <None Include="Assets\Flooded_Grounds\Shaders\SkyBeaconBeam.shader" />
      <None Include="Assets\Flooded_Grounds\Resources\TreeCreator\TreeCreatorBarkOptimized.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\Blit.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Editor Resources\Monitors\WaveformRender.shader" />

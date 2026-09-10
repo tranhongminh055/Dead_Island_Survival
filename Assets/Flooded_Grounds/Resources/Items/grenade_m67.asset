@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc743c008ca2f28498cceb8a6873f822, type: 3}
+  m_Name: grenade_m67
+  m_EditorClassIdentifier: 
+  itemID: grenade_m67
+  itemName: "L\u1EF1u \u0111\u1EA1n n\u1ED5 M67"
+  description: "L\u1EF1u \u0111\u1EA1n n\u1ED5 t\u1EA7m xa s\xE1t th\u01B0\u01A1ng
+    di\u1EC7n r\u1ED9ng."
+  icon: {fileID: 21300000, guid: 864975800c53d16429c745d5898ebf28, type: 3}
+  itemType: 2
+  isStackable: 1
+  maxStack: 3
+  itemPrefab: {fileID: 0}

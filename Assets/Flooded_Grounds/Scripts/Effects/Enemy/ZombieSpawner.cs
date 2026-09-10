@@ -18,6 +18,10 @@ namespace HorrorGame.Enemy
         [Header("Tự động rải đều toàn map")]
         public bool autoScatterOverMap = true; // Bật cái này lên để tự động rải
 
+        [Header("Crash Site Safe Zone (Vùng an toàn quanh xác máy bay)")]
+        public static readonly Vector3 CRASH_SITE_CENTER = new Vector3(537f, 17.6f, 545f);
+        public float crashSafeRadius = 120f; // Bán kính 120m quanh xác máy bay tuyệt đối không có Zombie!
+
         private float timer = 0f;
         private List<GameObject> activeZombies = new List<GameObject>();
         private NavMeshTriangulation navMeshData;
@@ -31,10 +35,43 @@ namespace HorrorGame.Enemy
             {
                 Debug.LogError("ZombieSpawner: Không tìm thấy dữ liệu NavMesh! Bạn phải Bake NavMesh cho mặt đất trước.");
             }
+
+            // Dọn sạch mọi Zombie có sẵn trong Scene đang ở trong bán kính 120m quanh xác máy bay
+            ClearZombiesNearCrashSite();
+        }
+
+        public void ClearZombiesNearCrashSite()
+        {
+            EnemyAI[] allZombies = FindObjectsOfType<EnemyAI>();
+            foreach (var z in allZombies)
+            {
+                if (z == null) continue;
+                float dist = Vector3.Distance(z.transform.position, CRASH_SITE_CENTER);
+                if (dist < crashSafeRadius)
+                {
+                    Debug.Log(string.Format("<color=yellow>[SAFE ZONE]</color> Di dời Zombie ({0:F1}m) ra khỏi khu vực xác máy bay!", dist));
+                    // Di dời Zombie ra xa ít nhất 150m trên NavMesh
+                    Vector3 farPos = CRASH_SITE_CENTER + new Vector3(Random.Range(140f, 200f) * (Random.value > 0.5f ? 1 : -1), 0, Random.Range(140f, 200f) * (Random.value > 0.5f ? 1 : -1));
+                    NavMeshHit hit;
+                    if (NavMesh.SamplePosition(farPos, out hit, 30f, NavMesh.AllAreas))
+                    {
+                        var agent = z.GetComponent<NavMeshAgent>();
+                        if (agent != null) agent.Warp(hit.position);
+                        else z.transform.position = hit.position;
+                    }
+                    else
+                    {
+                        Destroy(z.gameObject);
+                    }
+                }
+            }
         }
 
         void Update()
         {
+            // Trong suốt cutscene mở đầu: Không đẻ thêm zombie
+            if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
+
             // Dọn dẹp danh sách: Xóa những con Zombie đã bị bắn chết (bị Destroy)
             activeZombies.RemoveAll(item => item == null);
 
@@ -61,42 +98,51 @@ namespace HorrorGame.Enemy
             Vector3 finalPosition = Vector3.zero;
             bool foundValidPosition = false;
 
-            if (autoScatterOverMap && navMeshData.vertices.Length > 0)
+            // Thử tối đa 12 lần để tìm vị trí nằm NGOÀI vùng an toàn máy bay rơi (cách xa > 120m)
+            for (int attempt = 0; attempt < 12; attempt++)
             {
-                // Cách 1: Tự động rải đều ngẫu nhiên toàn map dựa trên dữ liệu NavMesh
-                int randomIndex = Random.Range(0, navMeshData.vertices.Length);
-                Vector3 randomPoint = navMeshData.vertices[randomIndex];
-
-                NavMeshHit hit;
-                // Kiểm tra lại lần cuối xem điểm đó có chắc chắn nằm trên mặt đất không
-                if (NavMesh.SamplePosition(randomPoint, out hit, 5f, NavMesh.AllAreas))
+                if (autoScatterOverMap && navMeshData.vertices.Length > 0)
                 {
-                    finalPosition = hit.position;
-                    foundValidPosition = true;
-                }
-            }
-            else
-            {
-                // Cách 2: Code cũ (dùng Spawn Points hoặc bắn quanh tâm) nếu tắt autoScatterOverMap
-                Vector3 spawnCenter = transform.position;
+                    int randomIndex = Random.Range(0, navMeshData.vertices.Length);
+                    Vector3 randomPoint = navMeshData.vertices[randomIndex];
 
-                if (spawnPoints != null && spawnPoints.Length > 0)
-                {
-                    int randomIndex = Random.Range(0, spawnPoints.Length);
-                    if (spawnPoints[randomIndex] != null)
+                    NavMeshHit hit;
+                    if (NavMesh.SamplePosition(randomPoint, out hit, 5f, NavMesh.AllAreas))
                     {
-                        spawnCenter = spawnPoints[randomIndex].position;
+                        if (Vector3.Distance(hit.position, CRASH_SITE_CENTER) >= crashSafeRadius)
+                        {
+                            finalPosition = hit.position;
+                            foundValidPosition = true;
+                            break;
+                        }
                     }
                 }
-
-                Vector3 randomDirection = Random.insideUnitSphere * spawnRadius;
-                randomDirection += spawnCenter;
-                
-                NavMeshHit hit;
-                if (NavMesh.SamplePosition(randomDirection, out hit, spawnRadius, NavMesh.AllAreas))
+                else
                 {
-                    finalPosition = hit.position;
-                    foundValidPosition = true;
+                    Vector3 spawnCenter = transform.position;
+
+                    if (spawnPoints != null && spawnPoints.Length > 0)
+                    {
+                        int randomIndex = Random.Range(0, spawnPoints.Length);
+                        if (spawnPoints[randomIndex] != null)
+                        {
+                            spawnCenter = spawnPoints[randomIndex].position;
+                        }
+                    }
+
+                    Vector3 randomDirection = Random.insideUnitSphere * spawnRadius;
+                    randomDirection += spawnCenter;
+                    
+                    NavMeshHit hit;
+                    if (NavMesh.SamplePosition(randomDirection, out hit, spawnRadius, NavMesh.AllAreas))
+                    {
+                        if (Vector3.Distance(hit.position, CRASH_SITE_CENTER) >= crashSafeRadius)
+                        {
+                            finalPosition = hit.position;
+                            foundValidPosition = true;
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -108,7 +154,7 @@ namespace HorrorGame.Enemy
             }
             else
             {
-                Debug.LogWarning("ZombieSpawner: Không tìm thấy mặt đất để đẻ Zombie!");
+                Debug.LogWarning("ZombieSpawner: Không tìm thấy vị trí hợp lệ ngoài vùng an toàn để đẻ Zombie!");
             }
         }
 

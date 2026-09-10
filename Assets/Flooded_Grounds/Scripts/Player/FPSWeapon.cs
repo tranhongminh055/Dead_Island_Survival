@@ -284,6 +284,14 @@ public class FPSWeapon : MonoBehaviour
         }
     }
 
+    public void AddAmmo(int amount)
+    {
+        currentAmmo += amount;
+        weaponNameText = string.Format("+{0} Viên đạn ({1}/{2})", amount, currentAmmo, maxAmmo);
+        weaponNameTimer = 2.5f;
+        Debug.Log("[FPSWeapon] Đã nạp thêm " + amount + " viên đạn! Hiện có: " + currentAmmo);
+    }
+
     public void ToggleWeapon()
     {
         isEquipped = !isEquipped;

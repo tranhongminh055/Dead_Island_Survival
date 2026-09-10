@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc743c008ca2f28498cceb8a6873f822, type: 3}
+  m_Name: medkit_01
+  m_EditorClassIdentifier: 
+  itemID: medkit_01
+  itemName: "B\u0103ng c\u1EE9u th\u01B0\u01A1ng"
+  description: "H\u1ED9p s\u01A1 c\u1EE9u ch\u1EE9a b\u0103ng g\u1EA1c v\xE0 thu\u1ED1c
+    s\xE1t tr\xF9ng. H\u1ED3i ph\u1EE5c +35 M\xE1u."
+  icon: {fileID: 21300000, guid: f7d3e783a5a8cfd43978e452b28567f6, type: 3}
+  itemType: 0
+  isStackable: 1
+  maxStack: 5
+  itemPrefab: {fileID: 0}

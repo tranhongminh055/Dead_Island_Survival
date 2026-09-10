@@ -40,7 +40,19 @@ namespace HorrorGame.Player
 
         private void Update()
         {
-            if (playerStats == null) return;
+            if (playerStats == null)
+            {
+                playerStats = FindObjectOfType<PlayerStats>();
+                if (playerStats != null)
+                {
+                    if (healthSlider != null) healthSlider.maxValue = playerStats.maxHealth;
+                    if (staminaSlider != null) staminaSlider.maxValue = playerStats.maxStamina;
+                    if (hungerSlider != null) hungerSlider.maxValue = playerStats.maxHunger;
+                    if (thirstSlider != null) thirstSlider.maxValue = playerStats.maxThirst;
+                    if (sanitySlider != null) sanitySlider.maxValue = playerStats.maxSanity;
+                }
+                else return;
+            }
 
             // Cập nhật độ dài của các thanh UI liên tục theo thời gian thực
             if (healthSlider != null) healthSlider.value = playerStats.currentHealth;
