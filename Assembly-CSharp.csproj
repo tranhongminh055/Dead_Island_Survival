@@ -108,6 +108,8 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\FlyCam.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\SanityEffects.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\AirplaneCrashSite.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\AirplaneCrashSmoker.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\AutoSaveSystem.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\DayNightCycle.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\ItemSpawner.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\LootChest.cs" />
