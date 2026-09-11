@@ -215,5 +215,67 @@ namespace HorrorGame.Inventory
                 Debug.Log(string.Format("  [INVENTORY DEBUG] Tong cong: {0}/{1} o da su dung", itemCount, slots.Count));
             }
         }
+        /// <summary>
+        /// Đếm tổng số lượng của một item trong inventory (dùng cho Building System)
+        /// </summary>
+        public int GetItemCount(ItemData item)
+        {
+            int total = 0;
+            foreach (InventorySlot slot in slots)
+            {
+                if (slot.item == item && slot.amount > 0)
+                {
+                    total += slot.amount;
+                }
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// Đếm tổng số lượng item theo itemID (dùng khi không có reference trực tiếp)
+        /// </summary>
+        public int GetItemCountByID(string itemID)
+        {
+            int total = 0;
+            foreach (InventorySlot slot in slots)
+            {
+                if (slot.item != null && slot.item.itemID == itemID && slot.amount > 0)
+                {
+                    total += slot.amount;
+                }
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// Trừ số lượng item theo itemID. Trả về true nếu trừ thành công.
+        /// </summary>
+        public bool RemoveItemByID(string itemID, int amountToRemove)
+        {
+            // Kiểm tra đủ số lượng trước
+            if (GetItemCountByID(itemID) < amountToRemove) return false;
+
+            int remaining = amountToRemove;
+            foreach (InventorySlot slot in slots)
+            {
+                if (remaining <= 0) break;
+                if (slot.item != null && slot.item.itemID == itemID && slot.amount > 0)
+                {
+                    if (slot.amount >= remaining)
+                    {
+                        slot.RemoveAmount(remaining);
+                        remaining = 0;
+                    }
+                    else
+                    {
+                        remaining -= slot.amount;
+                        slot.ClearSlot();
+                    }
+                }
+            }
+
+            if (onInventoryChangedEvent != null) onInventoryChangedEvent();
+            return remaining <= 0;
+        }
     }
 }

@@ -8,7 +8,10 @@ namespace HorrorGame.Inventory
         KeyItem,
         Weapon,
         Ammunition,
-        Document
+        Document,
+        Tool,       // Rìu, cuốc, dao...
+        Resource,   // Gỗ, đá, lá cây...
+        Building    // Vật liệu xây dựng
     }
 
     [CreateAssetMenu(fileName = "New Item", menuName = "Horror Game/Inventory/Item Data")]

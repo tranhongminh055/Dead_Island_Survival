@@ -130,6 +130,12 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\PlayerStats.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\PlayerUI.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\WeaponManager.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\AxeController.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\BuildingPrefabGenerator.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\BuildingRecipe.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\BuildingSystem.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\ChoppableTree.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\CollectableStone.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\WaterFloat.cs" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\DepthOfField.shader" />
      <None Include="Assets\Flooded_Grounds\Content\Shaders\FG_PBR_Water.shader" />
