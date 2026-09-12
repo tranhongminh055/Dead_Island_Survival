@@ -40,11 +40,19 @@ namespace HorrorGame.Cutscenes
 
         private void Start()
         {
+            if (wingStrobeLight != null)
+            {
+                // Giới hạn tầm phát sáng trong bán kính 2.5m tại đầu cánh.
+                // Vì đầu cánh cách thân cabin hơn 8.5m nên ánh sáng chớp chỉ hoạt động bên ngoài trời,
+                // tuyệt đối không lọt vào hay rọi sáng nhấp nháy bên trong khoang cabin.
+                wingStrobeLight.range = 2.5f;
+            }
+
             if (wingNavLight != null)
             {
                 wingNavLight.color = new Color(1f, 0.05f, 0.05f);
                 wingNavLight.intensity = 2.0f;
-                wingNavLight.range = 5f;
+                wingNavLight.range = 2.5f;
             }
 
             if (engineGlowLight != null)
@@ -137,7 +145,8 @@ namespace HorrorGame.Cutscenes
 
             if (wingStrobeLight != null)
             {
-                wingStrobeLight.intensity = isFlash ? 6.0f : 0f;
+                wingStrobeLight.range = 2.5f;
+                wingStrobeLight.intensity = isFlash ? 3.0f : 0f;
             }
 
             if (wingStrobeRenderer != null)

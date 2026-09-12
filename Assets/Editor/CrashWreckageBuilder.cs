@@ -268,8 +268,9 @@ namespace HorrorGame.EditorTools
             psVel.x = new ParticleSystem.MinMaxCurve(0.8f);
             psVel.z = new ParticleSystem.MinMaxCurve(0.5f);
 
-            // 2. Cột khói thể tích cao 140m vươn cao ngất trên ngọn cây (nhìn thấy từ mọi góc trên đảo)
-            BuildVolumetricSmokePillar(smokeRoot.transform, matSmoke);
+            // 2. Không dựng các tấm quad gạch chéo trắng (Volumetric_Smoke_Pillar) nữa,
+            // cột khói sử dụng hoàn toàn hệ thống hạt tự nhiên (ParticleSystem) và tàn lửa (Embers)
+            // BuildVolumetricSmokePillar(smokeRoot.transform, matSmoke);
 
             // 3. Tàn lửa đỏ bay lơ lửng trong đám khói (Embers)
             BuildFireEmbers(smokeRoot.transform);
@@ -557,36 +558,35 @@ namespace HorrorGame.EditorTools
             return mat;
         }
 
+        [MenuItem("Horror Game/💨 Xóa Bỏ Gạch Chéo Trắng Cột Khói (Remove Smoke Cross)")]
+        public static void RemoveSmokeCrossPlates()
+        {
+            int count = 0;
+            GameObject pillar = GameObject.Find("Volumetric_Smoke_Pillar");
+            if (pillar != null)
+            {
+                Undo.DestroyObjectImmediate(pillar);
+                count++;
+            }
+
+            for (int b = 0; b < 10; b++)
+            {
+                GameObject q = GameObject.Find("SmokeSheet_" + b);
+                if (q != null)
+                {
+                    Undo.DestroyObjectImmediate(q);
+                    count++;
+                }
+            }
+
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            EditorSceneManager.SaveOpenScenes();
+            Debug.Log("<color=green><b>[SUCCESS]</b></color> Đã xóa bỏ hoàn toàn " + count + " đối tượng gạch chéo trắng của cột khói!");
+        }
+
         private static void BuildVolumetricSmokePillar(Transform parent, Material matSmoke)
         {
-            GameObject pillarRoot = new GameObject("Volumetric_Smoke_Pillar");
-            pillarRoot.transform.SetParent(parent, false);
-            pillarRoot.transform.localPosition = Vector3.zero;
-            pillarRoot.transform.localRotation = Quaternion.identity;
-
-            float height = 140f;
-            float baseW  = 4.5f;
-            float topW   = 28.0f;
-
-            // Dựng 4 cặp mặt phẳng chữ thập chéo uốn lượn để thấy cột khói từ mọi góc nhìn trên đảo
-            for (int b = 0; b < 4; b++)
-            {
-                GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                quad.name = "SmokeSheet_" + b;
-                quad.transform.SetParent(pillarRoot.transform, false);
-                quad.transform.localPosition = new Vector3(0, 0, height * 0.5f);
-                quad.transform.localScale = new Vector3(Mathf.Lerp(baseW, topW, 0.5f), height, 1f);
-                quad.transform.localRotation = Quaternion.Euler(0, 0, b * 45f);
-
-                Renderer r = quad.GetComponent<Renderer>();
-                if (r != null)
-                {
-                    r.sharedMaterial = matSmoke;
-                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                    r.receiveShadows = false;
-                }
-                DestroyImmediate(quad.GetComponent<Collider>());
-            }
+            // Đã loại bỏ hoàn toàn việc tạo các tấm quad gạch chéo trắng (SmokeSheet)
         }
 
         private static void BuildFireEmbers(Transform parent)

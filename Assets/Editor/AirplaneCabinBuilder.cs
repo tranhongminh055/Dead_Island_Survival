@@ -887,8 +887,8 @@ namespace HorrorGame.EditorTools
             Light navRedL = navRedObj.AddComponent<Light>();
             navRedL.type = LightType.Point;
             navRedL.color = Color.red;
-            navRedL.range = 8.0f;
-            navRedL.intensity = 3.0f;
+            navRedL.range = 2.5f;
+            navRedL.intensity = 2.5f;
             exteriorComp.wingNavLight = navRedL;
 
             // Đèn chớp trắng chống va chạm cực mạnh (Anti-Collision Xenon Strobe)
@@ -896,7 +896,7 @@ namespace HorrorGame.EditorTools
             Light strobeL = strobeObj.AddComponent<Light>();
             strobeL.type = LightType.Point;
             strobeL.color = Color.white;
-            strobeL.range = 50.0f;
+            strobeL.range = 2.5f;
             strobeL.intensity = 0f;
             exteriorComp.wingStrobeLight = strobeL;
             exteriorComp.wingStrobeRenderer = strobeObj.GetComponent<Renderer>();

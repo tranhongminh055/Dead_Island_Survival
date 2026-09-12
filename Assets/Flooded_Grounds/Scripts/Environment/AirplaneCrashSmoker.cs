@@ -70,6 +70,21 @@ namespace HorrorGame.Environment
         {
             // Tự động tìm hạt con nếu chưa kéo thả vào Inspector
             AutoDetectComponents();
+
+            // Tự động xóa sạch các tấm quad gạch chéo trắng (Volumetric_Smoke_Pillar & SmokeSheet) nếu còn tồn tại
+            GameObject pillar = GameObject.Find("Volumetric_Smoke_Pillar");
+            if (pillar != null)
+            {
+                Destroy(pillar);
+            }
+            for (int b = 0; b < 10; b++)
+            {
+                GameObject q = GameObject.Find("SmokeSheet_" + b);
+                if (q != null)
+                {
+                    Destroy(q);
+                }
+            }
         }
 
         private void Start()
