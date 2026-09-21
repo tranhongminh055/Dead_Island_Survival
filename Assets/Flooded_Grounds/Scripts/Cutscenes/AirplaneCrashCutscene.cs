@@ -61,7 +61,7 @@ namespace HorrorGame.Cutscenes
         [Tooltip("Độ nhạy lia chuột khi ngồi trong khoang máy bay")]
         public float cabinMouseSensitivity = 2.0f;
         [Tooltip("Cho phép người chơi tự do lia chuột quan sát toàn bộ khoang cabin thay vì tự động xoay đầu")]
-        public bool enableCabinFreeLook = true;
+        public bool enableCabinFreeLook = false;
 
         [Header("── Camera Pan (Dự phòng khi tắt Mouse Look) ──")]
         [Tooltip("Transform của Camera dùng trong cutscene (thường là Main Camera / FPS Camera)")]
@@ -165,8 +165,14 @@ namespace HorrorGame.Cutscenes
         }
 #endif
 
+        private Material originalSkybox;
+        private UnityEngine.Rendering.AmbientMode originalAmbientMode;
+        private float originalAmbientIntensity;
         private void Start()
         {
+            enableCabinFreeLook = false;
+            enableCabinFreeLook = false;
+
             if (audioSource == null)
                 audioSource = gameObject.AddComponent<AudioSource>();
 
@@ -197,14 +203,22 @@ namespace HorrorGame.Cutscenes
                 Camera cam = playerController.GetComponentInChildren<Camera>();
                 if (cam != null)
                 {
+                    // FIX: NÃ¡ÂºÂ¿u game Ã„â€˜ÃƒÂ£ bÃ¡Â»â€¹ lÃ¡Â»â€”i tÃ¡Â»Â« lÃ¡ÂºÂ§n test trÃ†Â°Ã¡Â»â€ºc, originalCamLocalPos sÃ¡ÂºÂ½ bÃ¡Â»â€¹ sai.
+                    // Ta giÃ¡ÂºÂ£ Ã„â€˜Ã¡Â»â€¹nh gÃƒÂ³c nhÃƒÂ¬n FPS chuÃ¡ÂºÂ©n cÃƒÂ³ localPosition gÃ¡ÂºÂ§n vÃ¡Â»â€ºi Vector3.zero (nÃ¡ÂºÂ¿u gÃ¡ÂºÂ¯n vÃƒÂ o Head)
+                    // hoÃ¡ÂºÂ·c (0, 1.6f, 0) nÃ¡ÂºÂ¿u gÃ¡ÂºÂ¯n vÃƒÂ o Root. Ta sÃ¡ÂºÂ½ kiÃ¡Â»Æ’m tra y Ã„â€˜Ã¡Â»Æ’ tÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng thÃƒÂ­ch Ã¡Â»Â©ng.
                     originalCamLocalPos = cam.transform.localPosition;
-                    originalCamLocalRot = cam.transform.localRotation;
+                    originalCamLocalRot = Quaternion.identity; // LuÃƒÂ´n reset gÃƒÂ³c nhÃƒÂ¬n thÃ¡ÂºÂ³ng vÃ¡Â»Â phÃƒÂ­a trÃ†Â°Ã¡Â»â€ºc
                     hasSavedCamTransform = true;
                 }
             }
 
             // Khoá người chơi ngay
-            if (playerController != null) playerController.enabled = false;
+            if (playerController != null)
+            {
+                playerController.enabled = false;
+                Animator anim = playerController.GetComponentInChildren<Animator>();
+                if (anim != null) anim.enabled = false;
+            }
             if (playerWeapon     != null) playerWeapon.enabled     = false;
 
             // Đảm bảo người chơi luôn ngồi chính xác vào ghế 12A trong cabin máy bay khi bắt đầu cutscene
@@ -219,8 +233,8 @@ namespace HorrorGame.Cutscenes
             // Ẩn mô hình nhân vật (mũ cối, giáp) để camera góc nhìn thứ nhất không bị che khuất
             SetPlayerRenderersVisible(false);
 
-            // Màn hình đen hoàn toàn
-            SetBlackAlpha(1f);
+            // TÃ¡ÂºÂ¯t luÃƒÂ´n mÃƒÂ n hÃƒÂ¬nh Ã„â€˜en tÃ¡Â»Â« frame Ã„â€˜Ã¡ÂºÂ§u tiÃƒÂªn Ã„â€˜Ã¡Â»Æ’ trailer hiÃ¡Â»â€¡n ra lÃ¡ÂºÂ­p tÃ¡Â»Â©c
+            SetBlackAlpha(0f);
             SetWhiteAlpha(0f);
 
             // Tắt đèn báo động & cabin
@@ -299,6 +313,11 @@ namespace HorrorGame.Cutscenes
             SetPlayerInvincible(false);
             SetGameplayUIVisible(true);
             SetPlayerRenderersVisible(true);
+            if (playerController != null)
+            {
+                Animator anim = playerController.GetComponentInChildren<Animator>();
+                if (anim != null) anim.enabled = true;
+            }
         }
 
         private void OnDestroy()
@@ -310,6 +329,11 @@ namespace HorrorGame.Cutscenes
             SetPlayerInvincible(false);
             SetGameplayUIVisible(true);
             SetPlayerRenderersVisible(true);
+            if (playerController != null)
+            {
+                Animator anim = playerController.GetComponentInChildren<Animator>();
+                if (anim != null) anim.enabled = true;
+            }
         }
 
         private void SetPlayerInvincible(bool invincible)
@@ -328,10 +352,16 @@ namespace HorrorGame.Cutscenes
 
         private IEnumerator PlayCutscene()
         {
-            // ── PHASE 1 | 0.0 – 2.0s | FADE IN CABIN ──────────────
-            // Tiếng động cơ bật lên ngay lúc còn màn đen → immersive
+            // Ã¢â€â‚¬Ã¢â€â‚¬ PHASE 1 | BÃ¡ÂºÂ®T Ã„ÂÃ¡ÂºÂ¦U NGAY KHÃƒâ€NG Ã„ÂÃ¡Â»â€š MÃƒâ‚¬N HÃƒÅ’NH Ã„ÂEN LÃƒâ€šU Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
             PlayLoop(airplaneFlightClip);
-            yield return StartCoroutine(FadeBlack(1f, 0f, fadeInDuration));
+            
+            // HiÃ¡Â»â€¡n ngay lÃ¡ÂºÂ­p tÃ¡Â»Â©c, khÃƒÂ´ng fade Ã„â€˜en dÃƒÂ i 2s nÃ¡Â»Â¯a
+            if (blackScreenUI != null)
+            {
+                blackScreenUI.color = new Color(0, 0, 0, 0);
+                blackScreenUI.gameObject.SetActive(false);
+            }
+            yield return null;
 
             // ── PHASE 2 | CƠ TRƯỞNG PHÁT THANH & TỰ DO LIA CHUỘT QUAN SÁT CABIN ──
             if (captainAnnouncementClip != null)
@@ -387,9 +417,12 @@ namespace HorrorGame.Cutscenes
             if (oxygenMaskClip != null)
                 audioSource.PlayOneShot(oxygenMaskClip, 0.8f);
 
-            // Rung cực mạnh, dập dềnh hoảng loạn (người chơi vẫn có thể lia chuột hoảng loạn nhìn quanh)
+            // Rung cÃ¡Â»Â±c mÃ¡ÂºÂ¡nh, dÃ¡ÂºÂ­p dÃ¡Â»Ânh hoÃ¡ÂºÂ£ng loÃ¡ÂºÂ¡n
             if (cameraShake != null)
                 cameraShake.StartShake(alarmDuration - 0.5f, 0.55f, 3.0f);
+
+            // TÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng cÃƒÂºi rÃ¡ÂºÂ¡p ngÃ†Â°Ã¡Â»Âi xuÃ¡Â»â€˜ng ÃƒÂ´m Ã„â€˜Ã¡ÂºÂ§u trong lÃƒÂºc hoÃ¡ÂºÂ£ng loÃ¡ÂºÂ¡n
+            StartCoroutine(CrouchAndBrace(2.0f));
 
             // Đèn đỏ chớp tắt dồn dập (nhịp càng lúc càng nhanh)
             yield return StartCoroutine(AlarmRedFlicker(alarmDuration - 0.5f));
@@ -422,10 +455,8 @@ namespace HorrorGame.Cutscenes
             SetWhiteAlpha(0f);
             SetWarningLights(false);
 
-            // Tắt cabin máy bay & dịch chuyển nhân vật xuống rừng
-            if (airplaneCabin != null)
-                airplaneCabin.SetActive(false);
-
+            // DÃ¡Â»â€¹ch chuyÃ¡Â»Æ’n nhÃƒÂ¢n vÃ¡ÂºÂ­t vÃƒÂ  xÃƒÂ¡c C400 xuÃ¡Â»â€˜ng rÃ¡Â»Â«ng
+            // (KhÃƒÂ´ng tÃ¡ÂºÂ¯t airplaneCabin vÃƒÂ¬ ta cÃ¡ÂºÂ§n dÃƒÂ¹ng nÃƒÂ³ lÃƒÂ m xÃƒÂ¡c rÃ¡Â»â€”ng)
             AirplaneCabinExterior extToHide = FindObjectOfType<AirplaneCabinExterior>();
             if (extToHide != null)
                 extToHide.gameObject.SetActive(false);
@@ -635,6 +666,31 @@ namespace HorrorGame.Cutscenes
             audioSource.Play();
         }
 
+        private IEnumerator CrouchAndBrace(float duration)
+        {
+            if (cutsceneCamera == null) yield break;
+
+            Vector3 startPos = cutsceneCamera.localPosition;
+            Quaternion startRot = cutsceneCamera.localRotation;
+
+            // CÃƒÂºi gÃ¡ÂºÂ­p hÃ¡ÂºÂ³n ngÃ†Â°Ã¡Â»Âi xuÃ¡Â»â€˜ng ÃƒÂ´m Ã„â€˜Ã¡ÂºÂ§u (HÃ¡ÂºÂ¡ thÃ¡ÂºÂ¥p 1.1 mÃƒÂ©t vÃƒÂ  nhÃƒÂ¬n gÃ¡ÂºÂ­p xuÃ¡Â»â€˜ng 65 Ã„â€˜Ã¡Â»â„¢)
+            Vector3 targetPos = new Vector3(startPos.x, Mathf.Max(0.2f, startPos.y - 1.1f), startPos.z);
+            Quaternion targetRot = Quaternion.Euler(65f, 0f, 0f);
+
+            float t = 0;
+            while (t < duration)
+            {
+                t += Time.deltaTime;
+                float normalizedTime = Mathf.Clamp01(t / duration);
+                // DÃƒÂ¹ng Ã„â€˜Ã†Â°Ã¡Â»Âng cong mÃ†Â°Ã¡Â»Â£t (SmoothStep)
+                float curve = normalizedTime * normalizedTime * (3f - 2f * normalizedTime);
+
+                cutsceneCamera.localPosition = Vector3.Lerp(startPos, targetPos, curve);
+                cutsceneCamera.localRotation = Quaternion.Lerp(startRot, targetRot, curve);
+                yield return null;
+            }
+        }
+
         private void SeatPlayerInAirplane()
         {
             if (playerController == null)
@@ -642,109 +698,139 @@ namespace HorrorGame.Cutscenes
 
             if (airplaneCabin == null)
             {
-                airplaneCabin = GameObject.Find("Realistic_Airplane_Cabin");
+                airplaneCabin = GameObject.Find("[C400_AIRPLANE_CABIN]");
+                
+#if UNITY_EDITOR
+                // Tự động load mô hình C400 vào scene nếu chưa có
+                if (airplaneCabin == null)
+                {
+                    GameObject c400Prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Flooded_Grounds/c-400/source/c-400.fbx");
+                    if (c400Prefab != null)
+                    {
+                        // Luôn đưa máy bay lên bầu trời (Y=1000) để không bị đâm xuyên xuống nhà cửa dưới mặt đất
+                        Vector3 spawnPos = new Vector3(0f, 1000f, 0f);
+                        
+                        GameObject oldCabin = GameObject.Find("Temp_AirplaneCabin");
+                        if (oldCabin != null) 
+                        {
+                            oldCabin.SetActive(false); // Ẩn máy bay cũ để không bị ghế xanh
+                        }
+                        GameObject oldCabin2 = GameObject.Find("Realistic_Airplane_Cabin");
+                        if (oldCabin2 != null) oldCabin2.SetActive(false);
+                        
+                        airplaneCabin = Instantiate(c400Prefab, spawnPos, Quaternion.identity);
+                        airplaneCabin.name = "[C400_AIRPLANE_CABIN]";
+                        // Scale x10 vì x100 quá to bao phủ cả map
+                        airplaneCabin.transform.localScale = new Vector3(10f, 10f, 10f);
+                    }
+                }
+#endif
+
+                if (airplaneCabin == null) airplaneCabin = GameObject.Find("Realistic_Airplane_Cabin");
                 if (airplaneCabin == null) airplaneCabin = GameObject.Find("Temp_AirplaneCabin");
             }
 
             if (airplaneCabin != null)
             {
                 airplaneCabin.SetActive(true);
-                // Đảm bảo cửa sổ không bị bít kín và có ngoại cảnh cánh + động cơ + đèn chớp + mây trôi
+                // C400 cÃƒÂ³ thÃ¡Â»Æ’ rÃ¡Â»â€”ng hoÃ¡ÂºÂ·c khÃƒÂ´ng cÃƒÂ³ cÃ¡Â»Â­a sÃ¡Â»â€¢/bÃ¡ÂºÂ§u trÃ¡Â»Âi, nÃƒÂªn ta BÃ¡ÂºÂ¬T LÃ¡ÂºÂ I hÃ¡Â»â€¡ thÃ¡Â»â€˜ng giÃ¡ÂºÂ£ lÃ¡ÂºÂ­p mÃƒÂ´i trÃ†Â°Ã¡Â»Âng bay!
                 EnsureCabinExteriorAndWindowTransparency(airplaneCabin);
+                
             }
 
-            // Tìm vị trí ngồi chuẩn trên Ghế 12A (Ghế sát cửa sổ mạn trái)
-            Vector3 targetSeatPos = Vector3.zero;
-            bool foundSeat = false;
+            Vector3 standPos = Vector3.zero;
+            Quaternion standRot = Quaternion.identity;
 
             if (airplaneCabin != null)
             {
-                // 1. Tìm dãy ghế hàng 12 bên trái: TripleSeat_L_Row_12 -> Seat_A
-                Transform row12 = airplaneCabin.transform.Find("TripleSeat_L_Row_12");
-                if (row12 != null)
+                Transform alignPivot = airplaneCabin.transform.Find("CabinAlignmentPivot");
+                if (alignPivot != null)
                 {
-                    Transform seatA = row12.Find("Seat_A");
-                    if (seatA != null)
-                    {
-                        targetSeatPos = seatA.position + Vector3.up * 0.12f;
-                        foundSeat = true;
-                    }
+                    standPos = alignPivot.position;
+                    standRot = alignPivot.rotation;
                 }
-
-                // 2. Tìm điểm neo PlayerCutsceneSeat nếu đã được đặt sát cửa sổ (-X)
-                if (!foundSeat)
+                else
                 {
-                    Transform anchor = airplaneCabin.transform.Find("PlayerCutsceneSeat");
-                    if (anchor != null && anchor.localPosition.x < -1.2f)
+                    standPos = airplaneCabin.transform.position;
+                    if (airplaneCabin.name == "[C400_AIRPLANE_CABIN]")
                     {
-                        targetSeatPos = anchor.position;
-                        foundSeat = true;
-                    }
-                }
-
-                // 3. Tìm dãy ghế hàng 11 bên trái
-                if (!foundSeat)
-                {
-                    Transform row11 = airplaneCabin.transform.Find("TripleSeat_L_Row_11");
-                    if (row11 != null)
-                    {
-                        Transform seatA = row11.Find("Seat_A");
-                        if (seatA != null)
+                        Renderer[] renderers = airplaneCabin.GetComponentsInChildren<Renderer>();
+                        if (renderers.Length > 0)
                         {
-                            targetSeatPos = seatA.position + Vector3.up * 0.12f;
-                            foundSeat = true;
+                            Bounds bounds = renderers[0].bounds;
+                            for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
+                            standPos = bounds.center; // Đưa vào chính giữa khoang
+                            
+                            // Gắn tạm MeshCollider để bắn tia dò tìm mặt sàn
+                            System.Collections.Generic.List<MeshCollider> tempColliders = new System.Collections.Generic.List<MeshCollider>();
+                            foreach(var r in renderers) {
+                                if (r.gameObject.GetComponent<Collider>() == null) {
+                                    tempColliders.Add(r.gameObject.AddComponent<MeshCollider>());
+                                }
+                            }
+                            
+                            RaycastHit hit;
+                            if (Physics.Raycast(bounds.center, Vector3.down, out hit, 1000f)) {
+                                standPos.y = hit.point.y + 0.1f;
+                            } else {
+                                standPos.y = airplaneCabin.transform.position.y;
+                            }
+                            
+                            foreach(var mc in tempColliders) {
+                                Destroy(mc);
+                            }
                         }
                     }
+                    standRot = airplaneCabin.transform.rotation;
                 }
-
-                // 4. Fallback tọa độ chuẩn tuyệt đối của đệm ghế 12A trong cabin: (-1.62m, 0.15m, -2.75m)
-                if (!foundSeat)
+            }
+            if (airplaneCabin != null)
+            {
+                // TÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng tÃ¡ÂºÂ¡o mÃ¡Â»â„¢t cÃƒÂ¡i Ã„â€˜ÃƒÂ¨n thÃ¡ÂºÂ¯p sÃƒÂ¡ng khoang C400 Ã„â€˜Ã¡Â»Æ’ khÃƒÂ´ng bÃ¡Â»â€¹ Ã„â€˜en thui
+                GameObject interiorLight = GameObject.Find("C400_InteriorLight");
+                if (interiorLight == null)
                 {
-                    targetSeatPos = airplaneCabin.transform.TransformPoint(new Vector3(-1.62f, 0.15f, -2.75f));
-                    foundSeat = true;
+                    interiorLight = new GameObject("C400_InteriorLight");
+                    interiorLight.transform.SetParent(airplaneCabin.transform);
+                    interiorLight.transform.position = standPos + new Vector3(0, 2f, 0); // Ã„ÂÃ¡ÂºÂ·t Ã„â€˜ÃƒÂ¨n trÃƒÂªn Ã„â€˜Ã¡ÂºÂ§u 2m
+                    Light lit = interiorLight.AddComponent<Light>();
+                    lit.type = LightType.Point;
+                    lit.range = 25f;
+                    lit.intensity = 1.2f;
+                    lit.color = new Color(1f, 0.95f, 0.9f); // ÃƒÂnh sÃƒÂ¡ng vÃƒÂ ng Ã¡ÂºÂ¥m cÃ¡Â»Â§a Ã„â€˜ÃƒÂ¨n cabin
+                    lit.shadows = LightShadows.Soft;
+
+                    System.Collections.Generic.List<Light> lightsList = new System.Collections.Generic.List<Light>(cabinLights);
+                    lightsList.Add(lit);
+                    cabinLights = lightsList.ToArray();
                 }
             }
 
-            if (playerController != null && foundSeat)
+            if (playerController != null)
             {
-                // Tắt CharacterController tạm thời để teleport không bị va chạm ghi đè vị trí
+                // TÃ¡ÂºÂ¯t Component ngÃ¡Â»â€œi Ã„â€˜Ã¡Â»Æ’ nhÃƒÂ¢n vÃ¡ÂºÂ­t chuyÃ¡Â»Æ’n sang trÃ¡ÂºÂ¡ng thÃƒÂ¡i Ã„ÂÃ¡Â»Â©ng
+                AirplanePassengerSeatPose seatPose = playerController.GetComponent<AirplanePassengerSeatPose>();
+                if (seatPose != null)
+                {
+                    seatPose.StandUp();
+                    Destroy(seatPose);
+                }
+
                 CharacterController cc = playerController.GetComponent<CharacterController>();
                 if (cc != null) cc.enabled = false;
+
+                playerController.transform.position = standPos;
+                playerController.transform.rotation = standRot;
 
                 Camera cam = playerController.GetComponentInChildren<Camera>();
                 if (cam != null)
                 {
-                    // ═══════════════════════════════════════════════════════════
-                    // TÍNH TOÁN VỊ TRÍ CHÍNH XÁC ĐỂ CAMERA ĐÚNG TẦM MẮT CỬA SỔ
-                    // ═══════════════════════════════════════════════════════════
-                    // Camera nằm ở đâu đó trong hierarchy (thường ~1.6m trên player root)
-                    // Ta cần đặt player root sao cho camera = tầm mắt hành khách ngồi ghế
-                    //
-                    // Tầm mắt chuẩn = bậu cửa sổ + nửa chiều cao cửa sổ = 0.82 + 0.78/2 = 1.21m
-                    // (đo từ sàn cabin)
-
-                    float eyeHeightFromFloor = 1.21f; // Ngang tâm cửa sổ bầu dục
-
-                    // Offset Y giữa camera và player root (VD: camera ở Y=1.6 thì offset = 1.6)
-                    float camOffsetY = cam.transform.position.y - playerController.transform.position.y;
-                    if (camOffsetY < 0.1f) camOffsetY = 1.6f; // Fallback an toàn
-
-                    // Vị trí player root cần đặt để camera nằm đúng eyeHeight
-                    // cabinFloorWorldY = airplaneCabin root Y + 0.05 (sàn hơi nhô lên)
-                    float cabinFloorY = airplaneCabin != null ? airplaneCabin.transform.position.y + 0.05f : targetSeatPos.y;
-                    float targetPlayerY = cabinFloorY + eyeHeightFromFloor - camOffsetY;
-
-                    // Vị trí X,Z lấy từ ghế (targetSeatPos đã đúng X,Z)
-                    Vector3 finalPos = new Vector3(targetSeatPos.x, targetPlayerY, targetSeatPos.z);
-                    playerController.transform.position = finalPos;
-                    playerController.transform.rotation = Quaternion.identity;
-
                     cutsceneCamera = cam.transform;
+                    cam.transform.localPosition = new Vector3(0f, 1.6f, 0f);
 
-                    // Góc nhìn ban đầu: Quay sang trái ra cửa sổ
-                    // -55° đủ thấy cửa sổ nằm giữa tầm nhìn + cánh máy bay
-                    cabinLookYaw   = -55f;
-                    cabinLookPitch = 0f; // Nhìn ngang tầm mắt — thẳng ra cửa sổ
+                    // GÃƒÂ³c nhÃƒÂ¬n ban Ã„â€˜Ã¡ÂºÂ§u thÃ¡ÂºÂ³ng theo hÃ†Â°Ã¡Â»â€ºng thÃƒÂ¢n nhÃƒÂ¢n vÃ¡ÂºÂ­t (local yaw = 0)
+                    cabinLookYaw   = 0f;
+                    cabinLookPitch = 0f; 
                     cam.transform.localRotation = Quaternion.Euler(cabinLookPitch, cabinLookYaw, 0f);
                     cam.fieldOfView = 60f;
 
@@ -825,36 +911,48 @@ namespace HorrorGame.Cutscenes
             matShade.color = new Color(0.88f, 0.88f, 0.90f);
             matShade.SetFloat("_Glossiness", 0.35f);
 
+            // TÃ¡ÂºÂ O PIVOT Ã„ÂÃ¡Â»â€š HÃ¡ÂºÂ  TOÃƒâ‚¬N BÃ¡Â»Ëœ FAKE CABIN & NGOÃ¡ÂºÂ I CÃ¡ÂºÂ¢NH XUÃ¡Â»ÂNG SÃƒâ‚¬N
+            // VÃƒÂ¬ FBX C400 thÃ†Â°Ã¡Â»Âng cÃƒÂ³ tÃƒÂ¢m Ã¡Â»Å¸ chÃƒÂ­nh giÃ¡Â»Â¯a bÃ¡Â»Â¥ng mÃƒÂ¡y bay nÃƒÂªn Y=0 lÃƒÂ  Ã„â€˜ang lÃ†Â¡ lÃ¡Â»Â­ng.
+            Transform alignPivot = cabin.transform.Find("CabinAlignmentPivot");
+            if (alignPivot == null)
+            {
+                GameObject pivotObj = new GameObject("CabinAlignmentPivot");
+                pivotObj.transform.SetParent(cabin.transform, false);
+                pivotObj.transform.localPosition = new Vector3(0, -1.5f, 0); // HÃ¡ÂºÂ¡ 1.5m xuÃ¡Â»â€˜ng sÃƒÂ n
+                alignPivot = pivotObj.transform;
+            }
+
             // 2. KIỂM TRA VÀ TỰ ĐỘNG NÂNG CẤP VÁCH TƯỜNG TRÁI & PHẢI SANG CỬA SỔ BẦU DỤC THỰC TẾ
-            // QUAN TRỌNG: Dùng CÙNG kích thước với Editor Builder (4.10m x 17.5m x 2.45m)
-            // để tường runtime không bị lệch / tạo lớp thứ 2 che khuất cửa sổ!
-            float cabinW = 4.10f;
-            float cabinL = 17.5f;
-            float cabinH = 2.45f;
-
-            Transform wallLeft = cabin.transform.Find("Wall_Left");
-            bool needRebuildLeft = (wallLeft == null) || (wallLeft.Find("Window_0") != null) || (wallLeft.Find("OvalBay_0") == null);
-            if (needRebuildLeft)
+            if (cabin.name != "[C400_AIRPLANE_CABIN]") 
             {
-                if (wallLeft != null) Destroy(wallLeft.gameObject);
-                BuildRuntimeSeamlessCurvedWall(cabin, true, cabinW, cabinL, cabinH, matWall, matBezel, matGlass, matShade);
+                float cabinW = 4.10f;
+                float cabinL = 17.5f;
+                float cabinH = 2.45f;
+
+                Transform wallLeft = alignPivot.Find("Wall_Left");
+                bool needRebuildLeft = (wallLeft == null) || (wallLeft.Find("Window_0") != null) || (wallLeft.Find("OvalBay_0") == null);
+                if (needRebuildLeft)
+                {
+                    if (wallLeft != null) Destroy(wallLeft.gameObject);
+                    BuildRuntimeSeamlessCurvedWall(alignPivot.gameObject, true, cabinW, cabinL, cabinH, matWall, matBezel, matGlass, matShade);
+                }
+
+                Transform wallRight = alignPivot.Find("Wall_Right");
+                bool needRebuildRight = (wallRight == null) || (wallRight.Find("Window_0") != null) || (wallRight.Find("OvalBay_0") == null);
+                if (needRebuildRight)
+                {
+                    if (wallRight != null) Destroy(wallRight.gameObject);
+                    BuildRuntimeSeamlessCurvedWall(alignPivot.gameObject, false, cabinW, cabinL, cabinH, matWall, matBezel, matGlass, matShade);
+                }
             }
 
-            Transform wallRight = cabin.transform.Find("Wall_Right");
-            bool needRebuildRight = (wallRight == null) || (wallRight.Find("Window_0") != null) || (wallRight.Find("OvalBay_0") == null);
-            if (needRebuildRight)
-            {
-                if (wallRight != null) Destroy(wallRight.gameObject);
-                BuildRuntimeSeamlessCurvedWall(cabin, false, cabinW, cabinL, cabinH, matWall, matBezel, matGlass, matShade);
-            }
-
-            // 3. LUÔN LÀM MỚI VÀ ĐẢM BẢO NGOẠI CẢNH (CÁNH + ĐỘNG CƠ CFM56 + ĐÈN CHỚP + MÂY) Ở TẦM MẮT CHUẨN
+            // 3. 
             AirplaneCabinExterior[] oldExteriors = cabin.GetComponentsInChildren<AirplaneCabinExterior>(true);
             foreach (var oldExt in oldExteriors)
             {
                 if (oldExt != null) Destroy(oldExt.gameObject);
             }
-            BuildRuntimeExterior(cabin);
+            BuildRuntimeExterior(alignPivot.gameObject);
         }
 
         /// <summary>
@@ -1253,23 +1351,6 @@ namespace HorrorGame.Cutscenes
             // 3. ĐÈN HÀNG KHÔNG ĐẦU CÁNH (AVIATION LIGHTS)
             // ═════════════════════════════════════════════════════════════════
             // Đèn định vị đỏ mạn trái (Port Nav Light - Red)
-            GameObject navRedObj = CreateRuntimeBox("NavLight_Red", wing.transform, new Vector3(-10.6f, 1.30f, -4.6f), new Vector3(0.12f, 0.12f, 0.16f), matNavRed);
-            Light navRedL = navRedObj.AddComponent<Light>();
-            navRedL.type = LightType.Point;
-            navRedL.color = Color.red;
-            navRedL.range = 2.5f;
-            navRedL.intensity = 2.5f;
-            extComp.wingNavLight = navRedL;
-
-            // Đèn chớp chống va chạm trắng (Anti-Collision Strobe)
-            GameObject strobeObj = CreateRuntimeBox("StrobeLight_White", wing.transform, new Vector3(-10.6f, 1.78f, -5.3f), new Vector3(0.12f, 0.12f, 0.16f), matStrobe);
-            Light strobeL = strobeObj.AddComponent<Light>();
-            strobeL.type = LightType.Point;
-            strobeL.color = Color.white;
-            strobeL.range = 2.5f;
-            strobeL.intensity = 0f;
-            extComp.wingStrobeLight = strobeL;
-            extComp.wingStrobeRenderer = strobeObj.GetComponent<Renderer>();
 
             // ═════════════════════════════════════════════════════════════════
             // 4. MÂY TRÔI DƯỚI CÁNH & ÁNH NẮNG RỰC RỠ CHIẾU VÀO CỬA SỔ
@@ -1287,12 +1368,12 @@ namespace HorrorGame.Cutscenes
             List<Transform> clouds = new List<Transform>();
             Vector3[] cloudCoords = new Vector3[]
             {
-                new Vector3(-6.0f,  -0.5f, -24f),
-                new Vector3(-10.0f, -0.2f, -8f),
-                new Vector3(-5.0f,   0.2f,  10f),
-                new Vector3(-12.0f, -0.4f,  28f),
-                new Vector3(-4.5f,   0.0f,  -4f),
-                new Vector3(-9.5f,   0.1f,  16f)
+                new Vector3(-6.0f,  -10.5f, -24f),
+                new Vector3(-10.0f, -12.2f, -8f),
+                new Vector3(-5.0f,  -11.8f,  10f),
+                new Vector3(-12.0f, -14.4f,  28f),
+                new Vector3(-4.5f,  -13.0f,  -4f),
+                new Vector3(-9.5f,  -11.1f,  16f)
             };
             Vector3[] cloudSizes = new Vector3[]
             {
@@ -1374,6 +1455,150 @@ namespace HorrorGame.Cutscenes
                 // Pitch: 2° (nhìn ngang tầm cỏ), Yaw: 5°, Roll: 22° (đầu nghiêng một bên trên nền đất)
                 cam.transform.localRotation = Quaternion.Euler(2f, 5f, 22f);
             }
+            if (airplaneCabin != null && forestSpawnPoint != null)
+            {
+                // DÃ¡Â»â€¹ch chuyÃ¡Â»Æ’n C400 ra xa khÃ¡Â»Âi ngÃ†Â°Ã¡Â»Âi chÃ†Â¡i Ã„â€˜Ã¡Â»Æ’ ngÃ†Â°Ã¡Â»Âi chÃ†Â¡i bÃƒÂ² ngoÃƒÂ i Ã„â€˜Ã¡Â»â€˜ng Ã„â€˜Ã¡Â»â€¢ nÃƒÂ¡t
+                // XÃƒÂ¡c C400 khÃ¡Â»â€¢ng lÃ¡Â»â€œ nÃƒÂªn cÃ¡ÂºÂ§n cÃƒÂ¡ch xa 20m vÃ¡Â»Â phÃƒÂ­a trÃ†Â°Ã¡Â»â€ºc vÃƒÂ  lÃ¡Â»â€¡ch sang trÃƒÂ¡i 10m
+                airplaneCabin.transform.position = forestSpawnPoint.position + (forestSpawnPoint.forward * 20f) - (forestSpawnPoint.right * 10f) + new Vector3(0, 1.5f, 0);
+                
+                // TÃ¡ÂºÂ¡o gÃƒÂ³c nghiÃƒÂªng Ã„â€˜ÃƒÂ¢m chÃƒÂºc Ã„â€˜Ã¡ÂºÂ§u vÃƒÂ  lÃ¡ÂºÂ­t nghiÃƒÂªng thÃƒÂ¢n Ã„â€˜Ã¡Â»Æ’ trÃƒÂ´ng giÃ¡Â»â€˜ng rÃ¡Â»â€ºt thÃ¡ÂºÂ­t
+                airplaneCabin.transform.rotation = forestSpawnPoint.rotation * Quaternion.Euler(-12f, 30f, 25f);
+
+                // XoÃƒÂ¡ bÃ¡Â»Â toÃƒÂ n bÃ¡Â»â„¢ lÃ¡Â»â€ºp tÃ†Â°Ã¡Â»Âng giÃ¡ÂºÂ£, cÃ¡Â»Â­a sÃ¡Â»â€¢ giÃ¡ÂºÂ£ vÃƒÂ  mÃƒÂ¢y bay (CabinAlignmentPivot)
+                Transform alignPivot = airplaneCabin.transform.Find("CabinAlignmentPivot");
+                if (alignPivot != null)
+                {
+                    Destroy(alignPivot.gameObject);
+                }
+
+                // TÃ¡ÂºÂ¡o hiÃ¡Â»â€¡u Ã¡Â»Â©ng chÃƒÂ¡y khÃƒÂ³i cho Ã„â€˜Ã¡Â»â€˜ng Ã„â€˜Ã¡Â»â€¢ nÃƒÂ¡t
+                CreateCrashEffects(airplaneCabin.transform);
+                RenderSettings.skybox = originalSkybox;
+                RenderSettings.ambientMode = originalAmbientMode;
+                RenderSettings.ambientIntensity = originalAmbientIntensity;
+                DynamicGI.UpdateEnvironment();
+            }
+        }
+
+        private void CreateCrashEffects(Transform wreckTarget)
+        {
+            // TÃ¡ÂºÂ¡o ÃƒÂ¡nh sÃƒÂ¡ng lÃ¡Â»Â­a bÃ¡ÂºÂ­p bÃƒÂ¹ng
+            GameObject fireLight = new GameObject("Wreck_FireLight");
+            fireLight.transform.position = wreckTarget.position + new Vector3(0, 5f, 0);
+            Light lit = fireLight.AddComponent<Light>();
+            lit.type = LightType.Point;
+            lit.range = 40f;
+            lit.intensity = 2.5f;
+            lit.color = new Color(1f, 0.4f, 0.1f); // Cam Ã„â€˜Ã¡Â»Â
+            lit.shadows = LightShadows.Soft;
+
+            // ChÃ¡Â»â€ºp tÃ¡ÂºÂ¯t lÃ¡Â»Â­a (Animation Ã„â€˜Ã†Â¡n giÃ¡ÂºÂ£n)
+            var flicker = fireLight.AddComponent<LightFlicker_Runtime>();
+            flicker.lightSource = lit;
+
+            // TÃ¡ÂºÂ¡o khÃƒÂ³i Ã„â€˜en
+            GameObject smokeObj = new GameObject("Wreck_Smoke");
+            smokeObj.transform.position = wreckTarget.position + new Vector3(0, 2f, 0);
+            smokeObj.transform.rotation = Quaternion.Euler(-90f, 0, 0); // HÃ†Â°Ã¡Â»â€ºng lÃƒÂªn
+            ParticleSystem ps = smokeObj.AddComponent<ParticleSystem>();
+            ps.Stop();
+            var main = ps.main;
+            main.duration = 5f;
+            main.loop = true;
+            main.startLifetime = 10f;
+            main.startSpeed = 8f;
+            main.startSize = 2f;
+            main.startColor = new Color(0.1f, 0.1f, 0.1f, 0.6f);
+            main.maxParticles = 200;
+            var emission = ps.emission;
+            emission.rateOverTime = 20f;
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 15f;
+            shape.radius = 2f;
+            Shader smokeShader = Shader.Find("Particles/Standard Unlit");
+            if (smokeShader == null) smokeShader = Shader.Find("Legacy Shaders/Particles/Alpha Blended");
+            if (smokeShader == null) smokeShader = Shader.Find("Mobile/Particles/Alpha Blended");
+            if (smokeShader != null) {
+                Material smokeMat = new Material(smokeShader);
+                smokeMat.color = new Color(0.1f, 0.1f, 0.1f, 0.6f);
+                if (smokeMat.HasProperty("_TintColor")) smokeMat.SetColor("_TintColor", new Color(0.1f, 0.1f, 0.1f, 0.6f));
+                ps.GetComponent<ParticleSystemRenderer>().sharedMaterial = smokeMat;
+            }
+
+            // TÃ¡ÂºÂ¡o lÃ¡Â»Â­a
+            GameObject fireObj = new GameObject("Wreck_Fire");
+            fireObj.transform.position = wreckTarget.position;
+            fireObj.transform.rotation = Quaternion.Euler(-90f, 0, 0);
+            ParticleSystem pFire = fireObj.AddComponent<ParticleSystem>();
+            pFire.Stop();
+            var fMain = pFire.main;
+            fMain.duration = 5f;
+            fMain.loop = true;
+            fMain.startLifetime = 2.5f;
+            fMain.startSpeed = 10f;
+            fMain.startSize = 1.5f;
+            fMain.startColor = new Color(1f, 0.3f, 0f, 0.8f); // Ã„ÂÃ¡Â»Â cam
+            fMain.maxParticles = 150;
+            var fEmission = pFire.emission;
+            fEmission.rateOverTime = 40f;
+            var fShape = pFire.shape;
+            fShape.shapeType = ParticleSystemShapeType.Hemisphere;
+            fShape.radius = 1.5f;
+            Shader fireShader = Shader.Find("Particles/Standard Unlit");
+            if (fireShader == null) fireShader = Shader.Find("Legacy Shaders/Particles/Additive");
+            if (fireShader == null) fireShader = Shader.Find("Mobile/Particles/Additive");
+            if (fireShader != null) {
+                Material fireMat = new Material(fireShader);
+                fireMat.color = new Color(1f, 0.4f, 0.1f, 0.8f);
+                if (fireMat.HasProperty("_TintColor")) fireMat.SetColor("_TintColor", new Color(1f, 0.4f, 0.1f, 0.8f));
+                pFire.GetComponent<ParticleSystemRenderer>().sharedMaterial = fireMat;
+            }
+            ps.Play();
+            pFire.Play();
+
+            // TÃ¡ÂºÂ¡o mÃ¡ÂºÂ£nh vÃ¡Â»Â¡ vÃ„Æ’ng tung tÃƒÂ³e xung quanh
+            for (int i = 0; i < 20; i++)
+            {
+                PrimitiveType pt = Random.value > 0.5f ? PrimitiveType.Cube : PrimitiveType.Cylinder;
+                GameObject debris = GameObject.CreatePrimitive(pt);
+                debris.name = "C400_Debris_" + i;
+                
+                // RÃ¡ÂºÂ£i ngÃ¡ÂºÂ«u nhiÃƒÂªn trong bÃƒÂ¡n kÃƒÂ­nh 20m xung quanh xÃƒÂ¡c mÃƒÂ¡y bay
+                Vector2 randCircle = Random.insideUnitCircle * 20f;
+                Vector3 spawnPos = wreckTarget.position + new Vector3(randCircle.x, 20f, randCircle.y); // ThÃ¡ÂºÂ£ tÃ¡Â»Â« trÃƒÂªn cao rÃ¡Â»â€ºt xuÃ¡Â»â€˜ng
+                debris.transform.position = spawnPos;
+                
+                // KÃƒÂ­ch thÃ†Â°Ã¡Â»â€ºc ngÃ¡ÂºÂ«u nhiÃƒÂªn mÃ¡ÂºÂ£nh vÃ¡Â»Â¡ sÃ¡ÂºÂ¯t thÃƒÂ©p
+                debris.transform.localScale = new Vector3(Random.Range(0.2f, 1.5f), Random.Range(0.1f, 3f), Random.Range(0.2f, 2f));
+                debris.transform.rotation = Random.rotation;
+
+                // ThÃƒÂªm Rigidbody Ã„â€˜Ã¡Â»Æ’ nÃƒÂ³ tÃ¡Â»Â± rÃ¡Â»â€ºt vÃƒÂ  lÃ„Æ’n lÃƒÂ³c dÃ†Â°Ã¡Â»â€ºi Ã„â€˜Ã¡ÂºÂ¥t tÃ¡Â»Â± nhiÃƒÂªn
+                Rigidbody rb = debris.AddComponent<Rigidbody>();
+                rb.mass = Random.Range(10f, 100f);
+                rb.drag = 0.5f;
+                rb.angularDrag = 0.5f;
+
+                // Ã„ÂÃ¡Â»â€¢i mÃƒÂ u thÃƒÂ nh kim loÃ¡ÂºÂ¡i chÃƒÂ¡y Ã„â€˜en xÃ¡Â»â€°n
+                Renderer r = debris.GetComponent<Renderer>();
+                if (r != null)
+                {
+                    Material mat = new Material(Shader.Find("Standard"));
+                    mat.color = new Color(0.15f, 0.15f, 0.15f); // Ã„Âen chÃƒÂ¡y
+                    mat.SetFloat("_Metallic", 0.8f);
+                    mat.SetFloat("_Glossiness", 0.2f);
+                    r.material = mat;
+                }
+            }
+        }
+
+        // Script Ã„â€˜Ã¡Â»Æ’ nhÃ¡ÂºÂ¥p nhÃƒÂ¡y Ã„â€˜ÃƒÂ¨n lÃ¡Â»Â­a
+        private class LightFlicker_Runtime : MonoBehaviour
+        {
+            public Light lightSource;
+            private float baseIntensity;
+            private void Start() { if (lightSource) baseIntensity = lightSource.intensity; }
+            private void Update() { if (lightSource) lightSource.intensity = baseIntensity + Mathf.PerlinNoise(Time.time * 5f, 0f) * 1.5f; }
         }
 
         /// <summary>Chững lại 15 giây trong bóng tối ngay sau vụ rơi máy bay</summary>
@@ -1842,7 +2067,7 @@ namespace HorrorGame.Cutscenes
                 Renderer[] all = playerController.GetComponentsInChildren<Renderer>(true);
                 foreach (Renderer r in all)
                 {
-                    if (r is MeshRenderer || r is SkinnedMeshRenderer)
+                    if ((r is MeshRenderer || r is SkinnedMeshRenderer) && r.enabled)
                     {
                         cachedPlayerRenderers.Add(r);
                     }
@@ -1859,20 +2084,17 @@ namespace HorrorGame.Cutscenes
         {
             if (subtitleText == null) yield break;
 
-            // ── ĐOẠN 1 (0s – 15s) ──
-            SetSubtitle("[Captain]: \"Good afternoon ladies and gentlemen, this is your captain speaking. Cruising altitude 35,000 feet, sit back and enjoy your flight.\"\n<size=17><color=#D1D5DB>(Kính chào quý hành khách, đây là cơ trưởng. Độ cao 35.000 feet, thời tiết đẹp, chúc quý khách chuyến bay an toàn.)</color></size>");
+            SetSubtitle("[Captain]: \"Welcome aboard our C-400. Cruising altitude 35,000 feet, sit back and enjoy your flight.\"\n<size=17><color=#D1D5DB>(Chào mừng mọi người, đây là cơ trưởng chuyến bay C-400. Độ cao 35.000 feet, thời tiết đẹp, chúc mọi người chuyến bay an toàn.)</color></size>");
             yield return new WaitForSeconds(12f);
             ClearSubtitle();
-            yield return new WaitForSeconds(3f); // Nghỉ 3s tự nhiên như ngắt bộ đàm
+            yield return new WaitForSeconds(3f);
 
-            // ── ĐOẠN 2 (15s – 30s) ──
-            SetSubtitle("[Captain]: \"Uh, folks, we are encountering a slight patch of rough air ahead. Please ensure your seatbelts are securely fastened.\"\n<size=17><color=#D1D5DB>(Chúng ta đang gặp vùng nhiễu động nhẹ phía trước. Xin quý khách vui lòng thắt chặt dây an toàn.)</color></size>");
+            SetSubtitle("[Captain]: \"Uh, folks, we are encountering a slight patch of rough air ahead. Please ensure your seatbelts are securely fastened.\"\n<size=17><color=#D1D5DB>(Xin mọi người chú ý, phía trước có vùng nhiễu động. Xin vui lòng thắt chặt dây an toàn tại vị trí của mình.)</color></size>");
             yield return new WaitForSeconds(12f);
             ClearSubtitle();
-            yield return new WaitForSeconds(3f); // Nghỉ 3s
+            yield return new WaitForSeconds(3f);
 
-            // ── ĐOẠN 3 (30s – 45s) - Căng thẳng tột độ ──
-            SetSubtitle("[Captain]: \"Flight attendants, take your seats immediately! Wait... what is that on radar?! We're losing altitude, hold on!\"\n<size=17><color=#F87171>(Tiếp viên ngồi xuống ngay! Khoan đã... radar báo cái gì thế này?! Mất độ cao rồi, bám chắc vào!)</color></size>");
+            SetSubtitle("[Captain]: \"Everyone brace yourselves! Wait... what is that on radar?! We're losing altitude, hold on!\"\n<size=17><color=#F87171>(Tất cả bám chắc! Khoan đã... radar báo cái gì thế này?! Mất độ cao rồi, bám chắc vào!)</color></size>");
             yield return new WaitForSeconds(14.5f);
             ClearSubtitle();
         }

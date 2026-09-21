@@ -31,13 +31,14 @@ namespace HorrorGame.Cutscenes
             {
                 if (currentShakeDuration > 0)
                 {
-                    Vector3 randomPos = originalPos + Random.insideUnitSphere * currentShakeMagnitude;
+                    // Giảm dao động vị trí xuống mức 2% để Camera không văng xa khỏi người
+                    Vector3 randomPos = originalPos + Random.insideUnitSphere * (currentShakeMagnitude * 0.02f);
                     
                     // Thêm rung lắc ngẫu nhiên vào góc xoay
                     currentRotJitter = new Vector3(
                         Random.Range(-currentShakeMagnitude, currentShakeMagnitude) * 5f,
                         Random.Range(-currentShakeMagnitude, currentShakeMagnitude) * 5f,
-                        Random.Range(-currentShakeMagnitude, currentShakeMagnitude) * 5f
+                        Random.Range(-currentShakeMagnitude, currentShakeMagnitude) * 1.5f // Bóp nhỏ độ nghiêng trục Z (Roll)
                     );
 
                     transform.localPosition = Vector3.Lerp(transform.localPosition, randomPos, Time.deltaTime * currentShakeRoughness * 10f);
@@ -68,8 +69,15 @@ namespace HorrorGame.Cutscenes
             }
         }
 
+        public void ResetOriginFromCurrent()
+        {
+            originalPos = transform.localPosition;
+            originalRot = transform.localRotation;
+        }
+
         public void StartShake(float duration, float magnitude, float roughness = 1f)
         {
+            // Update origins when a new shake starts
             originalPos = transform.localPosition;
             originalRot = transform.localRotation;
 

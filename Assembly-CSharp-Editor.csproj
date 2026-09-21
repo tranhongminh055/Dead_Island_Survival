@@ -53,7 +53,10 @@
   <ItemGroup>
      <Compile Include="Assets\Editor\AirplaneCabinBuilder.cs" />
      <Compile Include="Assets\Editor\AutoStaticBatcher.cs" />
+     <Compile Include="Assets\Editor\AutoTrailerCreator.cs" />
      <Compile Include="Assets\Editor\CrashWreckageBuilder.cs" />
+     <Compile Include="Assets\Editor\CreateNativeAnimation.cs" />
+     <Compile Include="Assets\Editor\CreateNativePlaceholder.cs" />
      <Compile Include="Assets\Editor\FixChestPrefab.cs" />
      <Compile Include="Assets\Editor\FixWaterBug.cs" />
      <Compile Include="Assets\Editor\IslandLootSpawner.cs" />
@@ -91,9 +94,14 @@
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Editor\Utils\EditorResources.cs" />
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Editor\Utils\FxStyles.cs" />
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Editor\Utils\ReflectionUtils.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\C400Setup.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\CreateAmmoItem.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\CreateSurvivalItems.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\CurvedCabinGenerator.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\FindFloor.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\FixAirplaneCabin.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\IntroSetupWizard.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\SetFlyingC400.cs" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\DepthOfField.shader" />
      <None Include="Assets\Flooded_Grounds\Content\Shaders\FG_PBR_Water.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\MotionBlur.cginc" />
@@ -145,11 +153,17 @@
      <None Include="Assets\Flooded_Grounds\Content\Shaders\FG_Skybox_Rotating.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\AmbientOcclusion.cginc" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Editor Resources\Monitors\WaveformCompute.compute" />
- <Reference Include="UnityEngine.UIAutomation">
- <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/UIAutomation/UnityEngine.UIAutomation.dll</HintPath>
+ <Reference Include="UnityEngine.UI">
+ <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/GUISystem/UnityEngine.UI.dll</HintPath>
  </Reference>
- <Reference Include="UnityEditor.UIAutomation">
- <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/UIAutomation/Editor/UnityEditor.UIAutomation.dll</HintPath>
+ <Reference Include="UnityEditor.UI">
+ <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/GUISystem/Editor/UnityEditor.UI.dll</HintPath>
+ </Reference>
+ <Reference Include="UnityEngine.Networking">
+ <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/Networking/UnityEngine.Networking.dll</HintPath>
+ </Reference>
+ <Reference Include="UnityEditor.Networking">
+ <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/Networking/Editor/UnityEditor.Networking.dll</HintPath>
  </Reference>
  <Reference Include="UnityEditor.TestRunner">
  <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/TestRunner/Editor/UnityEditor.TestRunner.dll</HintPath>
@@ -160,18 +174,6 @@
  <Reference Include="nunit.framework">
  <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/TestRunner/net35/unity-custom/nunit.framework.dll</HintPath>
  </Reference>
- <Reference Include="UnityEngine.Networking">
- <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/Networking/UnityEngine.Networking.dll</HintPath>
- </Reference>
- <Reference Include="UnityEditor.Networking">
- <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/Networking/Editor/UnityEditor.Networking.dll</HintPath>
- </Reference>
- <Reference Include="UnityEngine.UI">
- <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/GUISystem/UnityEngine.UI.dll</HintPath>
- </Reference>
- <Reference Include="UnityEditor.UI">
- <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/GUISystem/Editor/UnityEditor.UI.dll</HintPath>
- </Reference>
  <Reference Include="UnityEngine.Timeline">
  <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/Timeline/RuntimeEditor/UnityEngine.Timeline.dll</HintPath>
  </Reference>
@@ -180,6 +182,12 @@
  </Reference>
  <Reference Include="UnityEditor.TreeEditor">
  <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/TreeEditor/Editor/UnityEditor.TreeEditor.dll</HintPath>
+ </Reference>
+ <Reference Include="UnityEngine.UIAutomation">
+ <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/UIAutomation/UnityEngine.UIAutomation.dll</HintPath>
+ </Reference>
+ <Reference Include="UnityEditor.UIAutomation">
+ <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/UIAutomation/Editor/UnityEditor.UIAutomation.dll</HintPath>
  </Reference>
  <Reference Include="UnityEditor.GoogleAudioSpatializer">
  <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/UnityGoogleAudioSpatializer/Editor/UnityEditor.GoogleAudioSpatializer.dll</HintPath>

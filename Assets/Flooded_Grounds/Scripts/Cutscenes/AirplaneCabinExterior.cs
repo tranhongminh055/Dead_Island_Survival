@@ -20,15 +20,21 @@ namespace HorrorGame.Cutscenes
         public float cloudStartZ = -30f;
 
         [Header("── Đèn Hàng Không (Aviation Lights) ──")]
-        public Light wingStrobeLight;        // Đèn chớp trắng cực mạnh ở đầu cánh
-        public Renderer wingStrobeRenderer;  // Bóng đèn phát sáng
+        public Light wingStrobeLight;        // Đèn chớp trắng cực mạnh ở đầu cánh trái
+        public Renderer wingStrobeRenderer;  // Bóng đèn phát sáng cánh trái
+        public Light wingStrobeLightRight;   // Đèn chớp trắng ở đầu cánh phải
+        public Renderer wingStrobeRendererRight; // Bóng đèn phát sáng cánh phải
         public Light wingNavLight;           // Đèn đỏ định vị mạn trái (Port Red)
+        public Light wingNavLightRight;      // Đèn xanh lá định vị mạn phải (Starboard Green)
+        public Light tailBeaconLight;        // Đèn chớp đỏ đỉnh cánh đuôi đứng
         public float strobeCycle = 1.2f;     // Chu kỳ chớp đôi chuẩn FAA
 
         [Header("── Động Cơ Phản Lực (Jet Engine) ──")]
-        public Transform engineSpinner;      // Nón xoay giữa cánh quạt turbine
+        public Transform engineSpinner;      // Nón xoay động cơ trái
+        public Transform engineSpinnerRight; // Nón xoay động cơ phải
         public float engineSpinSpeed = 1200f;
-        public Light engineGlowLight;        // Ánh lửa động cơ khi hỏng hóc
+        public Light engineGlowLight;        // Ánh lửa động cơ trái khi hỏng hóc
+        public Light engineGlowLightRight;   // Ánh lửa động cơ phải
 
         [Header("── Hiệu Ứng Khẩn Cấp / Rơi Máy Bay ──")]
         public Light sunDirectionalLight;    // Ánh nắng chiếu qua cửa sổ
@@ -47,6 +53,10 @@ namespace HorrorGame.Cutscenes
                 // tuyệt đối không lọt vào hay rọi sáng nhấp nháy bên trong khoang cabin.
                 wingStrobeLight.range = 2.5f;
             }
+            if (wingStrobeLightRight != null)
+            {
+                wingStrobeLightRight.range = 2.5f;
+            }
 
             if (wingNavLight != null)
             {
@@ -54,10 +64,26 @@ namespace HorrorGame.Cutscenes
                 wingNavLight.intensity = 2.0f;
                 wingNavLight.range = 2.5f;
             }
+            if (wingNavLightRight != null)
+            {
+                wingNavLightRight.color = new Color(0.05f, 1f, 0.2f);
+                wingNavLightRight.intensity = 2.0f;
+                wingNavLightRight.range = 2.5f;
+            }
+            if (tailBeaconLight != null)
+            {
+                tailBeaconLight.color = Color.red;
+                tailBeaconLight.intensity = 2.5f;
+                tailBeaconLight.range = 8.0f;
+            }
 
             if (engineGlowLight != null)
             {
                 engineGlowLight.intensity = 0f;
+            }
+            if (engineGlowLightRight != null)
+            {
+                engineGlowLightRight.intensity = 0f;
             }
 
             if (lightningFlashLight != null)
@@ -78,10 +104,14 @@ namespace HorrorGame.Cutscenes
             // 1. Mây trôi liên tục tạo cảm giác bay 800 km/h
             UpdateClouds(dt);
 
-            // 2. Xoay nón turbine động cơ
+            // 2. Xoay nón turbine động cơ (cả 2 động cơ trái & phải đồng bộ)
             if (engineSpinner != null)
             {
                 engineSpinner.Rotate(Vector3.forward, engineSpinSpeed * dt, Space.Self);
+            }
+            if (engineSpinnerRight != null)
+            {
+                engineSpinnerRight.Rotate(Vector3.forward, engineSpinSpeed * dt, Space.Self);
             }
 
             // 3. Đèn Strobe chớp kép chuẩn hàng không: Chớp 1 - nghỉ 0.1s - Chớp 2 - nghỉ 1.0s
@@ -126,46 +156,8 @@ namespace HorrorGame.Cutscenes
             }
         }
 
-        private void UpdateAviationStrobe(float dt)
-        {
-            strobeTimer += dt;
-            if (strobeTimer >= strobeCycle)
-            {
-                strobeTimer -= strobeCycle;
-            }
+        private void UpdateAviationStrobe(float dt) { }
 
-            // Mẫu chớp FAA: 0.00-0.06s (Flash 1), 0.14-0.20s (Flash 2), còn lại Tắt
-            bool isFlash = (strobeTimer < 0.07f) || (strobeTimer > 0.14f && strobeTimer < 0.21f);
-
-            // Khi xảy ra tai nạn khẩn cấp: Đèn chớp loạn xạ
-            if (isEmergency)
-            {
-                isFlash = (Mathf.PerlinNoise(Time.time * 25f, 0f) > 0.45f);
-            }
-
-            if (wingStrobeLight != null)
-            {
-                wingStrobeLight.range = 2.5f;
-                wingStrobeLight.intensity = isFlash ? 3.0f : 0f;
-            }
-
-            if (wingStrobeRenderer != null)
-            {
-                Material mat = Application.isPlaying ? wingStrobeRenderer.material : wingStrobeRenderer.sharedMaterial;
-                if (mat != null)
-                {
-                    if (isFlash)
-                    {
-                        mat.EnableKeyword("_EMISSION");
-                        mat.SetColor("_EmissionColor", Color.white * 4f);
-                    }
-                    else
-                    {
-                        mat.SetColor("_EmissionColor", Color.black);
-                    }
-                }
-            }
-        }
 
         private void CheckEmergencyState(float dt)
         {

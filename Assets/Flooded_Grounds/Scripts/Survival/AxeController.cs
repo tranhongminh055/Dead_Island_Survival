@@ -131,8 +131,12 @@ namespace HorrorGame.Survival
 
         void Update()
         {
-            // Không nhận input khi đang Cutscene
-            if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
+            if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+            {
+                if (axeInstance != null && axeInstance.activeSelf) axeInstance.SetActive(false);
+                isEquipped = false;
+                return;
+            }
 
             // Không nhận input khi túi đồ đang mở
             if (Inventory.InventoryManager.Instance != null && Inventory.InventoryManager.Instance.isInventoryOpen) return;

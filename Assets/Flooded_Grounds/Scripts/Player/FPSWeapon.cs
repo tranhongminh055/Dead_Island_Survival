@@ -100,10 +100,12 @@ public class FPSWeapon : MonoBehaviour
         flashLight.range = 25f; // Tăng tầm chiếu xa để nhìn thẳng vẫn thấy sáng
         flashLight.intensity = 0f; // Ban đầu tắt đèn
 
-        // TỰ ĐỘNG CĂN CHỈNH CAMERA VÀO ĐÚNG MẮT NHÂN VẬT
-        // Đẩy trục Z ra xa thêm (0.25) để cam lọt hẳn ra ngoài, không bao giờ kẹt vào trong đầu nhân vật
-        transform.localPosition = new Vector3(0f, 0.88f, 0.25f);
-        transform.localRotation = Quaternion.Euler(0, 0, 0);
+        // TỰ ĐỘNG CĂN CHỈNH CAMERA VÀO ĐÚNG MẮT NHÂN VẬT (chỉ khi KHÔNG có Cutscene máy bay đang chạy)
+        if (!HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+        {
+            transform.localPosition = new Vector3(0f, 0.88f, 0.25f);
+            transform.localRotation = Quaternion.Euler(0, 0, 0);
+        }
 
         currentAmmo = maxAmmo;
         CreateGunVisual();
@@ -205,6 +207,17 @@ public class FPSWeapon : MonoBehaviour
 
     void Update()
     {
+        // Khi cutscene mở đầu đang diễn ra, tuyệt đối cất súng và không cho phép rút súng
+        if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+        {
+            if (gunInstance != null && gunInstance.activeSelf)
+            {
+                gunInstance.SetActive(false);
+            }
+            isEquipped = false;
+            return;
+        }
+
         // Bấm phím 1 để rút/cất súng
         if (Input.GetKeyDown(toggleKey))
         {
@@ -394,6 +407,7 @@ public class FPSWeapon : MonoBehaviour
     // Vẽ giao diện đạn + tâm ngắm lên màn hình
     void OnGUI()
     {
+        if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
         if (!isEquipped) return;
 
         // === TÂM NGẮM (Crosshair) ===
