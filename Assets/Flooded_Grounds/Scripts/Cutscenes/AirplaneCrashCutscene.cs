@@ -207,7 +207,7 @@ namespace HorrorGame.Cutscenes
                     // Ta giÃ¡ÂºÂ£ Ã„â€˜Ã¡Â»â€¹nh gÃƒÂ³c nhÃƒÂ¬n FPS chuÃ¡ÂºÂ©n cÃƒÂ³ localPosition gÃ¡ÂºÂ§n vÃ¡Â»â€ºi Vector3.zero (nÃ¡ÂºÂ¿u gÃ¡ÂºÂ¯n vÃƒÂ o Head)
                     // hoÃ¡ÂºÂ·c (0, 1.6f, 0) nÃ¡ÂºÂ¿u gÃ¡ÂºÂ¯n vÃƒÂ o Root. Ta sÃ¡ÂºÂ½ kiÃ¡Â»Æ’m tra y Ã„â€˜Ã¡Â»Æ’ tÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng thÃƒÂ­ch Ã¡Â»Â©ng.
                     originalCamLocalPos = cam.transform.localPosition;
-                    originalCamLocalRot = Quaternion.identity; // LuÃƒÂ´n reset gÃƒÂ³c nhÃƒÂ¬n thÃ¡ÂºÂ³ng vÃ¡Â»Â phÃƒÂ­a trÃ†Â°Ã¡Â»â€ºc
+                    originalCamLocalRot = cam.transform.localRotation; // LuÃƒÂ´n reset gÃƒÂ³c nhÃƒÂ¬n thÃ¡ÂºÂ³ng vÃ¡Â»Â phÃƒÂ­a trÃ†Â°Ã¡Â»â€ºc
                     hasSavedCamTransform = true;
                 }
             }
