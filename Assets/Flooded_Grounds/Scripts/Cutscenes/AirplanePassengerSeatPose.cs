@@ -91,18 +91,6 @@ namespace HorrorGame.Cutscenes
         public void EnsureMeshVisible()
         {
             gameObject.SetActive(true);
-            Transform[] all = GetComponentsInChildren<Transform>(true);
-            foreach (var t in all)
-            {
-                if (t == null) continue;
-                // Tuyệt đối không kích hoạt các vũ khí (Gun, Weapon, Axe, Placeholder) khi ngồi trên ghế
-                if (t.name.Contains("Gun") || t.name.Contains("Weapon") || t.name.Contains("Axe") || t.name.Contains("Placeholder"))
-                {
-                    t.gameObject.SetActive(false);
-                    continue;
-                }
-                t.gameObject.SetActive(true);
-            }
 
             Animator anim = GetComponentInChildren<Animator>();
             if (anim != null && isSeated)
@@ -110,29 +98,30 @@ namespace HorrorGame.Cutscenes
                 anim.enabled = false;
             }
 
-            // Tắt vĩnh viễn MeshRenderer dạng Capsule tạm bợ trên chính root Player
             MeshRenderer rootMr = GetComponent<MeshRenderer>();
             if (rootMr != null)
             {
                 rootMr.enabled = false;
             }
 
-            var renderers = GetComponentsInChildren<Renderer>(true);
+            // 1. Tắt toàn bộ GameObject vũ khí để ẩn luôn các part con (nòng súng, báng súng hình khối)
+            Transform[] allT = GetComponentsInChildren<Transform>(true);
+            foreach (var t in allT)
+            {
+                if (t == null) continue;
+                string n = t.name.ToLower();
+                if (n.Contains("gun") || n.Contains("weapon") || n.Contains("axe") || n.Contains("placeholder") || n.Contains("aim") || n.Contains("target"))
+                {
+                    t.gameObject.SetActive(false);
+                }
+            }
+
+            // 2. Chỉ bật các SkinnedMeshRenderer (mô hình nhân vật)
+            var renderers = GetComponentsInChildren<SkinnedMeshRenderer>(true);
             foreach (var r in renderers)
             {
-                // Không bao giờ bật MeshRenderer của root Player (đó là capsule placeholder)
-                if (r.gameObject == gameObject)
-                {
-                    r.enabled = false;
-                    continue;
-                }
-
                 r.enabled = true;
-                SkinnedMeshRenderer smr = r as SkinnedMeshRenderer;
-                if (smr != null)
-                {
-                    smr.updateWhenOffscreen = true; // Không bao giờ bị culling
-                }
+                r.updateWhenOffscreen = true;
             }
         }
 
@@ -248,28 +237,17 @@ namespace HorrorGame.Cutscenes
         {
             isSeated = false;
             
-            // Xóa dáng ngồi của đùi/gối/chân/lưng để đứng thẳng
-            if (leftUpLeg != null) leftUpLeg.localRotation = Quaternion.identity;
-            if (rightUpLeg != null) rightUpLeg.localRotation = Quaternion.identity;
-            if (leftLeg != null) leftLeg.localRotation = Quaternion.identity;
-            if (rightLeg != null) rightLeg.localRotation = Quaternion.identity;
-            if (leftFoot != null) leftFoot.localRotation = Quaternion.identity;
-            if (rightFoot != null) rightFoot.localRotation = Quaternion.identity;
-            if (spine != null) spine.localRotation = Quaternion.identity;
-            if (spine1 != null) spine1.localRotation = Quaternion.identity;
-            if (head != null) head.localRotation = Quaternion.identity;
-
-            // Đặt tay xuôi tự nhiên xuống hai bên hông
-            if (leftArm != null) leftArm.localRotation = Quaternion.Euler(70f, 0f, 0f);
-            if (rightArm != null) rightArm.localRotation = Quaternion.Euler(70f, 0f, 0f);
-            if (leftForeArm != null) leftForeArm.localRotation = Quaternion.identity;
-            if (rightForeArm != null) rightForeArm.localRotation = Quaternion.identity;
-            
-            // Tắt Animator để giữ nguyên tư thế đứng tự nhiên này, tránh bị reset về T-Pose
+            // Thay vì nắn xương về góc 0 (gây lỗi lật ngược chân với Mixamo rig), 
+            // ta chỉ cần bật lại Animator để nó tự động lấy lại dáng đứng Idle chuẩn.
             Animator anim = GetComponentInChildren<Animator>();
-            if (anim != null) anim.enabled = false;
+            if (anim != null) 
+            {
+                anim.enabled = true;
+                anim.Rebind();
+            }
             
             enabled = false;
         }
     }
 }
+

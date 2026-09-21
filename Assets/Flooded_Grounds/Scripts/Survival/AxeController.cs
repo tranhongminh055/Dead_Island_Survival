@@ -55,6 +55,11 @@ namespace HorrorGame.Survival
 
         void Start()
         {
+            Renderer[] rs = GetComponentsInChildren<Renderer>(true);
+            foreach (Renderer r in rs) {
+                if (r != null) r.enabled = false;
+            }
+
             // Tự động load ItemData rìu từ Resources nếu chưa gán
             if (axeItemData == null)
             {
@@ -109,7 +114,7 @@ namespace HorrorGame.Survival
             handle.transform.localPosition = new Vector3(0, 0, 0);
             handle.transform.localRotation = Quaternion.Euler(0, 0, 90);
             handle.transform.localScale = new Vector3(0.04f, 0.35f, 0.04f);
-            handle.GetComponent<Renderer>().material.color = new Color(0.45f, 0.3f, 0.15f); // Nâu gỗ
+            handle.GetComponent<Renderer>().enabled = false;
 
             // Lưỡi rìu (Cube dẹp)
             GameObject blade = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -117,14 +122,14 @@ namespace HorrorGame.Survival
             blade.transform.localPosition = new Vector3(0.32f, 0, 0);
             blade.transform.localRotation = Quaternion.Euler(0, 0, 15);
             blade.transform.localScale = new Vector3(0.15f, 0.02f, 0.2f);
-            blade.GetComponent<Renderer>().material.color = new Color(0.6f, 0.6f, 0.65f); // Xám bạc
+            blade.GetComponent<Renderer>().enabled = false;
 
             // Phần nêm kẹp lưỡi rìu vào cán
             GameObject wedge = GameObject.CreatePrimitive(PrimitiveType.Cube);
             wedge.transform.SetParent(axe.transform);
             wedge.transform.localPosition = new Vector3(0.24f, 0, 0);
             wedge.transform.localScale = new Vector3(0.06f, 0.05f, 0.08f);
-            wedge.GetComponent<Renderer>().material.color = new Color(0.35f, 0.25f, 0.12f); // Nâu đậm
+            wedge.GetComponent<Renderer>().enabled = false;
 
             return axe;
         }

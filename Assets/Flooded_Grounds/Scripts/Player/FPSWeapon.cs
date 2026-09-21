@@ -86,6 +86,11 @@ public class FPSWeapon : MonoBehaviour
             }
         }
 
+        Renderer[] rs = GetComponentsInChildren<Renderer>(true);
+        foreach (Renderer r in rs) {
+            if (r != null) r.enabled = false;
+        }
+
         // Tạo nguồn phát âm thanh trên Camera
         audioSource = gameObject.AddComponent<AudioSource>();
 
@@ -166,7 +171,7 @@ public class FPSWeapon : MonoBehaviour
         body.transform.SetParent(gun.transform);
         body.transform.localPosition = Vector3.zero;
         body.transform.localScale = new Vector3(0.08f, 0.12f, 0.6f);
-        body.GetComponent<Renderer>().material.color = new Color(0.2f, 0.2f, 0.2f); // Xám đen
+        body.GetComponent<Renderer>().enabled = false;
 
         // Nòng súng
         GameObject barrel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -174,7 +179,7 @@ public class FPSWeapon : MonoBehaviour
         barrel.transform.localPosition = new Vector3(0, 0.02f, 0.35f);
         barrel.transform.localRotation = Quaternion.Euler(90, 0, 0);
         barrel.transform.localScale = new Vector3(0.04f, 0.2f, 0.04f);
-        barrel.GetComponent<Renderer>().material.color = new Color(0.15f, 0.15f, 0.15f);
+        barrel.GetComponent<Renderer>().enabled = false;
 
         // Tay cầm
         GameObject grip = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -182,7 +187,7 @@ public class FPSWeapon : MonoBehaviour
         grip.transform.localPosition = new Vector3(0, -0.1f, -0.05f);
         grip.transform.localRotation = Quaternion.Euler(15, 0, 0);
         grip.transform.localScale = new Vector3(0.06f, 0.15f, 0.08f);
-        grip.GetComponent<Renderer>().material.color = new Color(0.25f, 0.2f, 0.15f); // Nâu
+        grip.GetComponent<Renderer>().enabled = false;
 
         return gun;
     }

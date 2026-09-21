@@ -203,15 +203,9 @@ namespace HorrorGame.Cutscenes
                 Camera cam = playerController.GetComponentInChildren<Camera>();
                 if (cam != null)
                 {
-                    // Đưa camera vào xương Head để không bị lùi lại sau lưng khi có animation di chuyển người
-                    Animator anim = playerController.GetComponentInChildren<Animator>();
-                    if (anim != null) {
-                        Transform headBone = anim.GetBoneTransform(HumanBodyBones.Head);
-                        if (headBone != null && cam.transform.parent != headBone) {
-                            cam.transform.SetParent(headBone, true);
-                        }
-                    }
-
+                    // FIX: NÃ¡ÂºÂ¿u game Ã„â€˜ÃƒÂ£ bÃ¡Â»â€¹ lÃ¡Â»â€”i tÃ¡Â»Â« lÃ¡ÂºÂ§n test trÃ†Â°Ã¡Â»â€ºc, originalCamLocalPos sÃ¡ÂºÂ½ bÃ¡Â»â€¹ sai.
+                    // Ta giÃ¡ÂºÂ£ Ã„â€˜Ã¡Â»â€¹nh gÃƒÂ³c nhÃƒÂ¬n FPS chuÃ¡ÂºÂ©n cÃƒÂ³ localPosition gÃ¡ÂºÂ§n vÃ¡Â»â€ºi Vector3.zero (nÃ¡ÂºÂ¿u gÃ¡ÂºÂ¯n vÃƒÂ o Head)
+                    // hoÃ¡ÂºÂ·c (0, 1.6f, 0) nÃ¡ÂºÂ¿u gÃ¡ÂºÂ¯n vÃƒÂ o Root. Ta sÃ¡ÂºÂ½ kiÃ¡Â»Æ’m tra y Ã„â€˜Ã¡Â»Æ’ tÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng thÃƒÂ­ch Ã¡Â»Â©ng.
                     originalCamLocalPos = cam.transform.localPosition;
                     originalCamLocalRot = cam.transform.localRotation; // LuÃƒÂ´n reset gÃƒÂ³c nhÃƒÂ¬n thÃ¡ÂºÂ³ng vÃ¡Â»Â phÃƒÂ­a trÃ†Â°Ã¡Â»â€ºc
                     hasSavedCamTransform = true;
@@ -831,15 +825,623 @@ namespace HorrorGame.Cutscenes
                 Camera cam = playerController.GetComponentInChildren<Camera>();
                 if (cam != null)
                 {
-                    // Đưa camera vào xương Head để không bị lùi lại sau lưng khi có animation di chuyển người
-                    Animator anim = playerController.GetComponentInChildren<Animator>();
-                    if (anim != null) {
-                        Transform headBone = anim.GetBoneTransform(HumanBodyBones.Head);
-                        if (headBone != null && cam.transform.parent != headBone) {
-                            cam.transform.SetParent(headBone, true);
-                        }
-                    }
+                    cutsceneCamera = cam.transform;
+                    cam.transform.localPosition = new Vector3(0f, 1.6f, 0f);
 
+                    // GÃƒÂ³c nhÃƒÂ¬n ban Ã„â€˜Ã¡ÂºÂ§u thÃ¡ÂºÂ³ng theo hÃ†Â°Ã¡Â»â€ºng thÃƒÂ¢n nhÃƒÂ¢n vÃ¡ÂºÂ­t (local yaw = 0)
+                    cabinLookYaw   = 0f;
+                    cabinLookPitch = 0f; 
+                    cam.transform.localRotation = Quaternion.Euler(cabinLookPitch, cabinLookYaw, 0f);
+                    cam.fieldOfView = 60f;
+
+                    if (enableCabinFreeLook)
+                    {
+                        isCabinFreeLookActive = true;
+                        if (cameraShake != null)
+                            cameraShake.preventRotationOverride = true;
+
+                        Cursor.lockState = CursorLockMode.Locked;
+                        Cursor.visible = false;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Tự động làm sạch các vách che cửa sổ cũ và khởi tạo vách tường cửa sổ bầu dục liền khối 100% chuẩn hàng không,
+        /// kèm theo ngoại cảnh (cánh máy bay, động cơ CFM56 xoay tít, đèn chớp hàng không, mây trôi) ngay trong Runtime.
+        /// </summary>
+        private void EnsureCabinExteriorAndWindowTransparency(GameObject cabin)
+        {
+            if (cabin == null) return;
+
+            // 1. Tắt các khối che khuất cũ (nếu có)
+            Transform[] allTrans = cabin.GetComponentsInChildren<Transform>(true);
+            foreach (Transform t in allTrans)
+            {
+                if (t == null) continue;
+                if (t.name.Contains("WindowBelt") || t.name == "StratosphereSky")
+                {
+                    t.gameObject.SetActive(false);
+                }
+            }
+
+            // Nạp hoặc khởi tạo các vật liệu PBR tiêu chuẩn
+            Shader stdShader = Shader.Find("Standard");
+            Material matWall = Resources.Load<Material>("Cabin/M_Cabin_Wall");
+#if UNITY_EDITOR
+            if (matWall == null) matWall = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Flooded_Grounds/Materials/Cabin/M_Cabin_Wall.mat");
+#endif
+            if (matWall == null)
+            {
+                matWall = new Material(stdShader);
+                matWall.color = new Color(0.92f, 0.92f, 0.94f);
+                matWall.SetFloat("_Glossiness", 0.45f);
+            }
+
+            Material matBezel = Resources.Load<Material>("Cabin/M_Cabin_WindowFrame");
+#if UNITY_EDITOR
+            if (matBezel == null) matBezel = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Flooded_Grounds/Materials/Cabin/M_Cabin_WindowFrame.mat");
+#endif
+            if (matBezel == null)
+            {
+                matBezel = new Material(stdShader);
+                matBezel.color = new Color(0.96f, 0.96f, 0.98f);
+                matBezel.SetFloat("_Glossiness", 0.70f);
+            }
+
+            Material matGlass = Resources.Load<Material>("Cabin/M_Cabin_WindowGlass");
+#if UNITY_EDITOR
+            if (matGlass == null) matGlass = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Flooded_Grounds/Materials/Cabin/M_Cabin_WindowGlass.mat");
+#endif
+            if (matGlass == null)
+            {
+                matGlass = new Material(stdShader);
+                matGlass.SetFloat("_Mode", 3); // Transparent
+                matGlass.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                matGlass.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                matGlass.SetInt("_ZWrite", 0);
+                matGlass.EnableKeyword("_ALPHABLEND_ON");
+                matGlass.renderQueue = 3000;
+                matGlass.color = new Color(0.85f, 0.92f, 0.98f, 0.25f);
+                matGlass.SetFloat("_Glossiness", 0.95f);
+            }
+
+            Material matShade = new Material(stdShader);
+            matShade.color = new Color(0.88f, 0.88f, 0.90f);
+            matShade.SetFloat("_Glossiness", 0.35f);
+
+            // TÃ¡ÂºÂ O PIVOT Ã„ÂÃ¡Â»â€š HÃ¡ÂºÂ  TOÃƒâ‚¬N BÃ¡Â»Ëœ FAKE CABIN & NGOÃ¡ÂºÂ I CÃ¡ÂºÂ¢NH XUÃ¡Â»ÂNG SÃƒâ‚¬N
+            // VÃƒÂ¬ FBX C400 thÃ†Â°Ã¡Â»Âng cÃƒÂ³ tÃƒÂ¢m Ã¡Â»Å¸ chÃƒÂ­nh giÃ¡Â»Â¯a bÃ¡Â»Â¥ng mÃƒÂ¡y bay nÃƒÂªn Y=0 lÃƒÂ  Ã„â€˜ang lÃ†Â¡ lÃ¡Â»Â­ng.
+            Transform alignPivot = cabin.transform.Find("CabinAlignmentPivot");
+            if (alignPivot == null)
+            {
+                GameObject pivotObj = new GameObject("CabinAlignmentPivot");
+                pivotObj.transform.SetParent(cabin.transform, false);
+                pivotObj.transform.localPosition = new Vector3(0, -1.5f, 0); // HÃ¡ÂºÂ¡ 1.5m xuÃ¡Â»â€˜ng sÃƒÂ n
+                alignPivot = pivotObj.transform;
+            }
+
+            // 2. KIỂM TRA VÀ TỰ ĐỘNG NÂNG CẤP VÁCH TƯỜNG TRÁI & PHẢI SANG CỬA SỔ BẦU DỤC THỰC TẾ
+            if (cabin.name != "[C400_AIRPLANE_CABIN]") 
+            {
+                float cabinW = 4.10f;
+                float cabinL = 17.5f;
+                float cabinH = 2.45f;
+
+                Transform wallLeft = alignPivot.Find("Wall_Left");
+                bool needRebuildLeft = (wallLeft == null) || (wallLeft.Find("Window_0") != null) || (wallLeft.Find("OvalBay_0") == null);
+                if (needRebuildLeft)
+                {
+                    if (wallLeft != null) Destroy(wallLeft.gameObject);
+                    BuildRuntimeSeamlessCurvedWall(alignPivot.gameObject, true, cabinW, cabinL, cabinH, matWall, matBezel, matGlass, matShade);
+                }
+
+                Transform wallRight = alignPivot.Find("Wall_Right");
+                bool needRebuildRight = (wallRight == null) || (wallRight.Find("Window_0") != null) || (wallRight.Find("OvalBay_0") == null);
+                if (needRebuildRight)
+                {
+                    if (wallRight != null) Destroy(wallRight.gameObject);
+                    BuildRuntimeSeamlessCurvedWall(alignPivot.gameObject, false, cabinW, cabinL, cabinH, matWall, matBezel, matGlass, matShade);
+                }
+            }
+
+            // 3. 
+            AirplaneCabinExterior[] oldExteriors = cabin.GetComponentsInChildren<AirplaneCabinExterior>(true);
+            foreach (var oldExt in oldExteriors)
+            {
+                if (oldExt != null) Destroy(oldExt.gameObject);
+            }
+            BuildRuntimeExterior(alignPivot.gameObject);
+        }
+
+        /// <summary>
+        /// Dựng vách tường máy bay liền khối với 9 ô cửa sổ bầu dục chuẩn hàng không quốc tế (Airbus A320 / Boeing 737):
+        /// - Mặt vách liền mạch ôm sát từng ô cửa, hoàn toàn KHÔNG CÓ lỗ thủng vuông thô kệch
+        /// - Vành đúc nhựa vát sâu 3D (7.5cm) vào thân máy bay
+        /// - Tấm kính mica bầu dục 2 lớp trong suốt sáng bóng
+        /// - Tấm che nắng trượt (Sliding Sunshade) có gờ kéo tay ở nửa trên
+        /// - Lỗ thông áp vi mô (Breather Pinhole) đặc trưng trên kính
+        /// </summary>
+        private static void BuildRuntimeSeamlessCurvedWall(GameObject cabin, bool isLeft, float width, float length, float height,
+            Material matWall, Material matBezel, Material matGlass, Material matShade)
+        {
+            float halfW = width * 0.5f;
+            float posX = isLeft ? -halfW : halfW;
+            string wallName = isLeft ? "Wall_Left" : "Wall_Right";
+
+            GameObject wall = new GameObject(wallName);
+            wall.transform.SetParent(cabin.transform, false);
+
+            // 1. Tấm ốp chân vách tường (từ sàn Y=0 đến bậu cửa sổ Y=0.82m)
+            float lowerH = 0.82f;
+            CreateRuntimeBox("LowerWall", wall.transform, new Vector3(posX, lowerH * 0.5f, 0), new Vector3(0.08f, lowerH, length), matWall);
+
+            // 2. Vách tường phía trên cửa sổ (từ đỉnh bậu cửa sổ Y=1.60m lên trần Y=height)
+            float bayH = 0.78f; // Chiều cao khoang cửa sổ từ 0.82m đến 1.60m
+            float winCenterY = lowerH + bayH * 0.5f; // = 1.21m (ngang tầm mắt người ngồi)
+            float upperH = height - (lowerH + bayH); // = 2.45 - 1.60 = 0.85m
+            float upperCenterY = lowerH + bayH + upperH * 0.5f;
+            CreateRuntimeBox("UpperWall", wall.transform, new Vector3(posX, upperCenterY, 0), new Vector3(0.08f, upperH, length), matWall);
+
+            // 3. Vách đầu và vách cuối ngoài phạm vi 9 cửa sổ
+            float bayW = 1.35f;
+            float firstBayZ = -5.4f - bayW * 0.5f;
+            float aftZ = -length * 0.5f;
+            CreateRuntimeBox("WallPillar_Aft", wall.transform, new Vector3(posX, winCenterY, (aftZ + firstBayZ) * 0.5f), new Vector3(0.08f, bayH, Mathf.Abs(firstBayZ - aftZ)), matWall);
+
+            float lastBayZ = 5.4f + bayW * 0.5f;
+            float fwdZ = length * 0.5f;
+            CreateRuntimeBox("WallPillar_Fwd", wall.transform, new Vector3(posX, winCenterY, (fwdZ + lastBayZ) * 0.5f), new Vector3(0.08f, bayH, Mathf.Abs(fwdZ - lastBayZ)), matWall);
+
+            // 4. Dựng 9 khoang vách cửa sổ bầu dục liền khối (Seamless Oval Window Bays)
+            for (int w = 0; w < 9; w++)
+            {
+                float z = -5.4f + (w * bayW);
+                Vector3 bayPos = new Vector3(posX, winCenterY, z);
+                CreateRuntimeProceduralWindowBay("OvalBay_" + w, wall.transform, bayPos, isLeft, bayW, bayH, matWall, matBezel, matGlass, matShade);
+            }
+        }
+
+        /// <summary>
+        /// Tạo một khoang cửa sổ máy bay hoàn chỉnh với bề mặt tường liền mạch nối vào vành bầu dục,
+        /// vành vát sâu 3D, kính mica và tấm che nắng chuẩn hàng không.
+        /// </summary>
+        private static GameObject CreateRuntimeProceduralWindowBay(string name, Transform parent, Vector3 localPos, bool isLeftSide,
+            float bayWidth, float bayHeight, Material matWall, Material matBezel, Material matGlass, Material matShade)
+        {
+            GameObject bayObj = new GameObject(name);
+            bayObj.transform.SetParent(parent, false);
+            bayObj.transform.localPosition = localPos;
+
+            int segments = 32;
+            float semiW = 0.16f; // Bán kính ngang cửa sổ (Rộng 32cm)
+            float semiH = 0.24f; // Bán kính dọc cửa sổ (Cao 48cm)
+            float p = 3.2f;      // Hệ số siêu elip chuẩn hàng không thương mại
+            float bevelDepth = 0.075f; // Độ vát sâu 7.5cm
+
+            // Tính toán 32 đỉnh siêu elip
+            Vector2[] ovalPts = new Vector2[segments];
+            for (int i = 0; i < segments; i++)
+            {
+                float angle = (i / (float)segments) * Mathf.PI * 2f;
+                float c = Mathf.Cos(angle);
+                float s = Mathf.Sin(angle);
+                float oz = Mathf.Sign(c) * Mathf.Pow(Mathf.Abs(c), 2f / p) * semiW;
+                float oy = Mathf.Sign(s) * Mathf.Pow(Mathf.Abs(s), 2f / p) * semiH;
+                ovalPts[i] = new Vector2(oz, oy);
+            }
+
+            // Chiếu tia từ tâm cửa sổ ra biên chữ nhật của khoang vách (bayWidth x bayHeight)
+            Vector2[] rectPts = new Vector2[segments];
+            float halfW = bayWidth * 0.5f;
+            float halfH = bayHeight * 0.5f;
+            for (int i = 0; i < segments; i++)
+            {
+                float oz = ovalPts[i].x;
+                float oy = ovalPts[i].y;
+                float tz = Mathf.Abs(oz) > 0.0001f ? (halfW / Mathf.Abs(oz)) : 1000f;
+                float ty = Mathf.Abs(oy) > 0.0001f ? (halfH / Mathf.Abs(oy)) : 1000f;
+                float t = Mathf.Min(tz, ty);
+                rectPts[i] = new Vector2(oz * t, oy * t);
+            }
+
+            // ─────────────────────────────────────────────────────────────
+            // A. MẶT VÁCH NỘI THẤT LIỀN KHỐI (SEAMLESS WALL PANEL WITH OVAL CUTOUT)
+            // ─────────────────────────────────────────────────────────────
+            Mesh wallMesh = new Mesh();
+            wallMesh.name = "SeamlessWallMesh";
+
+            Vector3[] wVerts = new Vector3[segments * 2];
+            Vector3[] wNorms = new Vector3[segments * 2];
+            Vector2[] wUVs   = new Vector2[segments * 2];
+            int[] wTris      = new int[segments * 6 * 2]; // 2 mặt (Double-sided) để không bao giờ bị culling
+
+            float wallSurfaceX = isLeftSide ? 0.04f : -0.04f; // Bề mặt trong cabin
+            Vector3 inwardNorm = isLeftSide ? Vector3.right : Vector3.left;
+
+            for (int i = 0; i < segments; i++)
+            {
+                // Vòng ngoài: mép chữ nhật tiếp giáp vách trên/dưới/cột
+                wVerts[i] = new Vector3(wallSurfaceX, rectPts[i].y, rectPts[i].x);
+                wNorms[i] = inwardNorm;
+                wUVs[i]   = new Vector2((rectPts[i].x / bayWidth) + 0.5f, (rectPts[i].y / bayHeight) + 0.5f);
+
+                // Vòng trong: mép ô cửa sổ bầu dục
+                wVerts[i + segments] = new Vector3(wallSurfaceX, ovalPts[i].y, ovalPts[i].x);
+                wNorms[i + segments] = inwardNorm;
+                wUVs[i + segments]   = new Vector2((ovalPts[i].x / bayWidth) + 0.5f, (ovalPts[i].y / bayHeight) + 0.5f);
+            }
+
+            int tIdx = 0;
+            for (int i = 0; i < segments; i++)
+            {
+                int next = (i + 1) % segments;
+                int r0 = i;
+                int r1 = next;
+                int o1 = next + segments;
+                int o0 = i + segments;
+
+                // Mặt hướng vào cabin
+                wTris[tIdx++] = r0; wTris[tIdx++] = o1; wTris[tIdx++] = r1;
+                wTris[tIdx++] = r0; wTris[tIdx++] = o0; wTris[tIdx++] = o1;
+
+                // Mặt đối diện (Double-sided)
+                wTris[tIdx++] = r0; wTris[tIdx++] = r1; wTris[tIdx++] = o1;
+                wTris[tIdx++] = r0; wTris[tIdx++] = o1; wTris[tIdx++] = o0;
+            }
+
+            wallMesh.vertices = wVerts;
+            wallMesh.normals = wNorms;
+            wallMesh.uv = wUVs;
+            wallMesh.triangles = wTris;
+
+            GameObject wallPanel = new GameObject("SeamlessPanel");
+            wallPanel.transform.SetParent(bayObj.transform, false);
+            wallPanel.AddComponent<MeshFilter>().sharedMesh = wallMesh;
+            wallPanel.AddComponent<MeshRenderer>().sharedMaterial = matWall;
+
+            // ─────────────────────────────────────────────────────────────
+            // B. VÀNH ĐÚC KHUÔN VÁT MÉP SÂU 3D (3D INWARD MOLDED BEZEL)
+            // ─────────────────────────────────────────────────────────────
+            Mesh bezelMesh = new Mesh();
+            bezelMesh.name = "MoldedBezelMesh";
+
+            Vector3[] bVerts = new Vector3[segments * 2];
+            Vector3[] bNorms = new Vector3[segments * 2];
+            Vector2[] bUVs   = new Vector2[segments * 2];
+            int[] bTris      = new int[segments * 6 * 2]; // Double-sided
+
+            float innerX = isLeftSide ? (wallSurfaceX - bevelDepth) : (wallSurfaceX + bevelDepth);
+
+            for (int i = 0; i < segments; i++)
+            {
+                // Vành ngoài (sát mặt tường)
+                bVerts[i] = new Vector3(wallSurfaceX, ovalPts[i].y, ovalPts[i].x);
+                bNorms[i] = (inwardNorm + new Vector3(0, -ovalPts[i].y, -ovalPts[i].x) * 0.5f).normalized;
+                bUVs[i]   = new Vector2((float)i / segments, 1f);
+
+                // Vành trong (lõm sâu vào trong thân máy bay, thu hẹp nhẹ 10%)
+                bVerts[i + segments] = new Vector3(innerX, ovalPts[i].y * 0.90f, ovalPts[i].x * 0.90f);
+                bNorms[i + segments] = inwardNorm;
+                bUVs[i + segments]   = new Vector2((float)i / segments, 0f);
+            }
+
+            tIdx = 0;
+            for (int i = 0; i < segments; i++)
+            {
+                int next = (i + 1) % segments;
+                int b0 = i;
+                int b1 = next;
+                int in1 = next + segments;
+                int in0 = i + segments;
+
+                bTris[tIdx++] = b0; bTris[tIdx++] = in1; bTris[tIdx++] = b1;
+                bTris[tIdx++] = b0; bTris[tIdx++] = in0; bTris[tIdx++] = in1;
+
+                bTris[tIdx++] = b0; bTris[tIdx++] = b1;  bTris[tIdx++] = in1;
+                bTris[tIdx++] = b0; bTris[tIdx++] = in1; bTris[tIdx++] = in0;
+            }
+
+            bezelMesh.vertices = bVerts;
+            bezelMesh.normals = bNorms;
+            bezelMesh.uv = bUVs;
+            bezelMesh.triangles = bTris;
+
+            GameObject bezelObj = new GameObject("MoldedBezel");
+            bezelObj.transform.SetParent(bayObj.transform, false);
+            bezelObj.AddComponent<MeshFilter>().sharedMesh = bezelMesh;
+            bezelObj.AddComponent<MeshRenderer>().sharedMaterial = matBezel;
+
+            // ─────────────────────────────────────────────────────────────
+            // C. KÍNH MICA BẦU DỤC 2 LỚP TRONG SUỐT (ACRYLIC DUAL-PANE GLASS)
+            // ─────────────────────────────────────────────────────────────
+            Mesh glassMesh = new Mesh();
+            glassMesh.name = "AcrylicGlassMesh";
+
+            Vector3[] gVerts = new Vector3[segments + 1];
+            Vector3[] gNorms = new Vector3[segments + 1];
+            Vector2[] gUVs   = new Vector2[segments + 1];
+            int[] gTris      = new int[segments * 3 * 2]; // Double-sided
+
+            float glassX = isLeftSide ? (innerX - 0.005f) : (innerX + 0.005f);
+            gVerts[0] = new Vector3(glassX, 0, 0); // Tâm đĩa kính
+            gNorms[0] = inwardNorm;
+            gUVs[0]   = new Vector2(0.5f, 0.5f);
+
+            for (int i = 0; i < segments; i++)
+            {
+                gVerts[i + 1] = new Vector3(glassX, ovalPts[i].y * 0.90f, ovalPts[i].x * 0.90f);
+                gNorms[i + 1] = inwardNorm;
+                gUVs[i + 1]   = new Vector2((ovalPts[i].x / semiW) * 0.5f + 0.5f, (ovalPts[i].y / semiH) * 0.5f + 0.5f);
+            }
+
+            tIdx = 0;
+            for (int i = 0; i < segments; i++)
+            {
+                int next = (i + 1) % segments;
+                // Mặt trước
+                gTris[tIdx++] = 0; gTris[tIdx++] = next + 1; gTris[tIdx++] = i + 1;
+                // Mặt sau
+                gTris[tIdx++] = 0; gTris[tIdx++] = i + 1; gTris[tIdx++] = next + 1;
+            }
+
+            glassMesh.vertices = gVerts;
+            glassMesh.normals = gNorms;
+            glassMesh.uv = gUVs;
+            glassMesh.triangles = gTris;
+
+            GameObject glassObj = new GameObject("AcrylicGlass");
+            glassObj.transform.SetParent(bayObj.transform, false);
+            glassObj.AddComponent<MeshFilter>().sharedMesh = glassMesh;
+            glassObj.AddComponent<MeshRenderer>().sharedMaterial = matGlass;
+
+            // Lỗ thông áp vi mô (Breather Pinhole) ở đáy kính trong
+            CreateRuntimeBox("BreatherPinhole", glassObj.transform,
+                new Vector3(isLeftSide ? 0.002f : -0.002f, -semiH * 0.60f, 0),
+                new Vector3(0.003f, 0.008f, 0.008f), matBezel);
+
+            return bayObj;
+        }
+
+        private void BuildRuntimeExterior(GameObject cabin)
+        {
+            GameObject extObj = new GameObject("AirplaneExterior");
+            extObj.transform.SetParent(cabin.transform, false);
+            AirplaneCabinExterior extComp = extObj.AddComponent<AirplaneCabinExterior>();
+
+            Shader stdShader = Shader.Find("Standard");
+
+            // Nạp hoặc tạo Materials chuẩn PBR
+            Material matWing = Resources.Load<Material>("Cabin/M_Plane_Wing");
+#if UNITY_EDITOR
+            if (matWing == null) matWing = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Flooded_Grounds/Materials/Cabin/M_Plane_Wing.mat");
+#endif
+            if (matWing == null)
+            {
+                matWing = new Material(stdShader);
+                matWing.color = new Color(0.90f, 0.91f, 0.93f);
+                matWing.SetFloat("_Glossiness", 0.75f);
+            }
+
+            Material matChrome = Resources.Load<Material>("Cabin/M_Plane_Chrome");
+#if UNITY_EDITOR
+            if (matChrome == null) matChrome = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Flooded_Grounds/Materials/Cabin/M_Plane_Chrome.mat");
+#endif
+            if (matChrome == null)
+            {
+                matChrome = new Material(stdShader);
+                matChrome.color = new Color(0.96f, 0.96f, 0.98f);
+                matChrome.SetFloat("_Metallic", 0.95f);
+                matChrome.SetFloat("_Glossiness", 0.92f);
+            }
+
+            Material matEngine = Resources.Load<Material>("Cabin/M_Plane_EngineNacelle");
+#if UNITY_EDITOR
+            if (matEngine == null) matEngine = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Flooded_Grounds/Materials/Cabin/M_Plane_EngineNacelle.mat");
+#endif
+            if (matEngine == null) matEngine = matWing;
+
+            Material matSpinner = Resources.Load<Material>("Cabin/M_Plane_SpinnerSpiral");
+#if UNITY_EDITOR
+            if (matSpinner == null) matSpinner = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Flooded_Grounds/Materials/Cabin/M_Plane_SpinnerSpiral.mat");
+#endif
+            if (matSpinner == null)
+            {
+                matSpinner = new Material(stdShader);
+                matSpinner.color = new Color(0.12f, 0.12f, 0.14f);
+                matSpinner.SetFloat("_Glossiness", 0.85f);
+            }
+
+            Material matCloud = Resources.Load<Material>("Cabin/M_Plane_CloudSoft");
+#if UNITY_EDITOR
+            if (matCloud == null) matCloud = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Flooded_Grounds/Materials/Cabin/M_Plane_CloudSoft.mat");
+#endif
+            if (matCloud == null)
+            {
+                matCloud = new Material(stdShader);
+                matCloud.SetFloat("_Mode", 3);
+                matCloud.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                matCloud.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                matCloud.SetInt("_ZWrite", 0);
+                matCloud.EnableKeyword("_ALPHABLEND_ON");
+                matCloud.renderQueue = 3000;
+                matCloud.color = new Color(1f, 1f, 1f, 0.85f);
+            }
+
+            Material matNavRed = new Material(stdShader);
+            matNavRed.color = Color.red;
+            matNavRed.EnableKeyword("_EMISSION");
+            matNavRed.SetColor("_EmissionColor", Color.red * 4f);
+
+            Material matStrobe = new Material(stdShader);
+            matStrobe.color = Color.white;
+            matStrobe.EnableKeyword("_EMISSION");
+            matStrobe.SetColor("_EmissionColor", Color.white * 5f);
+
+            // ═════════════════════════════════════════════════════════════════
+            // 1. CÁNH TRÁI MÁY BAY (LEFT WING - GẮN NGAY TẦM NHÌN CỬA SỔ)
+            // ═════════════════════════════════════════════════════════════════
+            GameObject wing = new GameObject("Wing_Left");
+            wing.transform.SetParent(extObj.transform, false);
+
+            // Gốc cánh (Wing Root) vươn từ sát thân máy bay ra ngoài, cao Y = 0.88m (ngay dưới bậu cửa)
+            GameObject wRoot = CreateRuntimeBox("WingRoot", wing.transform, new Vector3(-3.0f, 0.88f, -2.5f), new Vector3(2.4f, 0.22f, 4.4f), matWing);
+            wRoot.transform.localRotation = Quaternion.Euler(0, -12f, 3.5f);
+
+            // Thân cánh giữa (Mid Wing - nơi treo pylon động cơ)
+            GameObject wMid = CreateRuntimeBox("WingMid", wing.transform, new Vector3(-5.5f, 1.05f, -3.5f), new Vector3(3.2f, 0.18f, 3.4f), matWing);
+            wMid.transform.localRotation = Quaternion.Euler(0, -15f, 4.0f);
+
+            // Đầu cánh ngoài (Outer Wing)
+            GameObject wOuter = CreateRuntimeBox("WingOuter", wing.transform, new Vector3(-8.8f, 1.22f, -4.6f), new Vector3(3.5f, 0.15f, 2.4f), matWing);
+            wOuter.transform.localRotation = Quaternion.Euler(0, -19f, 4.5f);
+
+            // Mép trước cánh mạ Crom sáng loáng (Leading Edge Chrome Slat)
+            GameObject slat = CreateRuntimeBox("LeadingEdge_Chrome", wing.transform, new Vector3(-5.8f, 1.02f, -1.8f), new Vector3(8.5f, 0.10f, 0.25f), matChrome);
+            slat.transform.localRotation = Quaternion.Euler(0, -15.5f, 4.0f);
+
+            // Cánh nhỏ Sharklet cong vút lên trời ở đầu cánh
+            GameObject winglet = CreateRuntimeBox("Sharklet_Winglet", wing.transform, new Vector3(-10.6f, 1.85f, -5.2f), new Vector3(0.12f, 1.40f, 0.90f), matWing);
+            winglet.transform.localRotation = Quaternion.Euler(0, -21f, 75f);
+
+            // ═════════════════════════════════════════════════════════════════
+            // 2. ĐỘNG CƠ PHẢN LỰC CFM56 (JET ENGINE - TO LỚN, RÕ NÉT NGOÀI CỬA SỔ)
+            // ═════════════════════════════════════════════════════════════════
+            // Đặt tại X = -3.6m, Y = 0.62m, Z = -1.6m -> Ngồi ở ghế 12A nhìn xiên ra là THẤY TRỌN VẸN!
+            GameObject engineObj = new GameObject("JetEngine_Left");
+            engineObj.transform.SetParent(extObj.transform, false);
+            engineObj.transform.localPosition = new Vector3(-3.6f, 0.62f, -1.6f);
+            engineObj.transform.localRotation = Quaternion.Euler(0, -2.0f, 0);
+
+            // Trụ treo pylon gắn vào cánh
+            CreateRuntimeBox("Pylon", engineObj.transform, new Vector3(0, 0.48f, 0), new Vector3(0.20f, 0.42f, 2.0f), matWing);
+
+            // Thân vỏ động cơ (Nacelle Cowling) - Đỉnh đạt Y = 0.62 + 0.72 = 1.34m (ngang tầm mắt!)
+            CreateRuntimeBox("NacelleBody", engineObj.transform, new Vector3(0, 0, 0), new Vector3(1.45f, 1.45f, 2.4f), matEngine);
+
+            // Vành miệng hút gió mạ Crom sáng chói (Chrome Intake Lip)
+            CreateRuntimeBox("IntakeLip_Chrome", engineObj.transform, new Vector3(0, 0, 1.22f), new Vector3(1.48f, 1.48f, 0.14f), matChrome);
+
+            // Lòng ống hút gió
+            CreateRuntimeBox("IntakeDuct", engineObj.transform, new Vector3(0, 0, 0.75f), new Vector3(1.20f, 1.20f, 0.80f), matSpinner);
+
+            // Cánh quạt turbine titan (Turbine Fan Blades)
+            CreateRuntimeBox("TurbineFanBlades", engineObj.transform, new Vector3(0, 0, 0.40f), new Vector3(1.16f, 1.16f, 0.05f), matChrome);
+
+            // Nón xoay Spinner mang hoa văn xoắn ốc (xoay tít 1200 RPM)
+            GameObject spinner = CreateRuntimeBox("SpinnerBullet", engineObj.transform, new Vector3(0, 0, 0.46f), new Vector3(0.38f, 0.38f, 0.42f), matSpinner);
+            extComp.engineSpinner = spinner.transform;
+
+            // Ống xả phản lực phía sau
+            CreateRuntimeBox("ExhaustNozzle", engineObj.transform, new Vector3(0, 0, -1.25f), new Vector3(1.10f, 1.10f, 0.25f), matChrome);
+
+            // Đèn ánh lửa khi động cơ gặp sự cố
+            GameObject engGlow = new GameObject("EngineGlowLight");
+            engGlow.transform.SetParent(engineObj.transform, false);
+            engGlow.transform.localPosition = new Vector3(0, 0, -1.0f);
+            Light engGL = engGlow.AddComponent<Light>();
+            engGL.type = LightType.Point;
+            engGL.color = new Color(1f, 0.35f, 0f);
+            engGL.range = 8.0f;
+            engGL.intensity = 0f;
+            extComp.engineGlowLight = engGL;
+
+            // ═════════════════════════════════════════════════════════════════
+            // 3. ĐÈN HÀNG KHÔNG ĐẦU CÁNH (AVIATION LIGHTS)
+            // ═════════════════════════════════════════════════════════════════
+            // Đèn định vị đỏ mạn trái (Port Nav Light - Red)
+
+            // ═════════════════════════════════════════════════════════════════
+            // 4. MÂY TRÔI DƯỚI CÁNH & ÁNH NẮNG RỰC RỠ CHIẾU VÀO CỬA SỔ
+            // ═════════════════════════════════════════════════════════════════
+            GameObject sunLightObj = new GameObject("WindowSunDirectional");
+            sunLightObj.transform.SetParent(extObj.transform, false);
+            sunLightObj.transform.localPosition = new Vector3(-15f, 18f, 0);
+            sunLightObj.transform.localRotation = Quaternion.Euler(24f, -118f, 0);
+            Light sunDirL = sunLightObj.AddComponent<Light>();
+            sunDirL.type = LightType.Directional;
+            sunDirL.color = new Color(1.0f, 0.97f, 0.90f);
+            sunDirL.intensity = 1.25f;
+            extComp.sunDirectionalLight = sunDirL;
+
+            List<Transform> clouds = new List<Transform>();
+            Vector3[] cloudCoords = new Vector3[]
+            {
+                new Vector3(-6.0f,  -10.5f, -24f),
+                new Vector3(-10.0f, -12.2f, -8f),
+                new Vector3(-5.0f,  -11.8f,  10f),
+                new Vector3(-12.0f, -14.4f,  28f),
+                new Vector3(-4.5f,  -13.0f,  -4f),
+                new Vector3(-9.5f,  -11.1f,  16f)
+            };
+            Vector3[] cloudSizes = new Vector3[]
+            {
+                new Vector3(18f, 0.05f, 24f),
+                new Vector3(22f, 0.05f, 28f),
+                new Vector3(18f, 0.05f, 22f),
+                new Vector3(24f, 0.05f, 30f),
+                new Vector3(12f, 0.05f, 16f),
+                new Vector3(14f, 0.05f, 18f)
+            };
+
+            for (int c = 0; c < cloudCoords.Length; c++)
+            {
+                GameObject cloudLayer = CreateRuntimeBox("CloudLayer_" + c, extObj.transform, cloudCoords[c], cloudSizes[c], matCloud);
+                clouds.Add(cloudLayer.transform);
+            }
+
+            extComp.cloudLayers = clouds.ToArray();
+            extComp.cloudMoveSpeed = 48f;
+            extComp.cloudStartZ = -40f;
+            extComp.cloudResetZ = 40f;
+        }
+
+        private static GameObject CreateRuntimeBox(string name, Transform parent, Vector3 localPos, Vector3 scale, Material mat)
+        {
+            GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = name;
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPos;
+            go.transform.localScale = scale;
+            Collider col = go.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+            if (mat != null)
+            {
+                Renderer r = go.GetComponent<Renderer>();
+                if (r != null) r.sharedMaterial = mat;
+            }
+            return go;
+        }
+
+        private void TeleportToForestLyingDown()
+        {
+            if (playerController == null || forestSpawnPoint == null) return;
+            playerController.transform.position = forestSpawnPoint.position;
+            playerController.transform.rotation = forestSpawnPoint.rotation;
+
+            // Dọn sạch Zombie xung quanh khu vực xác máy bay để bảo vệ người chơi
+            HorrorGame.Enemy.ZombieSpawner spawner = FindObjectOfType<HorrorGame.Enemy.ZombieSpawner>();
+            if (spawner != null) spawner.ClearZombiesNearCrashSite();
+
+            // Khôi phục đầy đủ 100% tất cả chỉ số sinh tồn khi tỉnh dậy
+            var stats = playerController.GetComponent<PlayerStats>();
+            if (stats == null) stats = playerController.GetComponentInChildren<PlayerStats>();
+            if (stats != null)
+            {
+                stats.currentHealth  = stats.maxHealth;
+                stats.currentStamina = stats.maxStamina;
+                stats.currentHunger  = stats.maxHunger;
+                stats.currentThirst  = stats.maxThirst;
+                stats.currentSanity  = stats.maxSanity;
+                stats.isInvincible   = true;
+            }
+
+            Camera cam = playerController.GetComponentInChildren<Camera>();
+            if (cam != null)
+            {
+                if (!hasSavedCamTransform)
+                {
                     originalCamLocalPos = cam.transform.localPosition;
                     originalCamLocalRot = cam.transform.localRotation;
                     hasSavedCamTransform = true;
@@ -859,8 +1461,11 @@ namespace HorrorGame.Cutscenes
                 // XÃƒÂ¡c C400 khÃ¡Â»â€¢ng lÃ¡Â»â€œ nÃƒÂªn cÃ¡ÂºÂ§n cÃƒÂ¡ch xa 20m vÃ¡Â»Â phÃƒÂ­a trÃ†Â°Ã¡Â»â€ºc vÃƒÂ  lÃ¡Â»â€¡ch sang trÃƒÂ¡i 10m
                 airplaneCabin.transform.position = forestSpawnPoint.position + (forestSpawnPoint.forward * 20f) - (forestSpawnPoint.right * 10f) + new Vector3(0, 1.5f, 0);
                 
-                // TÃ¡ÂºÂ¡o gÃƒÂ³c nghiÃƒÂªng Ã„â€˜ÃƒÂ¢m chÃƒÂºc Ã„â€˜Ã¡ÂºÂ§u vÃƒÂ  lÃ¡ÂºÂ­t nghiÃƒÂªng thÃƒÂ¢n Ã„â€˜Ã¡Â»Æ’ trÃƒÂ´ng giÃ¡Â»â€˜ng rÃ¡Â»â€ºt thÃ¡ÂºÂ­t
+                // Tạo góc nghiêng đâm chúc đầu và lật nghiêng thân để trông giống rớt thật
                 airplaneCabin.transform.rotation = forestSpawnPoint.rotation * Quaternion.Euler(-12f, 30f, 25f);
+                
+                // Thu nhỏ xác máy bay lại thành một đống đổ nát nhỏ gọn
+                airplaneCabin.transform.localScale = new Vector3(1.5f, 1.5f, 1.5f);
 
                 // XoÃƒÂ¡ bÃ¡Â»Â toÃƒÂ n bÃ¡Â»â„¢ lÃ¡Â»â€ºp tÃ†Â°Ã¡Â»Âng giÃ¡ÂºÂ£, cÃ¡Â»Â­a sÃ¡Â»â€¢ giÃ¡ÂºÂ£ vÃƒÂ  mÃƒÂ¢y bay (CabinAlignmentPivot)
                 Transform alignPivot = airplaneCabin.transform.Find("CabinAlignmentPivot");
@@ -871,9 +1476,10 @@ namespace HorrorGame.Cutscenes
 
                 // TÃ¡ÂºÂ¡o hiÃ¡Â»â€¡u Ã¡Â»Â©ng chÃƒÂ¡y khÃƒÂ³i cho Ã„â€˜Ã¡Â»â€˜ng Ã„â€˜Ã¡Â»â€¢ nÃƒÂ¡t
                 CreateCrashEffects(airplaneCabin.transform);
-                RenderSettings.skybox = originalSkybox;
-                RenderSettings.ambientMode = originalAmbientMode;
-                RenderSettings.ambientIntensity = originalAmbientIntensity;
+                // KHÔNG khôi phục originalSkybox để DayNightCycle tự động điều chỉnh bầu trời thành ban đêm
+                // RenderSettings.skybox = originalSkybox;
+                // RenderSettings.ambientMode = originalAmbientMode;
+                // RenderSettings.ambientIntensity = originalAmbientIntensity;
                 DynamicGI.UpdateEnvironment();
             }
         }
@@ -905,11 +1511,11 @@ namespace HorrorGame.Cutscenes
             main.loop = true;
             main.startLifetime = 10f;
             main.startSpeed = 8f;
-            main.startSize = 2f;
+            main.startSize = 0.3f; // Ô vuông xám nhỏ lại thành tàn tro
             main.startColor = new Color(0.1f, 0.1f, 0.1f, 0.6f);
-            main.maxParticles = 200;
+            main.maxParticles = 300;
             var emission = ps.emission;
-            emission.rateOverTime = 20f;
+            emission.rateOverTime = 50f;
             var shape = ps.shape;
             shape.shapeType = ParticleSystemShapeType.Cone;
             shape.angle = 15f;
@@ -935,22 +1541,22 @@ namespace HorrorGame.Cutscenes
             fMain.loop = true;
             fMain.startLifetime = 2.5f;
             fMain.startSpeed = 10f;
-            fMain.startSize = 1.5f;
+            fMain.startSize = 1.2f;
             fMain.startColor = new Color(1f, 0.3f, 0f, 0.8f); // Ã„ÂÃ¡Â»Â cam
             fMain.maxParticles = 150;
             var fEmission = pFire.emission;
-            fEmission.rateOverTime = 40f;
+            fEmission.rateOverTime = 80f; // Tăng số lượng hạt lên vì kích thước hạt bé
             var fShape = pFire.shape;
             fShape.shapeType = ParticleSystemShapeType.Hemisphere;
-            fShape.radius = 8.0f; // Tăng bán kính bốc lửa bao trùm xác máy bay
-            fMain.startSize = 4.0f; // Lửa to hơn
-            // Bỏ gán material để Unity tự động dùng Default-Particle (khắc phục lỗi ô vuông màu cam)
-            var pRenderer = pFire.GetComponent<ParticleSystemRenderer>();
-            if (pRenderer != null) {
-                Material defaultMat = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
-                if (defaultMat != null && defaultMat.shader != null) {
-                    pRenderer.sharedMaterial = defaultMat;
-                }
+            fShape.radius = 4.0f; // Lan rộng ra
+            Shader fireShader = Shader.Find("Particles/Standard Unlit");
+            if (fireShader == null) fireShader = Shader.Find("Legacy Shaders/Particles/Additive");
+            if (fireShader == null) fireShader = Shader.Find("Mobile/Particles/Additive");
+            if (fireShader != null) {
+                Material fireMat = new Material(fireShader);
+                fireMat.color = new Color(1f, 0.4f, 0.1f, 0.8f);
+                if (fireMat.HasProperty("_TintColor")) fireMat.SetColor("_TintColor", new Color(1f, 0.4f, 0.1f, 0.8f));
+                pFire.GetComponent<ParticleSystemRenderer>().sharedMaterial = fireMat;
             }
             ps.Play();
             pFire.Play();
