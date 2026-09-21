@@ -54,6 +54,9 @@
      <Compile Include="Assets\Editor\AutoStaticBatcher.cs" />
      <Compile Include="Assets\Editor\FixChestPrefab.cs" />
      <Compile Include="Assets\Editor\FixWaterBug.cs" />
+     <Compile Include="Assets\Editor\IslandLootSpawner.cs" />
+     <Compile Include="Assets\Editor\MovePlayerToLand.cs" />
+     <Compile Include="Assets\Editor\ResetSoldierPose.cs" />
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Editor\Attributes\PostProcessingModelEditorAttribute.cs" />
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Editor\Models\AmbientOcclusionModelEditor.cs" />
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Editor\Models\AntialiasingModelEditor.cs" />
