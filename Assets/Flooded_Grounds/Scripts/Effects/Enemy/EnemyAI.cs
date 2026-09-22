@@ -34,6 +34,19 @@ namespace HorrorGame.Enemy
                 GameObject p = GameObject.FindGameObjectWithTag("Player");
                 if (p != null) player = p.transform;
             }
+
+            // Nếu Zombie này được đặt sẵn gần khu vực xác máy bay (< 20m), tự động di dời ra xa
+            float distToCrash = Vector3.Distance(transform.position, ZombieSpawner.CRASH_SITE_CENTER);
+            if (distToCrash < 20f)
+            {
+                Vector3 farPos = ZombieSpawner.CRASH_SITE_CENTER + new Vector3(Random.Range(30f, 80f) * (Random.value > 0.5f ? 1 : -1), 0, Random.Range(30f, 80f) * (Random.value > 0.5f ? 1 : -1));
+                NavMeshHit hit;
+                if (NavMesh.SamplePosition(farPos, out hit, 30f, NavMesh.AllAreas))
+                {
+                    if (agent != null) agent.Warp(hit.position);
+                    else transform.position = hit.position;
+                }
+            }
         }
 
         void Update()
