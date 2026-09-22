@@ -289,7 +289,7 @@ namespace HorrorGame.EditorTools
             SpawnCrashSiteStarterItem("Assets/Flooded_Grounds/Prefabs/Pickups/Pickup_FoodRation.prefab", root.transform, playerWakePos + new Vector3(-0.8f, 0, 2.6f), terrain);
 
             // Dọn sạch Zombie gần khu vực xác máy bay
-            ClearZombiesNearCrashSiteInEditor(crashCenter, 120f);
+            ClearZombiesNearCrashSiteInEditor(crashCenter, 20f);
 
             // Lưu trực tiếp Scene
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());

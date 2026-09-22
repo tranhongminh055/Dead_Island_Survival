@@ -45,6 +45,16 @@ public class FixAirplaneCabin : EditorWindow
         // Đặt vỏ máy bay làm con của Temp_AirplaneCabin để đi liền với nhau
         realAirplaneModel.transform.SetParent(tempCabin.transform);
 
+        // Vá lỗi đi xuyên tường: Tự động gắn MeshCollider cho vỏ máy bay thật
+        MeshFilter[] meshes = realAirplaneModel.GetComponentsInChildren<MeshFilter>();
+        foreach (MeshFilter mf in meshes)
+        {
+            if (mf.gameObject.GetComponent<Collider>() == null)
+            {
+                mf.gameObject.AddComponent<MeshCollider>();
+            }
+        }
+
         Debug.Log("✅ ĐÃ SỬA LỖI ĐỒNG NHẤT: Xóa " + deletedCount + " khối hộp giả và thay thế bằng vỏ máy bay thật '" + realAirplaneModel.name + "' thành công!");
     }
 }

@@ -25,6 +25,16 @@ public class CurvedCabinGenerator : EditorWindow
         GameObject centerShell = Instantiate(selectedShell, selectedShell.transform.parent);
         centerShell.name = "Fuselage_Mid_Center_Fix";
 
+        // Vá lỗi đi xuyên tường: Tự động gắn MeshCollider cho vỏ máy bay
+        MeshFilter[] meshes = centerShell.GetComponentsInChildren<MeshFilter>();
+        foreach (MeshFilter mf in meshes)
+        {
+            if (mf.gameObject.GetComponent<Collider>() == null)
+            {
+                mf.gameObject.AddComponent<MeshCollider>();
+            }
+        }
+
         // 4. Kéo dài phần vỏ này ra (Scale Z) để nó lấp đầy khoảng trống
         // Tạm thời scale Z lên 4 lần (bạn có thể tự dùng phím R để kéo cho vừa khít)
         Vector3 newScale = centerShell.transform.localScale;

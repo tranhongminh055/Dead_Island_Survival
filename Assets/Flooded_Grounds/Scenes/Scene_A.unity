@@ -24505,7 +24505,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3f8a0f4fbc15db4a8baea02242cfdfc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  fadeImage: {fileID: 528013695}
+  fadeImage: {fileID: 0}
   fadeSpeed: 5
   cameraTransform: {fileID: 1229290733}
   shakeDuration: 0
@@ -67446,7 +67446,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &528013693
 RectTransform:
   m_ObjectHideFlags: 0
