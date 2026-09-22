@@ -36,10 +36,15 @@ namespace HorrorGame.Player
         public float fatigueDrainRate = 0.2f; // Làm giảm Max Stamina theo thời gian (Cần ngủ để hồi)
 
         public bool isDead = false; // Đánh dấu đã chết
+        public bool isInvincible = false; // Bất tử (dùng trong Cutscene mở đầu)
         public Action OnPlayerDeath; // Sự kiện khi người chơi chết
 
         private void Start()
         {
+            // Luôn đảm bảo thời gian chạy mượt mà ở tốc độ bình thường
+            Time.timeScale = 1.0f;
+            isDead = false;
+
             // Khởi tạo chỉ số ban đầu
             currentHealth = maxHealth;
             currentStamina = maxStamina;
@@ -51,7 +56,10 @@ namespace HorrorGame.Player
         private void Update()
         {
             if (isDead) return; // Nếu chết rồi thì ngừng hoạt động cơ thể
-            HandleSurvivalStats();
+            if (!isInvincible)
+            {
+                HandleSurvivalStats();
+            }
         }
 
         private void HandleSurvivalStats()
@@ -144,7 +152,7 @@ namespace HorrorGame.Player
         // HÀM XỬ LÝ SÁT THƯƠNG / HỒI MÁU
         public void TakeDamage(float amount)
         {
-            if (isDead) return; // Chết rồi không nhận sát thương nữa
+            if (isDead || isInvincible) return; // Chết rồi hoặc đang bất tử (cutscene) không nhận sát thương
 
             Debug.Log("Bị đánh! Máu bị trừ: " + amount + ". Máu hiện tại: " + currentHealth);
             currentHealth -= amount;
@@ -179,8 +187,9 @@ namespace HorrorGame.Player
             isDead = true;
             Debug.Log("Player Died!");
             
-            // Tạm dừng game để người chơi nhận ra mình đã chết (Vì chưa có màn hình Game Over)
-            Time.timeScale = 0f; 
+            // Khóa điều khiển di chuyển của nhân vật thay vì đóng băng timeScale (để tránh lỗi FPS nhảy hàng triệu và treo game)
+            PlayerController pc = GetComponent<PlayerController>();
+            if (pc != null) pc.enabled = false;
 
             if (OnPlayerDeath != null)
             {

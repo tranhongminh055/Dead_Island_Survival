@@ -53,6 +53,14 @@ namespace HorrorGame.Enemy
         {
             if (isDead || player == null) return;
 
+            // Đang trong Cutscene máy bay rơi: Zombie hoàn toàn bất động, không tiếp cận hay tấn công người chơi
+            if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+            {
+                if (agent != null && agent.enabled) agent.SetDestination(transform.position);
+                if (animator != null) animator.SetFloat("Speed", 0f);
+                return;
+            }
+
             // Chỉ tính khoảng cách trên mặt phẳng (bỏ qua độ cao Y) để tránh lỗi lệch tâm (pivot)
             Vector3 targetPos = new Vector3(player.position.x, transform.position.y, player.position.z);
             float distanceToPlayer = Vector3.Distance(transform.position, targetPos);

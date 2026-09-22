@@ -100,6 +100,7 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\AutoAddAirplaneColliders.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplaneCabinExterior.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplaneCrashCutscene.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplanePassengerSeatPose.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\CameraShake.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\IntroCutsceneManager.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\DisableRenderer.cs" />
@@ -108,6 +109,9 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\Enemy\ZombieSpawner.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\FlyCam.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\SanityEffects.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\AirplaneCrashSite.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\AirplaneCrashSmoker.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\AutoSaveSystem.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\DayNightCycle.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\ItemSpawner.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\LootChest.cs" />
@@ -124,10 +128,20 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\FPSWeapon.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\Gun.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\PlayerController.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Player\PlayerFlashlight.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\PlayerStats.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\PlayerUI.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\WeaponManager.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\AxeController.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\BuildingPrefabGenerator.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\BuildingRecipe.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\BuildingSystem.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\ChoppableTree.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\CollectableStone.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\WaterFloat.cs" />
+     <Compile Include="Assets\Scripts\CinematicEffects.cs" />
+     <Compile Include="Assets\Scripts\TimelineTriggerFade.cs" />
+     <Compile Include="Assets\Scripts\TimelineTriggerShake.cs" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\DepthOfField.shader" />
      <None Include="Assets\Flooded_Grounds\Content\Shaders\FG_PBR_Water.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\MotionBlur.cginc" />
@@ -148,6 +162,7 @@
      <None Include="Assets\Flooded_Grounds\Resources\TreeCreator\TreeCreatorLeavesOptimized.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Editor Resources\Monitors\HistogramCompute.compute" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\Uber.shader" />
+     <None Include="Assets\Flooded_Grounds\Shaders\SkyBeaconBeam.shader" />
      <None Include="Assets\Flooded_Grounds\Resources\TreeCreator\TreeCreatorBarkOptimized.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\Blit.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Editor Resources\Monitors\WaveformRender.shader" />
@@ -178,8 +193,11 @@
      <None Include="Assets\Flooded_Grounds\Content\Shaders\FG_Skybox_Rotating.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\AmbientOcclusion.cginc" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Editor Resources\Monitors\WaveformCompute.compute" />
- <Reference Include="UnityEngine.UIAutomation">
- <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/UIAutomation/UnityEngine.UIAutomation.dll</HintPath>
+ <Reference Include="UnityEngine.UI">
+ <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/GUISystem/UnityEngine.UI.dll</HintPath>
+ </Reference>
+ <Reference Include="UnityEngine.Networking">
+ <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/Networking/UnityEngine.Networking.dll</HintPath>
  </Reference>
  <Reference Include="UnityEngine.TestRunner">
  <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/TestRunner/UnityEngine.TestRunner.dll</HintPath>
@@ -187,14 +205,11 @@
  <Reference Include="nunit.framework">
  <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/TestRunner/net35/unity-custom/nunit.framework.dll</HintPath>
  </Reference>
- <Reference Include="UnityEngine.Networking">
- <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/Networking/UnityEngine.Networking.dll</HintPath>
- </Reference>
- <Reference Include="UnityEngine.UI">
- <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/GUISystem/UnityEngine.UI.dll</HintPath>
- </Reference>
  <Reference Include="UnityEngine.Timeline">
  <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/Timeline/RuntimeEditor/UnityEngine.Timeline.dll</HintPath>
+ </Reference>
+ <Reference Include="UnityEngine.UIAutomation">
+ <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/UIAutomation/UnityEngine.UIAutomation.dll</HintPath>
  </Reference>
  <Reference Include="UnityEngine.GoogleAudioSpatializer">
  <HintPath>D:/Program Files/Unity/Hub/Editor/2017.2.5f1/Editor/Data/UnityExtensions/Unity/UnityGoogleAudioSpatializer/RuntimeEditor/UnityEngine.GoogleAudioSpatializer.dll</HintPath>
