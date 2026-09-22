@@ -97,6 +97,8 @@
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Runtime\Utils\RenderTextureFactory.cs" />
      <Compile Include="Assets\Flooded_Grounds\PostProcessing\Utilities\CustomMotionTexture\ExampleWheelController.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\AdvancedDistanceCulling.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\AutoAddAirplaneColliders.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplaneCabinExterior.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplaneCrashCutscene.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\CameraShake.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\IntroCutsceneManager.cs" />

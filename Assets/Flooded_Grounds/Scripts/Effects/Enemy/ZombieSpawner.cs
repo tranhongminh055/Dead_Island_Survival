@@ -18,6 +18,10 @@ namespace HorrorGame.Enemy
         [Header("Tự động rải đều toàn map")]
         public bool autoScatterOverMap = true; // Bật cái này lên để tự động rải
 
+        [Header("Crash Site Safe Zone (Vùng an toàn quanh xác máy bay)")]
+        public static readonly Vector3 CRASH_SITE_CENTER = new Vector3(537f, 17.6f, 545f);
+        public float crashSafeRadius = 20f; // Bán kính 20m quanh xác máy bay tuyệt đối không có Zombie!
+
         private float timer = 0f;
         private List<GameObject> activeZombies = new List<GameObject>();
         private NavMeshTriangulation navMeshData;
