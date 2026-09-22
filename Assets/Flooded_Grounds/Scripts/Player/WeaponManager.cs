@@ -38,6 +38,12 @@ namespace HorrorGame.Player
 
         void Update()
         {
+            if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+            {
+                HideAllWeapons();
+                return;
+            }
+
             // Giảm bộ đếm thời gian hiển thị tên súng
             if (weaponNameTimer > 0)
             {

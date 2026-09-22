@@ -66,3 +66,7 @@ crashlytics-build.properties
 
 # PackedAssets
 [Pp]acked[Aa]ssets/
+
+# Gemini / Antigravity IDE configuration
+.gemini/
+
