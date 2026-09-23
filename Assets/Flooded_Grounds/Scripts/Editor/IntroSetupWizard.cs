@@ -117,7 +117,7 @@ public class IntroSetupWizard : EditorWindow
         manager.forestSpawnPoint = spawnObj.transform;
 
         Selection.activeGameObject = managerObj;
-        Debug.Log("🎉 HOÀN TẤT TỰ ĐỘNG THIẾT LẬP INTRO MÁY BAY! Bạn chỉ cần thêm File Âm Thanh vào Inspector của IntroCutsceneManager nữa là xong!");
+        Debug.Log(" HOÀN TẤT TỰ ĐỘNG THIẾT LẬP INTRO MÁY BAY! Bạn chỉ cần thêm File Âm Thanh vào Inspector của IntroCutsceneManager nữa là xong!");
     }
 }
 #endif

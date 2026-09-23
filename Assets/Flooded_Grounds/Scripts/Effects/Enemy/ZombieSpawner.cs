@@ -4,40 +4,171 @@ using System.Collections.Generic;
 
 namespace HorrorGame.Enemy
 {
+    [System.Serializable]
+    public class ZombieZone
+    {
+        public string zoneName;
+        public Vector3 center;
+        public List<GameObject> activeZombies = new List<GameObject>();
+        public float timer = 0f;
+        public bool isPlayerInside = false;
+        
+        public ZombieZone(string name, Vector3 pos)
+        {
+            zoneName = name;
+            center = pos;
+        }
+    }
+
     public class ZombieSpawner : MonoBehaviour
     {
         [Header("Spawner Settings")]
         public GameObject zombiePrefab; // Kéo thả khối Zombie Prefab vào đây
-        public int maxZombies = 20; // Số lượng tối đa trên đảo
-        public float spawnInterval = 5f; // Cứ mỗi 5 giây đẻ 1 con
-        public float spawnRadius = 50f; // Bán kính khu vực đẻ ngẫu nhiên nếu không dùng Spawn Points
-
-        [Header("Spawn Points (Khắp Map)")]
-        public Transform[] spawnPoints; // Danh sách các điểm đẻ Zombie (Tạo Empty Object rồi kéo vào đây)
-
-        [Header("Tự động rải đều toàn map")]
-        public bool autoScatterOverMap = true; // Bật cái này lên để tự động rải
-
-        [Header("Crash Site Safe Zone (Vùng an toàn quanh xác máy bay)")]
+        public Transform player; // Tự động tìm nếu để trống
+        
+        [Header("Vùng kích hoạt & Tối ưu (The Forest Style)")]
+        public float activationRange = 150f; // Khoảng cách đánh thức Zombie
+        
+        [Header("Cấu hình ngày/đêm")]
+        public int maxZombiesDay = 50; 
+        public int maxZombiesNight = 120;
+        public float spawnIntervalDay = 4f; 
+        public float spawnIntervalNight = 1f; 
+        public float spawnRadius = 80f; // Bán kính đẻ của mỗi cứ điểm
+        
         public static readonly Vector3 CRASH_SITE_CENTER = new Vector3(537f, 17.6f, 545f);
-        public float crashSafeRadius = 20f; // Bán kính 20m quanh xác máy bay tuyệt đối không có Zombie!
+        public float crashSafeRadius = 20f;
 
-        private float timer = 0f;
-        private List<GameObject> activeZombies = new List<GameObject>();
-        private NavMeshTriangulation navMeshData;
+        [Header("Danh sách Cứ Điểm (Zones)")]
+        public List<ZombieZone> zones = new List<ZombieZone>();
+
+        // Zone di động theo người chơi — luôn đẻ Zombie xung quanh Player
+        private ZombieZone playerFollowZone;
+        private float playerFollowZoneUpdateTimer = 0f;
+
+        /// <summary>
+        /// Tự động gắn ZombieSpawner vào Scene khi game chạy (không cần kéo thả thủ công)
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        static void AutoSpawn()
+        {
+            // Tránh tạo trùng lặp
+            if (FindObjectOfType<ZombieSpawner>() != null) return;
+
+            GameObject spawnerObj = new GameObject("[ZombieSpawner_Auto]");
+            spawnerObj.AddComponent<ZombieSpawner>();
+            DontDestroyOnLoad(spawnerObj);
+            Debug.Log("<color=lime>[ZombieSpawner] Tự động tạo ZombieSpawner thành công!</color>");
+        }
 
         void Start()
         {
-            // Lấy toàn bộ mạng lưới mặt đất đã nướng (Bake) của bản đồ
-            navMeshData = NavMesh.CalculateTriangulation();
-            
-            if (navMeshData.vertices.Length == 0)
+            if (player == null)
             {
-                Debug.LogError("ZombieSpawner: Không tìm thấy dữ liệu NavMesh! Bạn phải Bake NavMesh cho mặt đất trước.");
+                GameObject p = GameObject.FindGameObjectWithTag("Player");
+                if (p != null) player = p.transform;
             }
 
-            // Dọn sạch mọi Zombie có sẵn trong Scene đang ở trong bán kính 120m quanh xác máy bay
+            // Tự động tạo Zombie Prefab nếu chưa có ai kéo thả vào Inspector
+            if (zombiePrefab == null)
+            {
+                AutoCreateZombiePrefab();
+            }
+
+            // Tự động tạo các Cứ Điểm bao quanh bản đồ nếu chưa có
+            if (zones.Count == 0)
+            {
+                CreateDefaultCamps();
+            }
+
+            // Tạo zone di động bám theo người chơi
+            if (player != null)
+            {
+                playerFollowZone = new ZombieZone("Khu Vuc Xung Quanh Player", player.position);
+            }
+
             ClearZombiesNearCrashSite();
+            
+            Debug.Log("<color=cyan>[ZombieSpawner] Khởi tạo xong! Zombie Prefab: " + (zombiePrefab != null ? "OK" : "THIẾU") + " | Player: " + (player != null ? "OK" : "THIẾU") + " | Zones: " + zones.Count + "</color>");
+        }
+
+        /// <summary>
+        /// Tự động nạp model Zombie từ file FBX gốc và gắn đầy đủ Component
+        /// </summary>
+        private void AutoCreateZombiePrefab()
+        {
+#if UNITY_EDITOR
+            // Nạp model FBX zombie
+            GameObject zombieModel = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Flooded_Grounds/Character No Animation/Enemy No Animation/Zombiegirl W Kurniawan.fbx");
+            
+            if (zombieModel == null)
+            {
+                Debug.LogError("[ZombieSpawner] Không tìm thấy file Zombiegirl W Kurniawan.fbx!");
+                return;
+            }
+
+            // Nạp Animator Controller
+            RuntimeAnimatorController animCtrl = UnityEditor.AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(
+                "Assets/Flooded_Grounds/Character No Animation/Enemy No Animation/Animation zoombie/ZombieAnim.controller");
+
+            // Tạo một bản sao tạm thời làm Prefab mẫu (ẩn, không hiện trong Scene)
+            zombiePrefab = Instantiate(zombieModel);
+            zombiePrefab.name = "ZombiePrefab_AutoCreated";
+            zombiePrefab.SetActive(false);
+
+            // Gắn Animator + Controller
+            Animator anim = zombiePrefab.GetComponent<Animator>();
+            if (anim == null) anim = zombiePrefab.AddComponent<Animator>();
+            if (animCtrl != null) anim.runtimeAnimatorController = animCtrl;
+
+            // Gắn NavMeshAgent
+            NavMeshAgent agent = zombiePrefab.GetComponent<NavMeshAgent>();
+            if (agent == null) agent = zombiePrefab.AddComponent<NavMeshAgent>();
+            agent.speed = 2.5f;
+            agent.angularSpeed = 360f;
+            agent.acceleration = 8f;
+            agent.stoppingDistance = 1.5f;
+            agent.radius = 0.4f;
+            agent.height = 1.8f;
+
+            // Gắn Capsule Collider
+            CapsuleCollider capsule = zombiePrefab.GetComponent<CapsuleCollider>();
+            if (capsule == null) capsule = zombiePrefab.AddComponent<CapsuleCollider>();
+            capsule.center = new Vector3(0, 0.9f, 0);
+            capsule.radius = 0.35f;
+            capsule.height = 1.8f;
+
+            // Gắn EnemyAI
+            EnemyAI ai = zombiePrefab.GetComponent<EnemyAI>();
+            if (ai == null) ai = zombiePrefab.AddComponent<EnemyAI>();
+
+            DontDestroyOnLoad(zombiePrefab);
+
+            Debug.Log("<color=cyan>[ZombieSpawner] Đã tự động tạo Zombie Prefab từ FBX thành công!</color>");
+#else
+            Debug.LogError("[ZombieSpawner] Cần gán Zombie Prefab trong Inspector trước khi Build game!");
+#endif
+        }
+
+        private void CreateDefaultCamps()
+        {
+            // Cứ điểm GẦN crash site (người chơi sẽ gặp zombie ngay khi bắt đầu chơi)
+            zones.Add(new ZombieZone("Khu Vuc Xac May Bay", CRASH_SITE_CENTER + new Vector3(60, 0, 60)));
+            zones.Add(new ZombieZone("Rung Gan Crash", CRASH_SITE_CENTER + new Vector3(-80, 0, 40)));
+            zones.Add(new ZombieZone("Lang Mac Gan", CRASH_SITE_CENTER + new Vector3(40, 0, -70)));
+
+            // Cứ điểm TRUNG BÌNH (100-200m)
+            zones.Add(new ZombieZone("Khu Rung Phia Bac", CRASH_SITE_CENTER + new Vector3(0, 0, 180)));
+            zones.Add(new ZombieZone("Khu Vuc Phia Nam", CRASH_SITE_CENTER + new Vector3(0, 0, -180)));
+            zones.Add(new ZombieZone("Doanh Trai Phia Dong", CRASH_SITE_CENTER + new Vector3(180, 0, 0)));
+            zones.Add(new ZombieZone("Bai Doc Phia Tay", CRASH_SITE_CENTER + new Vector3(-180, 0, 0)));
+
+            // Cứ điểm XA (300m) cho người chơi thám hiểm sâu
+            zones.Add(new ZombieZone("Khu Dat Can Coi", CRASH_SITE_CENTER + new Vector3(300, 0, 300)));
+            zones.Add(new ZombieZone("Vung Dat Hoang", CRASH_SITE_CENTER + new Vector3(-300, 0, -300)));
+            
+            Debug.Log("<color=lime>[ZombieSpawner] Da tu dong tao " + zones.Count + " cu diem (Zones) xung quanh map.</color>");
         }
 
         public void ClearZombiesNearCrashSite()
@@ -49,94 +180,137 @@ namespace HorrorGame.Enemy
                 float dist = Vector3.Distance(z.transform.position, CRASH_SITE_CENTER);
                 if (dist < crashSafeRadius)
                 {
-                    Debug.Log(string.Format("<color=yellow>[SAFE ZONE]</color> Di dời Zombie ({0:F1}m) ra khỏi khu vực xác máy bay!", dist));
-                    // Di dời Zombie ra xa ít nhất 150m trên NavMesh
-                    Vector3 farPos = CRASH_SITE_CENTER + new Vector3(Random.Range(140f, 200f) * (Random.value > 0.5f ? 1 : -1), 0, Random.Range(140f, 200f) * (Random.value > 0.5f ? 1 : -1));
-                    NavMeshHit hit;
-                    if (NavMesh.SamplePosition(farPos, out hit, 30f, NavMesh.AllAreas))
-                    {
-                        var agent = z.GetComponent<NavMeshAgent>();
-                        if (agent != null) agent.Warp(hit.position);
-                        else z.transform.position = hit.position;
-                    }
-                    else
-                    {
-                        Destroy(z.gameObject);
-                    }
+                    Destroy(z.gameObject);
                 }
             }
         }
 
         void Update()
         {
-            // Trong suốt cutscene mở đầu: Không đẻ thêm zombie
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
+            if (player == null) return;
+            if (zombiePrefab == null) return;
 
-            // Dọn dẹp danh sách: Xóa những con Zombie đã bị bắn chết (bị Destroy)
-            activeZombies.RemoveAll(item => item == null);
-
-            // Nếu đảo đã quá đông (đạt giới hạn) thì ngừng đẻ
-            if (activeZombies.Count >= maxZombies) return;
-
-            // Đếm ngược thời gian đẻ
-            timer += Time.deltaTime;
-            if (timer >= spawnInterval)
+            bool isNight = false;
+            if (HorrorGame.Environment.DayNightCycle.Instance != null)
             {
-                SpawnZombie();
-                timer = 0f;
+                isNight = HorrorGame.Environment.DayNightCycle.Instance.IsNight();
+            }
+
+            int currentMaxZombies = isNight ? maxZombiesNight : maxZombiesDay;
+            float currentSpawnInterval = isNight ? spawnIntervalNight : spawnIntervalDay;
+
+            // === ZONE DI ĐỘNG BÁM THEO PLAYER ===
+            // Luôn đẻ zombie quanh người chơi bất kể đang ở đâu trên bản đồ
+            if (playerFollowZone != null)
+            {
+                // Cập nhật vị trí zone theo player mỗi 5 giây
+                playerFollowZoneUpdateTimer += Time.deltaTime;
+                if (playerFollowZoneUpdateTimer >= 5f)
+                {
+                    playerFollowZone.center = player.position;
+                    playerFollowZoneUpdateTimer = 0f;
+                }
+
+                playerFollowZone.activeZombies.RemoveAll(item => item == null);
+
+                if (playerFollowZone.activeZombies.Count < currentMaxZombies)
+                {
+                    playerFollowZone.timer += Time.deltaTime;
+                    if (playerFollowZone.timer >= currentSpawnInterval)
+                    {
+                        SpawnZombieInZone(playerFollowZone);
+                        playerFollowZone.timer = 0f;
+                    }
+                }
+
+                // Đóng băng zombie ở xa người chơi (> 150m)
+                for (int i = playerFollowZone.activeZombies.Count - 1; i >= 0; i--)
+                {
+                    GameObject z = playerFollowZone.activeZombies[i];
+                    if (z == null) continue;
+                    float dist = Vector3.Distance(z.transform.position, player.position);
+                    if (dist > activationRange)
+                    {
+                        PauseZombie(z);
+                    }
+                    else
+                    {
+                        ResumeZombie(z);
+                    }
+                }
+            }
+
+            // === CÁC ZONE CỐ ĐỊNH ===
+            foreach (var zone in zones)
+            {
+                // Dọn dẹp danh sách những Zombie đã chết
+                zone.activeZombies.RemoveAll(item => item == null);
+
+                // Tính khoảng cách từ người chơi tới tâm cứ điểm
+                float distToPlayer = Vector3.Distance(player.position, zone.center);
+                bool wasInside = zone.isPlayerInside;
+                bool isInsideNow = distToPlayer <= activationRange;
+                
+                zone.isPlayerInside = isInsideNow;
+
+                // Nếu người chơi VỪA bước vào vùng kích hoạt -> Đánh thức toàn bộ zombie
+                if (!wasInside && isInsideNow)
+                {
+                    Debug.Log("<color=green>[Kích hoạt]</color> Bước vào " + zone.zoneName + ". Đánh thức Zombie!");
+                    foreach(var z in zone.activeZombies)
+                    {
+                        ResumeZombie(z);
+                    }
+                }
+                // Nếu người chơi VỪA rời khỏi vùng kích hoạt -> Bắt zombie đứng yên
+                else if (wasInside && !isInsideNow)
+                {
+                    Debug.Log("<color=gray>[Ngủ đông]</color> Đã rời xa " + zone.zoneName + ". Zombie sẽ đứng yên chờ bạn.");
+                    foreach(var z in zone.activeZombies)
+                    {
+                        PauseZombie(z);
+                    }
+                }
+
+                // Nếu người chơi ĐANG ở trong vùng -> Đẻ thêm Zombie nếu chưa đủ
+                if (isInsideNow)
+                {
+                    if (zone.activeZombies.Count < currentMaxZombies)
+                    {
+                        zone.timer += Time.deltaTime;
+                        if (zone.timer >= currentSpawnInterval)
+                        {
+                            SpawnZombieInZone(zone);
+                            zone.timer = 0f;
+                        }
+                    }
+                }
             }
         }
 
-        private void SpawnZombie()
+        private void SpawnZombieInZone(ZombieZone zone)
         {
-            if (zombiePrefab == null)
-            {
-                Debug.LogError("ZombieSpawner: Chưa gắn Zombie Prefab!");
-                return;
-            }
+            if (zombiePrefab == null) return;
 
             Vector3 finalPosition = Vector3.zero;
             bool foundValidPosition = false;
 
-            // Thử tối đa 12 lần để tìm vị trí nằm NGOÀI vùng an toàn máy bay rơi (cách xa > 120m)
-            for (int attempt = 0; attempt < 12; attempt++)
+            // Thử 10 lần tìm vị trí ngẫu nhiên trên NavMesh quanh tâm của khu vực
+            for (int attempt = 0; attempt < 10; attempt++)
             {
-                if (autoScatterOverMap && navMeshData.vertices.Length > 0)
+                Vector3 randomDirection = Random.insideUnitSphere * spawnRadius;
+                randomDirection += zone.center;
+                
+                NavMeshHit hit;
+                // SamplePosition trên khoảng cách 20m tính từ điểm ngẫu nhiên để rơi xuống mặt đất
+                if (NavMesh.SamplePosition(randomDirection, out hit, 20f, NavMesh.AllAreas))
                 {
-                    int randomIndex = Random.Range(0, navMeshData.vertices.Length);
-                    Vector3 randomPoint = navMeshData.vertices[randomIndex];
-
-                    NavMeshHit hit;
-                    if (NavMesh.SamplePosition(randomPoint, out hit, 5f, NavMesh.AllAreas))
+                    // Tránh vùng an toàn máy bay
+                    if (Vector3.Distance(hit.position, CRASH_SITE_CENTER) >= crashSafeRadius)
                     {
-                        if (Vector3.Distance(hit.position, CRASH_SITE_CENTER) >= crashSafeRadius)
-                        {
-                            finalPosition = hit.position;
-                            foundValidPosition = true;
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    Vector3 spawnCenter = transform.position;
-
-                    if (spawnPoints != null && spawnPoints.Length > 0)
-                    {
-                        int randomIndex = Random.Range(0, spawnPoints.Length);
-                        if (spawnPoints[randomIndex] != null)
-                        {
-                            spawnCenter = spawnPoints[randomIndex].position;
-                        }
-                    }
-
-                    Vector3 randomDirection = Random.insideUnitSphere * spawnRadius;
-                    randomDirection += spawnCenter;
-                    
-                    NavMeshHit hit;
-                    if (NavMesh.SamplePosition(randomDirection, out hit, spawnRadius, NavMesh.AllAreas))
-                    {
-                        if (Vector3.Distance(hit.position, CRASH_SITE_CENTER) >= crashSafeRadius)
+                        // Không đẻ quá sát mặt người chơi để tránh bị lộ (cách > 15m)
+                        if (Vector3.Distance(hit.position, player.position) > 15f)
                         {
                             finalPosition = hit.position;
                             foundValidPosition = true;
@@ -149,35 +323,49 @@ namespace HorrorGame.Enemy
             if (foundValidPosition)
             {
                 GameObject newZombie = Instantiate(zombiePrefab, finalPosition, Quaternion.identity);
-                activeZombies.Add(newZombie);
-                Debug.Log("ZombieSpawner: Đã spawn 1 con Zombie tại " + finalPosition);
-            }
-            else
-            {
-                Debug.LogWarning("ZombieSpawner: Không tìm thấy vị trí hợp lệ ngoài vùng an toàn để đẻ Zombie!");
+                newZombie.SetActive(true); // Bật lên vì prefab mẫu đang bị ẩn (SetActive false)
+                zone.activeZombies.Add(newZombie);
             }
         }
 
-        // Vẽ vòng tròn để dễ mường tượng phạm vi đẻ Zombie trong màn hình Scene (nếu dùng code cũ)
+        private void PauseZombie(GameObject z)
+        {
+            if (z == null) return;
+            var agent = z.GetComponent<NavMeshAgent>();
+            var anim = z.GetComponent<Animator>();
+            var ai = z.GetComponent<EnemyAI>();
+            
+            // Dừng AI và đóng băng Animation
+            if (agent != null && agent.isOnNavMesh) agent.isStopped = true;
+            if (anim != null) anim.enabled = false;
+            if (ai != null) ai.enabled = false;
+        }
+
+        private void ResumeZombie(GameObject z)
+        {
+            if (z == null) return;
+            var agent = z.GetComponent<NavMeshAgent>();
+            var anim = z.GetComponent<Animator>();
+            var ai = z.GetComponent<EnemyAI>();
+            
+            // Tiếp tục AI và Animation
+            if (agent != null && agent.isOnNavMesh) agent.isStopped = false;
+            if (anim != null) anim.enabled = true;
+            if (ai != null) ai.enabled = true;
+        }
+
         private void OnDrawGizmosSelected()
         {
-            if (autoScatterOverMap) return; // Nếu đang tự rải toàn map thì không cần vẽ vòng tròn
-
             Gizmos.color = Color.green;
-
-            if (spawnPoints != null && spawnPoints.Length > 0)
+            foreach (var zone in zones)
             {
-                foreach (Transform pt in spawnPoints)
-                {
-                    if (pt != null)
-                    {
-                        Gizmos.DrawWireSphere(pt.position, spawnRadius);
-                    }
-                }
-            }
-            else
-            {
-                Gizmos.DrawWireSphere(transform.position, spawnRadius);
+                // Vòng vàng là vùng kích hoạt (Player bước vào thì Zombie thức giấc)
+                Gizmos.color = Color.yellow;
+                Gizmos.DrawWireSphere(zone.center, activationRange);
+                
+                // Vòng xanh là vùng Zombies đẻ ra bên trong cứ điểm
+                Gizmos.color = Color.green;
+                Gizmos.DrawWireSphere(zone.center, spawnRadius);
             }
         }
     }

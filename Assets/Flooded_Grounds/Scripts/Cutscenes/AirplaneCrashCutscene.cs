@@ -150,6 +150,7 @@ namespace HorrorGame.Cutscenes
             if (planeCrashClip == null)
                 planeCrashClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Flight_Cabin-Sound/realistic_bomb_crash.wav");
 
+            // video cơ trưởng thông báo qua radio
             if (captainAnnouncementClip == null)
                 captainAnnouncementClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Flight_Cabin-Sound/captain_announcement.wav");
             if (playerCrawlVoiceClip == null)
@@ -2088,18 +2089,47 @@ namespace HorrorGame.Cutscenes
         {
             if (subtitleText == null) yield break;
 
-            SetSubtitle("[Captain]: \"Welcome aboard our C-400. Cruising altitude 35,000 feet, sit back and enjoy your flight.\"\n<size=17><color=#D1D5DB>(Chào mừng mọi người, đây là cơ trưởng chuyến bay C-400. Độ cao 35.000 feet, thời tiết đẹp, chúc mọi người chuyến bay an toàn.)</color></size>");
-            yield return new WaitForSeconds(12f);
+            // --- PHẦN 1: CHÀO MỪNG (0.0s - 12.0s) ---
+            SetSubtitle("[Captain]: \"Welcome aboard our C-400.\"\n<size=17><color=#D1D5DB>(Chào mừng mọi người, đây là cơ trưởng chuyến bay C-400.)</color></size>");
+            yield return new WaitForSeconds(4.0f);
             ClearSubtitle();
-            yield return new WaitForSeconds(3f);
+            yield return new WaitForSeconds(1.0f); // Ngắt giọng
 
-            SetSubtitle("[Captain]: \"Uh, folks, we are encountering a slight patch of rough air ahead. Please ensure your seatbelts are securely fastened.\"\n<size=17><color=#D1D5DB>(Xin mọi người chú ý, phía trước có vùng nhiễu động. Xin vui lòng thắt chặt dây an toàn tại vị trí của mình.)</color></size>");
-            yield return new WaitForSeconds(12f);
+            SetSubtitle("[Captain]: \"Cruising altitude 35,000 feet,\"\n<size=17><color=#D1D5DB>(Độ cao 35.000 feet, thời tiết đẹp,)</color></size>");
+            yield return new WaitForSeconds(2.5f);
             ClearSubtitle();
-            yield return new WaitForSeconds(3f);
+            yield return new WaitForSeconds(1.0f); // Ngắt giọng
 
-            SetSubtitle("[Captain]: \"Everyone brace yourselves! Wait... what is that on radar?! We're losing altitude, hold on!\"\n<size=17><color=#F87171>(Tất cả bám chắc! Khoan đã... radar báo cái gì thế này?! Mất độ cao rồi, bám chắc vào!)</color></size>");
-            yield return new WaitForSeconds(14.5f);
+            SetSubtitle("[Captain]: \"sit back and enjoy your flight.\"\n<size=17><color=#D1D5DB>(chúc mọi người chuyến bay an toàn.)</color></size>");
+            yield return new WaitForSeconds(3.5f);
+            ClearSubtitle();
+            
+            // Khoảng lặng 3.5 giây trước khi vào vùng nhiễu động
+            yield return new WaitForSeconds(3.5f);
+
+            // --- PHẦN 2: NHIỄU ĐỘNG NHẸ (15.5s - 25.0s) ---
+            SetSubtitle("[Captain]: \"Uh, folks, we are encountering a slight patch of rough air ahead.\"\n<size=17><color=#D1D5DB>(Xin mọi người chú ý, phía trước có vùng nhiễu động.)</color></size>");
+            yield return new WaitForSeconds(3.5f);
+            ClearSubtitle();
+            yield return new WaitForSeconds(0.5f); // Ngắt giọng lấy hơi
+
+            SetSubtitle("[Captain]: \"Please ensure your seatbelts are securely fastened.\"\n<size=17><color=#D1D5DB>(Xin vui lòng thắt chặt dây an toàn tại vị trí của mình.)</color></size>");
+            yield return new WaitForSeconds(5.5f);
+            ClearSubtitle();
+
+            // Khoảng lặng 5 giây căng thẳng
+            yield return new WaitForSeconds(5.0f);
+
+            // --- PHẦN 3: BÁO ĐỘNG RƠI (30.0s - 44.5s) ---
+            SetSubtitle("[Captain]: \"Everyone brace yourselves!\"\n<size=17><color=#F87171>(Tất cả bám chắc!)</color></size>");
+            yield return new WaitForSeconds(3.0f);
+
+            SetSubtitle("[Captain]: \"Wait... what is that on radar?!\"\n<size=17><color=#F87171>(Khoan đã... radar báo cái gì thế này?!)</color></size>");
+            yield return new WaitForSeconds(4.0f);
+
+            SetSubtitle("[Captain]: \"We're losing altitude, hold on!\"\n<size=17><color=#F87171>(Mất độ cao rồi, bám chắc vào!)</color></size>");
+            yield return new WaitForSeconds(7.5f);
+            
             ClearSubtitle();
         }
 

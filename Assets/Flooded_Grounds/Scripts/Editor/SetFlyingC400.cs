@@ -5,7 +5,7 @@ using HorrorGame.Cutscenes;
 
 public class SetFlyingC400 : EditorWindow
 {
-    [MenuItem("Horror Game/☁️ Đưa C400 Lên Trời & Cho Player Đi Lại")]
+    [MenuItem("Horror Game/ Đưa C400 Lên Trời & Cho Player Đi Lại")]
     public static void SetFlyingState()
     {
         // 1. Tìm máy bay C400
@@ -19,7 +19,7 @@ public class SetFlyingC400 : EditorWindow
             }
             else
             {
-                Debug.LogError("❌ Không tìm thấy máy bay C400. Vui lòng click chọn máy bay C400 trong Hierarchy rồi thử lại!");
+                Debug.LogError(" Không tìm thấy máy bay C400. Vui lòng click chọn máy bay C400 trong Hierarchy rồi thử lại!");
                 return;
             }
         }
@@ -51,11 +51,11 @@ public class SetFlyingC400 : EditorWindow
             player.enabled = true;
             
             Selection.activeGameObject = player.gameObject;
-            Debug.Log("✅ Đã đưa máy bay lên trời (độ cao 1000m) và đặt Player vào trong! Bạn có thể ấn nút Play để tự do đi lại trong khoang máy bay.");
+            Debug.Log(" Đã đưa máy bay lên trời (độ cao 1000m) và đặt Player vào trong! Bạn có thể ấn nút Play để tự do đi lại trong khoang máy bay.");
         }
         else
         {
-            Debug.LogError("❌ Không tìm thấy Player trong Scene!");
+            Debug.LogError(" Không tìm thấy Player trong Scene!");
         }
     }
 }

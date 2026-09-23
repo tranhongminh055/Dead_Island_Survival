@@ -4,7 +4,7 @@ using HorrorGame.Cutscenes;
 
 public class C400Setup : EditorWindow
 {
-    [MenuItem("Horror Game/✈️ Thay Thế Bằng Máy Bay C400 Xịn")]
+    [MenuItem("Horror Game/ Thay Thế Bằng Máy Bay C400 Xịn")]
     public static void ReplaceWithC400()
     {
         // 1. Luôn đưa máy bay lên bầu trời (Y=1000) để không đâm xuyên xuống nhà cửa dưới đất
@@ -32,7 +32,7 @@ public class C400Setup : EditorWindow
         
         if (c400Prefab == null)
         {
-            Debug.LogError("❌ Không tìm thấy model C400 tại đường dẫn: " + c400Path + "\nUnity có thể đang tải (Import), vui lòng đợi 1 chút rồi bấm lại!");
+            Debug.LogError(" Không tìm thấy model C400 tại đường dẫn: " + c400Path + "\nUnity có thể đang tải (Import), vui lòng đợi 1 chút rồi bấm lại!");
             return;
         }
 
@@ -53,7 +53,7 @@ public class C400Setup : EditorWindow
             Undo.RecordObject(manager, "Update C400 Airplane Cabin");
             manager.airplaneCabin = c400Instance;
             EditorUtility.SetDirty(manager);
-            Debug.Log("✅ Đã cập nhật C400 vào script AirplaneCrashCutscene thành công!");
+            Debug.Log(" Đã cập nhật C400 vào script AirplaneCrashCutscene thành công!");
         }
 
         // 5. Đưa ngay Player vào trong chính giữa C400 để người dùng thấy ngay
@@ -108,10 +108,10 @@ public class C400Setup : EditorWindow
         // Lựa chọn C400 để người dùng dễ nhìn thấy
         Selection.activeGameObject = c400Instance;
         
-        Debug.Log("🎉 ĐÃ THAY THẾ TOÀN BỘ MÁY BAY CŨ BẰNG C400 THÀNH CÔNG!");
+        Debug.Log(" ĐÃ THAY THẾ TOÀN BỘ MÁY BAY CŨ BẰNG C400 THÀNH CÔNG!");
     }
 
-    [MenuItem("Horror Game/🎬 Bật Lại Trailer Điện Ảnh (Fix Màn Hình Đen)")]
+    [MenuItem("Horror Game/ Bật Lại Trailer Điện Ảnh (Fix Màn Hình Đen)")]
     public static void EnableCutsceneAgain()
     {
         AirplaneCrashCutscene cutscene = null;
@@ -137,11 +137,11 @@ public class C400Setup : EditorWindow
                 c400.transform.position = new Vector3(0, 1000f, 0);
             }
 
-            Debug.Log("✅ Đã BẬT LẠI hệ thống Cutscene Trailer! Bạn hãy ấn Play để trải nghiệm!");
+            Debug.Log(" Đã BẬT LẠI hệ thống Cutscene Trailer! Bạn hãy ấn Play để trải nghiệm!");
         }
         else
         {
-            Debug.LogError("❌ Không tìm thấy script AirplaneCrashCutscene trong Scene. Bạn hãy mở Scene có sẵn Cutscene ra nhé!");
+            Debug.LogError(" Không tìm thấy script AirplaneCrashCutscene trong Scene. Bạn hãy mở Scene có sẵn Cutscene ra nhé!");
         }
     }
 }
