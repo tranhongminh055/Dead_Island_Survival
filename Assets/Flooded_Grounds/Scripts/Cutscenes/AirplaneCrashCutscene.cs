@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using HorrorGame.Player;
 using HorrorGame.Environment;
+using HorrorGame.Effects;
 
 namespace HorrorGame.Cutscenes
 {
@@ -134,6 +135,8 @@ namespace HorrorGame.Cutscenes
         private float cabinLookYaw = 5.5f;
         private float cabinLookPitch = 2.5f;
         private bool isCabinFreeLookActive = false;
+        
+        private Coroutine subtitleCoroutine;
 
         // ──────────────────────────────────────────────
         // UNITY LIFECYCLE
@@ -226,6 +229,13 @@ namespace HorrorGame.Cutscenes
 
             // Khởi tạo Canvas Cutscene độc lập & cô lập giao diện
             EnsureCutsceneUI();
+
+            // Khởi tạo hệ thống Post-Processing Cinematic (nếu chưa có)
+            if (CinematicPostProcessing.Instance == null)
+            {
+                GameObject ppObj = new GameObject("CinematicPostProcessing_Runtime");
+                ppObj.AddComponent<CinematicPostProcessing>();
+            }
 
             // Ẩn toàn bộ Gameplay UI (thanh máu, thể lực, túi đồ, v.v.) trong suốt cutscene
             SetGameplayUIVisible(false);
@@ -355,13 +365,21 @@ namespace HorrorGame.Cutscenes
             // Ã¢â€â‚¬Ã¢â€â‚¬ PHASE 1 | BÃ¡ÂºÂ®T Ã„ÂÃ¡ÂºÂ¦U NGAY KHÃƒâ€NG Ã„ÂÃ¡Â»â€š MÃƒâ‚¬N HÃƒÅ’NH Ã„ÂEN LÃƒâ€šU Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
             PlayLoop(airplaneFlightClip);
             
-            // HiÃ¡Â»â€¡n ngay lÃ¡ÂºÂ­p tÃ¡Â»Â©c, khÃƒÂ´ng fade Ã„â€˜en dÃƒÂ i 2s nÃ¡Â»Â¯a
+            // Hiển ngay lập tức, không fade đen dài 2s nữa
             if (blackScreenUI != null)
             {
                 blackScreenUI.color = new Color(0, 0, 0, 0);
                 blackScreenUI.gameObject.SetActive(false);
             }
             yield return null;
+
+            // ── BẬT HIỆU ỨNG POST-PROCESSING BAN ĐẦU ──
+            if (CinematicPostProcessing.Instance != null)
+            {
+                CinematicPostProcessing.Instance.SetLetterbox(1f); // Bật viền đen Cinematic
+                CinematicPostProcessing.Instance.SetColorTint(new Color(1f, 0.9f, 0.8f), 0.15f); // Ấm áp nhẹ nhàng
+                CinematicPostProcessing.Instance.SetFilmGrain(0.3f);
+            }
 
             // ── PHASE 2 | CƠ TRƯỞNG PHÁT THANH & TỰ DO LIA CHUỘT QUAN SÁT CABIN ──
             if (captainAnnouncementClip != null)
@@ -392,12 +410,23 @@ namespace HorrorGame.Cutscenes
             if (cameraShake != null)
                 cameraShake.StartShake(turbulenceDuration, 0.15f, 1.5f);
 
+            if (CinematicPostProcessing.Instance != null)
+                CinematicPostProcessing.Instance.FadeColorTint(new Color(0.2f, 0.4f, 0.8f), 0.2f, turbulenceDuration); // Lạnh dần
+
+            // Tự động tạo particle bụi bay lơ lửng khi rung lắc
+            CreateCabinDustParticles();
+
             // Cabin lights nhấp nháy (đèn cabin chập chờn)
             yield return StartCoroutine(FlickerCabinLights(turbulenceDuration));
 
             // ── PHASE 4 | 15 GIÂY | BÁO ĐỘNG ĐỎ & RƠI TỰ DO ───────────
             SetCabinLights(false); // Đèn thường tắt hẳn
             SetWarningLights(true);
+
+            if (CinematicPostProcessing.Instance != null)
+            {
+                CinematicPostProcessing.Instance.FadeColorTint(new Color(1f, 0.1f, 0.1f), 0.35f, alarmDuration); // Chuyển sang tint đỏ nguy hiểm
+            }
 
             // Báo động ngoại cảnh (động cơ bốc khói, cánh rung lắc dữ dội, sét giật)
             AirplaneCabinExterior exterior = FindObjectOfType<AirplaneCabinExterior>();
@@ -431,6 +460,11 @@ namespace HorrorGame.Cutscenes
             isCabinFreeLookActive = false;
             if (cameraShake != null)
                 cameraShake.preventRotationOverride = false;
+
+            if (CinematicPostProcessing.Instance != null)
+            {
+                CinematicPostProcessing.Instance.PulseChromaticAberration(1.0f, 3.0f); // Tách màu RGB do va chạm
+            }
 
             audioSource.Stop();
             voiceAudioSource.Stop(); // Dừng còi báo động
@@ -643,7 +677,7 @@ namespace HorrorGame.Cutscenes
         private void SetWarningLights(bool on)
         {
             foreach (var l in warningLights)
-                if (l != null) l.intensity = on ? 3.5f : 0f;
+                if (l != null) l.intensity = on ? 6.0f : 0f; // Sáng rực
         }
 
         private void SetCabinLights(bool on)
@@ -687,6 +721,15 @@ namespace HorrorGame.Cutscenes
 
                 cutsceneCamera.localPosition = Vector3.Lerp(startPos, targetPos, curve);
                 cutsceneCamera.localRotation = Quaternion.Lerp(startRot, targetRot, curve);
+                
+                Camera cam = cutsceneCamera.GetComponent<Camera>();
+                if (cam != null)
+                {
+                    float startFov = 60f;
+                    float targetFov = 75f;
+                    cam.fieldOfView = Mathf.Lerp(startFov, targetFov, curve);
+                }
+                
                 yield return null;
             }
         }
@@ -761,24 +804,9 @@ namespace HorrorGame.Cutscenes
                             for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
                             standPos = bounds.center; // Đưa vào chính giữa khoang
                             
-                            // Gắn tạm MeshCollider để bắn tia dò tìm mặt sàn
-                            System.Collections.Generic.List<MeshCollider> tempColliders = new System.Collections.Generic.List<MeshCollider>();
-                            foreach(var r in renderers) {
-                                if (r.gameObject.GetComponent<Collider>() == null) {
-                                    tempColliders.Add(r.gameObject.AddComponent<MeshCollider>());
-                                }
-                            }
-                            
-                            RaycastHit hit;
-                            if (Physics.Raycast(bounds.center, Vector3.down, out hit, 1000f)) {
-                                standPos.y = hit.point.y + 0.1f;
-                            } else {
-                                standPos.y = airplaneCabin.transform.position.y;
-                            }
-                            
-                            foreach(var mc in tempColliders) {
-                                Destroy(mc);
-                            }
+                            // Do mesh gốc không được bật Read/Write Enabled nên việc AddComponent<MeshCollider> sẽ báo lỗi
+                            // Thay vì dùng Raycast, ta dùng bounds để ước lượng mặt sàn (cách đáy khoảng 0.5m)
+                            standPos.y = bounds.min.y + 0.5f;
                         }
                     }
                     standRot = airplaneCabin.transform.rotation;
@@ -803,6 +831,24 @@ namespace HorrorGame.Cutscenes
                     System.Collections.Generic.List<Light> lightsList = new System.Collections.Generic.List<Light>(cabinLights);
                     lightsList.Add(lit);
                     cabinLights = lightsList.ToArray();
+                }
+
+                GameObject warningLightObj = GameObject.Find("C400_WarningLight");
+                if (warningLightObj == null)
+                {
+                    warningLightObj = new GameObject("C400_WarningLight");
+                    warningLightObj.transform.SetParent(airplaneCabin.transform);
+                    warningLightObj.transform.position = standPos + new Vector3(0, 2f, 0); // Đặt trên đầu
+                    Light wLit = warningLightObj.AddComponent<Light>();
+                    wLit.type = LightType.Point;
+                    wLit.range = 30f;
+                    wLit.intensity = 0f; // Mặc định tắt, chỉ bật khi báo động
+                    wLit.color = new Color(1f, 0f, 0f); // Ánh sáng đỏ rực
+                    wLit.shadows = LightShadows.Soft;
+
+                    System.Collections.Generic.List<Light> warningList = new System.Collections.Generic.List<Light>(warningLights);
+                    warningList.Add(wLit);
+                    warningLights = warningList.ToArray();
                 }
             }
 
@@ -1505,7 +1551,7 @@ namespace HorrorGame.Cutscenes
             smokeObj.transform.position = wreckTarget.position + new Vector3(0, 2f, 0);
             smokeObj.transform.rotation = Quaternion.Euler(-90f, 0, 0); // HÃ†Â°Ã¡Â»â€ºng lÃƒÂªn
             ParticleSystem ps = smokeObj.AddComponent<ParticleSystem>();
-            ps.Stop();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             var main = ps.main;
             main.duration = 5f;
             main.loop = true;
@@ -1520,6 +1566,7 @@ namespace HorrorGame.Cutscenes
             shape.shapeType = ParticleSystemShapeType.Cone;
             shape.angle = 15f;
             shape.radius = 2f;
+
             Shader smokeShader = Shader.Find("Particles/Standard Unlit");
             if (smokeShader == null) smokeShader = Shader.Find("Legacy Shaders/Particles/Alpha Blended");
             if (smokeShader == null) smokeShader = Shader.Find("Mobile/Particles/Alpha Blended");
@@ -1535,7 +1582,7 @@ namespace HorrorGame.Cutscenes
             fireObj.transform.position = wreckTarget.position;
             fireObj.transform.rotation = Quaternion.Euler(-90f, 0, 0);
             ParticleSystem pFire = fireObj.AddComponent<ParticleSystem>();
-            pFire.Stop();
+            pFire.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             var fMain = pFire.main;
             fMain.duration = 5f;
             fMain.loop = true;
@@ -1549,6 +1596,7 @@ namespace HorrorGame.Cutscenes
             var fShape = pFire.shape;
             fShape.shapeType = ParticleSystemShapeType.Hemisphere;
             fShape.radius = 4.0f; // Lan rộng ra
+
             Shader fireShader = Shader.Find("Particles/Standard Unlit");
             if (fireShader == null) fireShader = Shader.Find("Legacy Shaders/Particles/Additive");
             if (fireShader == null) fireShader = Shader.Find("Mobile/Particles/Additive");
@@ -1558,6 +1606,7 @@ namespace HorrorGame.Cutscenes
                 if (fireMat.HasProperty("_TintColor")) fireMat.SetColor("_TintColor", new Color(1f, 0.4f, 0.1f, 0.8f));
                 pFire.GetComponent<ParticleSystemRenderer>().sharedMaterial = fireMat;
             }
+
             ps.Play();
             pFire.Play();
 
@@ -1608,6 +1657,10 @@ namespace HorrorGame.Cutscenes
         /// <summary>Chững lại 15 giây trong bóng tối ngay sau vụ rơi máy bay</summary>
         private IEnumerator InitialCrashBlackoutSequence(float duration)
         {
+            if (CinematicPostProcessing.Instance != null)
+            {
+                CinematicPostProcessing.Instance.SetColorTint(Color.clear, 0f);
+            }
             SetBlackAlpha(1f);
 
             // Tiếng gió rít lạnh lẽo xa xăm giữa đống đổ nát
@@ -1647,6 +1700,12 @@ namespace HorrorGame.Cutscenes
             {
                 voiceAudioSource.clip = playerCrawlVoiceClip;
                 voiceAudioSource.Play();
+            }
+
+            if (CinematicPostProcessing.Instance != null)
+            {
+                CinematicPostProcessing.Instance.SetVignette(0.9f, new Color(0.4f, 0f, 0f)); // Viền máu đỏ
+                CinematicPostProcessing.Instance.SetScreenDamage(0.85f); // Kính nứt, xước
             }
 
             SetSubtitle("[Bạn]: \"*Thở dốc* Ugh... What... what happened? I have to crawl out of here...\"\n<size=17><color=#D1D5DB>(Chuyện gì vừa xảy ra vậy...? Mình... phải bò ra khỏi đây...)</color></size>");
@@ -1824,6 +1883,13 @@ namespace HorrorGame.Cutscenes
 
             // Mở mắt từ từ (Fade Black 1.0 -> 0.0)
             StartCoroutine(FadeBlack(1f, 0f, 2.5f));
+            
+            if (CinematicPostProcessing.Instance != null)
+            {
+                CinematicPostProcessing.Instance.AnimateLetterbox(0f, 3.5f); // Mở letterbox ra để vào game thật
+                CinematicPostProcessing.Instance.FadeScreenDamage(0f, 4.0f);
+                CinematicPostProcessing.Instance.FadeVignette(0f, Color.black, 4.0f);
+            }
 
             // Vị trí nằm úp/nghiêng ban đầu trên nền đất
             Vector3 lyingCamPos = new Vector3(originalCamLocalPos.x, 0.16f, originalCamLocalPos.z + 0.35f);
@@ -1994,20 +2060,43 @@ namespace HorrorGame.Cutscenes
                 rt.offsetMin = Vector2.zero;
                 rt.offsetMax = Vector2.zero;
 
-                subtitleText = subObj.AddComponent<Text>();
+                // Thêm nền bán trong suốt để dễ đọc phụ đề
+                GameObject bgObj = new GameObject("Subtitle_Background");
+                bgObj.transform.SetParent(subObj.transform, false);
+                RectTransform bgRt = bgObj.AddComponent<RectTransform>();
+                bgRt.anchorMin = Vector2.zero;
+                bgRt.anchorMax = Vector2.one;
+                bgRt.offsetMin = new Vector2(-40, -10);
+                bgRt.offsetMax = new Vector2(40, 10);
+                Image bgImg = bgObj.AddComponent<Image>();
+                bgImg.color = new Color(0, 0, 0, 0.6f);
+
+                GameObject textObj = new GameObject("Subtitle_Text");
+                textObj.transform.SetParent(subObj.transform, false);
+                RectTransform txtRt = textObj.AddComponent<RectTransform>();
+                txtRt.anchorMin = Vector2.zero;
+                txtRt.anchorMax = Vector2.one;
+                txtRt.offsetMin = Vector2.zero;
+                txtRt.offsetMax = Vector2.zero;
+
+                subtitleText = textObj.AddComponent<Text>();
                 subtitleText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                subtitleText.fontSize = 22;
+                subtitleText.fontSize = 24;
                 subtitleText.alignment = TextAnchor.MiddleCenter;
                 subtitleText.color = new Color(1f, 0.95f, 0.8f, 1f);
                 subtitleText.text = "";
+                subtitleText.supportRichText = true;
 
-                Outline outline = subObj.AddComponent<Outline>();
+                Outline outline = textObj.AddComponent<Outline>();
                 outline.effectColor = new Color(0f, 0f, 0f, 0.9f);
                 outline.effectDistance = new Vector2(1.5f, -1.5f);
             }
             else if (subtitleText.transform.parent != cutsceneCanvas.transform)
             {
-                subtitleText.transform.SetParent(cutsceneCanvas.transform, false);
+                if (subtitleText.transform.parent.name == "Cutscene_Subtitle_UI")
+                    subtitleText.transform.parent.SetParent(cutsceneCanvas.transform, false);
+                else
+                    subtitleText.transform.SetParent(cutsceneCanvas.transform, false);
             }
 
             // Đảm bảo gameTitleGroup (nếu có)
@@ -2107,9 +2196,38 @@ namespace HorrorGame.Cutscenes
         {
             if (subtitleText != null)
             {
-                subtitleText.gameObject.SetActive(true);
-                subtitleText.text = content;
+                Transform uiParent = subtitleText.transform.parent != null && subtitleText.transform.parent.name == "Cutscene_Subtitle_UI" ? subtitleText.transform.parent : subtitleText.transform;
+                uiParent.gameObject.SetActive(true);
+                
+                if (subtitleCoroutine != null) StopCoroutine(subtitleCoroutine);
+                subtitleCoroutine = StartCoroutine(TypewriterSubtitle(content));
             }
+        }
+
+        private IEnumerator TypewriterSubtitle(string content)
+        {
+            subtitleText.text = "";
+            string currentText = "";
+            bool isInsideTag = false;
+
+            for (int i = 0; i < content.Length; i++)
+            {
+                char c = content[i];
+                currentText += c;
+
+                if (c == '<') isInsideTag = true;
+                if (c == '>') isInsideTag = false;
+
+                subtitleText.text = currentText;
+
+                if (!isInsideTag && c != ' ')
+                {
+                    yield return new WaitForSeconds(0.015f); // Tốc độ đánh máy
+                }
+            }
+            
+            // Fix format
+            subtitleText.text = content;
         }
 
         private void ClearSubtitle()
@@ -2117,8 +2235,52 @@ namespace HorrorGame.Cutscenes
             if (subtitleText != null)
             {
                 subtitleText.text = "";
-                subtitleText.gameObject.SetActive(false);
+                Transform uiParent = subtitleText.transform.parent != null && subtitleText.transform.parent.name == "Cutscene_Subtitle_UI" ? subtitleText.transform.parent : subtitleText.transform;
+                uiParent.gameObject.SetActive(false);
             }
+        }
+
+        private void CreateCabinDustParticles()
+        {
+            if (cutsceneCamera == null) return;
+            GameObject dustObj = new GameObject("CabinDust");
+            dustObj.transform.SetParent(cutsceneCamera, false);
+            dustObj.transform.localPosition = new Vector3(0, 0, 1.5f);
+            
+            ParticleSystem ps = dustObj.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.duration = 10f;
+            main.loop = true;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(1f, 3f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.1f, 0.5f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.01f, 0.05f);
+            main.startColor = new Color(0.8f, 0.8f, 0.8f, 0.5f);
+            main.maxParticles = 300;
+
+            var emission = ps.emission;
+            emission.rateOverTime = 50f;
+
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(3f, 2f, 3f);
+
+            var noise = ps.noise;
+            noise.enabled = true;
+            noise.strength = 0.5f;
+
+            Shader std = Shader.Find("Particles/Standard Unlit");
+            if (std == null) std = Shader.Find("Legacy Shaders/Particles/Alpha Blended");
+            if (std == null) std = Shader.Find("Mobile/Particles/Alpha Blended");
+            
+            if (std != null)
+            {
+                Material mat = new Material(std);
+                mat.color = new Color(0.8f, 0.8f, 0.8f, 0.4f);
+                if (mat.HasProperty("_TintColor")) mat.SetColor("_TintColor", new Color(0.8f, 0.8f, 0.8f, 0.4f));
+                ps.GetComponent<ParticleSystemRenderer>().sharedMaterial = mat;
+            }
+            ps.Play();
         }
     }
 }

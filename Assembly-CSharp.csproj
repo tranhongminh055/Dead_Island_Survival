@@ -105,6 +105,7 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\IntroCutsceneManager.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\DisableRenderer.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\CinematicCamera.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\CinematicPostProcessing.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\Enemy\EnemyAI.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\Enemy\ZombieSpawner.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\FlyCam.cs" />
