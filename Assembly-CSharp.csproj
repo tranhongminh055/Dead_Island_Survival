@@ -101,6 +101,7 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplaneCabinExterior.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplaneCrashCutscene.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplanePassengerSeatPose.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\C400TroopSeating.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\CameraShake.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\IntroCutsceneManager.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\DisableRenderer.cs" />
@@ -145,6 +146,7 @@
      <Compile Include="Assets\Scripts\TimelineTriggerShake.cs" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\DepthOfField.shader" />
      <None Include="Assets\Flooded_Grounds\Content\Shaders\FG_PBR_Water.shader" />
+     <None Include="Assets\c400_children_list.txt" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\MotionBlur.cginc" />
      <None Include="Assets\Flooded_Grounds\Resources\WavingGrass.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\Fog.shader" />

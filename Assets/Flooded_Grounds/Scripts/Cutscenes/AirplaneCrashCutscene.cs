@@ -779,6 +779,11 @@ namespace HorrorGame.Cutscenes
                 // C400 cÃƒÂ³ thÃ¡Â»Æ’ rÃ¡Â»â€”ng hoÃ¡ÂºÂ·c khÃƒÂ´ng cÃƒÂ³ cÃ¡Â»Â­a sÃ¡Â»â€¢/bÃ¡ÂºÂ§u trÃ¡Â»Âi, nÃƒÂªn ta BÃ¡ÂºÂ¬T LÃ¡ÂºÂ I hÃ¡Â»â€¡ thÃ¡Â»â€˜ng giÃ¡ÂºÂ£ lÃ¡ÂºÂ­p mÃƒÂ´i trÃ†Â°Ã¡Â»Âng bay!
                 EnsureCabinExteriorAndWindowTransparency(airplaneCabin);
                 
+                // Fix ghế máy bay bị gập: Reset rotation đệm ghế C400 để mở ra bình thường
+                FixFoldedSeats(airplaneCabin);
+                
+                // Spawn lính ngồi lên ghế trong khoang vận tải C400
+                SpawnTroopsOnSeats(airplaneCabin);
             }
 
             Vector3 standPos = Vector3.zero;
@@ -2281,6 +2286,48 @@ namespace HorrorGame.Cutscenes
                 ps.GetComponent<ParticleSystemRenderer>().sharedMaterial = mat;
             }
             ps.Play();
+        }
+        // ──────────────────────────────────────────────
+        // FIX GHẾ MÁY BAY BỊ GẬP (FOLDED SEATS)
+        // Model C400 có đệm ghế (CargoChairsCushionsL/R) bị xoay sai trục Y
+        // khiến ghế gập lại. Reset Y về 0 để ghế mở ra bình thường.
+        // ──────────────────────────────────────────────
+        private void FixFoldedSeats(GameObject cabin)
+        {
+            if (cabin == null) return;
+            
+            Transform[] allChildren = cabin.GetComponentsInChildren<Transform>(true);
+            foreach (Transform t in allChildren)
+            {
+                if (t == null) continue;
+                
+                if (t.name == "CargoChairsCushionsL" || t.name == "CargoChairsCushionsR")
+                {
+                    Vector3 rot = t.localEulerAngles;
+                    // Reset trục Y về 0 để đệm ghế mở ra nằm ngang bình thường
+                    t.localRotation = Quaternion.Euler(rot.x, 0f, rot.z);
+                }
+            }
+        }
+        // ──────────────────────────────────────────────
+        // SPAWN LÍNH NGỒI TRÊN GHẾ C400
+        // ──────────────────────────────────────────────
+        private void SpawnTroopsOnSeats(GameObject cabin)
+        {
+            if (cabin == null) return;
+            
+            // Kiểm tra đã spawn chưa
+            if (cabin.transform.Find("[C400_TROOPS]") != null) return;
+            
+            C400TroopSeating troopSeating = cabin.GetComponent<C400TroopSeating>();
+            if (troopSeating == null)
+            {
+                troopSeating = cabin.AddComponent<C400TroopSeating>();
+            }
+            
+            troopSeating.soldiersPerSide = 10;
+            troopSeating.seatSpacing = 1.8f;
+            troopSeating.SpawnTroops();
         }
     }
 }
