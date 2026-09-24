@@ -55,10 +55,6 @@ namespace HorrorGame.Survival
 
         void Start()
         {
-            Renderer[] rs = GetComponentsInChildren<Renderer>(true);
-            foreach (Renderer r in rs) {
-                if (r != null) r.enabled = false;
-            }
 
             // Tự động load ItemData rìu từ Resources nếu chưa gán
             if (axeItemData == null)
@@ -71,6 +67,9 @@ namespace HorrorGame.Survival
             audioSource = GetComponent<AudioSource>();
             if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
 
+            // Tìm xương tay phải của nhân vật để gắn rìu
+            FindRightHand();
+
             CreateAxeVisual();
 
             // Ẩn rìu ban đầu
@@ -82,21 +81,92 @@ namespace HorrorGame.Survival
             Debug.Log("=== HỆ THỐNG RÌU ĐÃ SẴN SÀNG! Bấm phím 2 để rút rìu ===");
         }
 
+        private Transform rightHandBone;
+
+        void FindRightHand()
+        {
+            // Tìm Animator trên player hoặc children
+            Animator anim = GetComponent<Animator>();
+            if (anim == null) anim = GetComponentInChildren<Animator>();
+
+            if (anim != null && anim.isHuman)
+            {
+                rightHandBone = anim.GetBoneTransform(HumanBodyBones.RightHand);
+                if (rightHandBone != null)
+                {
+                    Debug.Log("[AxeController] Tìm thấy xương tay phải: " + rightHandBone.name);
+                    return;
+                }
+            }
+
+            // Nếu không tìm được qua Animator, tìm bằng tên xương
+            string[] handBoneNames = new string[] {
+                "RightHand", "Right Hand", "Hand_R", "Hand.R", "hand_r",
+                "mixamorig:RightHand", "Bip01 R Hand", "R Hand", "Right_Hand",
+                "J_Bip_R_Hand", "right_hand", "RHand"
+            };
+
+            Transform[] allBones = GetComponentsInChildren<Transform>(true);
+            foreach (Transform bone in allBones)
+            {
+                foreach (string name in handBoneNames)
+                {
+                    if (bone.name.Equals(name, System.StringComparison.OrdinalIgnoreCase) ||
+                        bone.name.Contains("RightHand") || bone.name.Contains("Right Hand") ||
+                        bone.name.Contains("Hand_R") || bone.name.Contains("hand_r"))
+                    {
+                        rightHandBone = bone;
+                        Debug.Log("[AxeController] Tìm thấy xương tay phải (by name): " + bone.name);
+                        return;
+                    }
+                }
+            }
+
+            // Fallback: gắn vào camera
+            rightHandBone = null;
+            Debug.LogWarning("[AxeController] Không tìm thấy xương tay phải! Rìu sẽ gắn vào Camera.");
+        }
+
         void CreateAxeVisual()
         {
+            Transform parentBone;
+
+            if (rightHandBone != null)
+            {
+                parentBone = rightHandBone;
+            }
+            else
+            {
+                // Fallback: gắn vào camera (FPS style)
+                Camera cam = Camera.main;
+                parentBone = cam != null ? cam.transform : transform;
+            }
+
             if (axeModelPrefab != null)
             {
-                axeInstance = Instantiate(axeModelPrefab, transform);
+                axeInstance = Instantiate(axeModelPrefab, parentBone);
             }
             else
             {
                 // Tạo rìu placeholder bằng Primitive
                 axeInstance = CreatePlaceholderAxe();
+                axeInstance.transform.SetParent(parentBone, false);
             }
 
-            axeInstance.transform.localPosition = axePosition;
-            axeInstance.transform.localRotation = Quaternion.Euler(axeRotation);
-            axeInstance.transform.localScale = axeScale;
+            if (rightHandBone != null)
+            {
+                // Gắn vào tay: vị trí và góc phù hợp
+                axeInstance.transform.localPosition = new Vector3(0.02f, 0.08f, 0.02f);
+                axeInstance.transform.localRotation = Quaternion.Euler(-10f, 90f, -90f);
+                axeInstance.transform.localScale = Vector3.one;
+            }
+            else
+            {
+                // FPS camera style
+                axeInstance.transform.localPosition = axePosition;
+                axeInstance.transform.localRotation = Quaternion.Euler(axeRotation);
+                axeInstance.transform.localScale = axeScale;
+            }
 
             // Tắt Collider trên rìu
             Collider[] cols = axeInstance.GetComponentsInChildren<Collider>();
@@ -106,32 +176,42 @@ namespace HorrorGame.Survival
         GameObject CreatePlaceholderAxe()
         {
             GameObject axe = new GameObject("PlaceholderAxe");
-            axe.transform.SetParent(transform);
 
-            // Cán rìu (Cylinder dài)
+            // Cán rìu (Cylinder dài) - dài ~70cm
             GameObject handle = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             handle.transform.SetParent(axe.transform);
             handle.transform.localPosition = new Vector3(0, 0, 0);
             handle.transform.localRotation = Quaternion.Euler(0, 0, 90);
-            handle.transform.localScale = new Vector3(0.04f, 0.35f, 0.04f);
-            handle.GetComponent<Renderer>().enabled = false;
+            handle.transform.localScale = new Vector3(0.035f, 0.35f, 0.035f);
+            SetMaterialColor(handle, new Color(0.45f, 0.3f, 0.15f)); // Nâu gỗ
 
-            // Lưỡi rìu (Cube dẹp)
+            // Lưỡi rìu (Cube dẹp) - to và rõ ràng
             GameObject blade = GameObject.CreatePrimitive(PrimitiveType.Cube);
             blade.transform.SetParent(axe.transform);
             blade.transform.localPosition = new Vector3(0.32f, 0, 0);
             blade.transform.localRotation = Quaternion.Euler(0, 0, 15);
-            blade.transform.localScale = new Vector3(0.15f, 0.02f, 0.2f);
-            blade.GetComponent<Renderer>().enabled = false;
+            blade.transform.localScale = new Vector3(0.18f, 0.02f, 0.22f);
+            SetMaterialColor(blade, new Color(0.7f, 0.7f, 0.72f)); // Bạc kim loại
 
             // Phần nêm kẹp lưỡi rìu vào cán
             GameObject wedge = GameObject.CreatePrimitive(PrimitiveType.Cube);
             wedge.transform.SetParent(axe.transform);
             wedge.transform.localPosition = new Vector3(0.24f, 0, 0);
-            wedge.transform.localScale = new Vector3(0.06f, 0.05f, 0.08f);
-            wedge.GetComponent<Renderer>().enabled = false;
+            wedge.transform.localScale = new Vector3(0.07f, 0.06f, 0.09f);
+            SetMaterialColor(wedge, new Color(0.5f, 0.5f, 0.52f)); // Xám
 
             return axe;
+        }
+
+        void SetMaterialColor(GameObject obj, Color color)
+        {
+            Renderer r = obj.GetComponent<Renderer>();
+            if (r != null)
+            {
+                Material mat = new Material(Shader.Find("Standard"));
+                mat.color = color;
+                r.sharedMaterial = mat;
+            }
         }
 
         void Update()
@@ -253,7 +333,20 @@ namespace HorrorGame.Survival
                 }
                 else
                 {
-                    Debug.Log("[AxeController] Chặt trúng: " + hit.transform.name + " (không phải cây)");
+                    // Kiểm tra có phải thú rừng không
+                    AnimalAI animal = hit.transform.GetComponent<AnimalAI>();
+                    if (animal == null) animal = hit.transform.GetComponentInParent<AnimalAI>();
+
+                    if (animal != null)
+                    {
+                        animal.TakeDamage(chopDamage);
+                        displayText = "Đánh trúng " + animal.animalType + "!";
+                        displayTimer = 2f;
+                    }
+                    else
+                    {
+                        Debug.Log("[AxeController] Chặt trúng: " + hit.transform.name + " (không phải cây/thú)");
+                    }
                 }
             }
         }

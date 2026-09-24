@@ -122,6 +122,15 @@ namespace HorrorGame.Player
                     enemy.TakeDamage(damage);
                 }
 
+                // Xử lý thú rừng bị bắn trúng (Săn bắt)
+                HorrorGame.Survival.AnimalAI animal = hit.transform.GetComponent<HorrorGame.Survival.AnimalAI>();
+                if (animal == null) animal = hit.transform.GetComponentInParent<HorrorGame.Survival.AnimalAI>();
+                if (animal != null)
+                {
+                    animal.TakeDamage(damage);
+                    Debug.Log("🎯 Bắn trúng " + animal.animalType + "! Damage: " + damage);
+                }
+
                 // Nếu bắn trúng vật lý (thùng phuy, xác chết) -> đẩy lùi nó
                 if (hit.rigidbody != null)
                 {
