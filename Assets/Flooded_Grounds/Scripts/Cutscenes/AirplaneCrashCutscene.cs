@@ -258,10 +258,32 @@ namespace HorrorGame.Cutscenes
             // Ẩn tiêu đề
             if (gameTitleGroup != null) gameTitleGroup.alpha = 0f;
 
-            IsCutsceneActive = true;
-            Time.timeScale = 1.0f; // Luôn đảm bảo timeScale hoạt động bình thường
-            SetPlayerInvincible(true);
+            // Nếu Main Menu đang mở (khi test trong cùng scene hoặc chưa bấm Bắt đầu sinh tồn)
+            if (HorrorGame.UI.GameMenuManager.Instance != null && HorrorGame.UI.GameMenuManager.Instance.isMainMenuScene)
+            {
+                IsCutsceneActive = false;
+                StartCoroutine(WaitForMenuToStartCutscene());
+            }
+            else
+            {
+                IsCutsceneActive = true;
+                Time.timeScale = 1.0f; // Luôn đảm bảo timeScale hoạt động bình thường
+                SetPlayerInvincible(true);
+                StartCoroutine(PlayCutscene());
+            }
+        }
 
+        private IEnumerator WaitForMenuToStartCutscene()
+        {
+            // Đợi cho đến khi người chơi nhấn "BẮT ĐẦU SINH TỒN" trên Main Menu
+            while (HorrorGame.UI.GameMenuManager.Instance != null && HorrorGame.UI.GameMenuManager.Instance.isMainMenuScene)
+            {
+                yield return null;
+            }
+
+            IsCutsceneActive = true;
+            Time.timeScale = 1.0f;
+            SetPlayerInvincible(true);
             StartCoroutine(PlayCutscene());
         }
 
@@ -269,6 +291,12 @@ namespace HorrorGame.Cutscenes
 
         private void Update()
         {
+            // Không nhận phím khi đang ở màn hình Menu chính
+            if (HorrorGame.UI.GameMenuManager.Instance != null && HorrorGame.UI.GameMenuManager.Instance.isMainMenuScene)
+            {
+                return;
+            }
+
             // Bỏ qua cutscene khi bấm Space, Enter hoặc Escape
             if (!isSkipped && (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Escape)))
             {

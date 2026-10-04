@@ -86,6 +86,7 @@ namespace HorrorGame.Survival
         {
             // Tìm Camera
             Camera cam = Camera.main;
+            if (cam == null) cam = GetComponentInChildren<Camera>();
             if (cam != null) playerCamera = cam.transform;
 
             audioSource = GetComponent<AudioSource>();
@@ -199,6 +200,8 @@ namespace HorrorGame.Survival
 
         void Update()
         {
+            if (HorrorGame.UI.GameMenuManager.IsPaused) return;
+
             // Không nhận input khi Cutscene
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
 
@@ -335,13 +338,14 @@ namespace HorrorGame.Survival
             if (playerCamera == null)
             {
                 Camera cam = Camera.main;
+                if (cam == null) cam = GetComponentInChildren<Camera>();
                 if (cam != null) playerCamera = cam.transform;
                 if (playerCamera == null) return;
             }
 
-            // Raycast từ camera ra phía trước để tìm mặt đất
+            // Raycast từ camera ra phía trước để tìm mặt đất (bắt đầu cách camera 0.5m để không trúng player)
             RaycastHit hit;
-            Ray ray = new Ray(playerCamera.position, playerCamera.forward);
+            Ray ray = new Ray(playerCamera.position + playerCamera.forward * 0.5f, playerCamera.forward);
 
             if (Physics.Raycast(ray, out hit, buildRange, groundLayer))
             {
@@ -547,6 +551,49 @@ namespace HorrorGame.Survival
         }
 
         // =============================================
+        // CẤP NGUYÊN LIỆU THỬ NGHIỆM
+        // =============================================
+        public void GiveTestMaterials()
+        {
+            var inv = Inventory.InventoryManager.Instance;
+            if (inv == null) return;
+
+            HorrorGame.Inventory.ItemData wood = Resources.Load<HorrorGame.Inventory.ItemData>("WoodItem");
+            if (wood == null) wood = Resources.Load<HorrorGame.Inventory.ItemData>("Items/WoodItem");
+            HorrorGame.Inventory.ItemData stone = Resources.Load<HorrorGame.Inventory.ItemData>("StoneItem");
+            if (stone == null) stone = Resources.Load<HorrorGame.Inventory.ItemData>("Items/StoneItem");
+            HorrorGame.Inventory.ItemData leaf = Resources.Load<HorrorGame.Inventory.ItemData>("LeafItem");
+            if (leaf == null) leaf = Resources.Load<HorrorGame.Inventory.ItemData>("Items/LeafItem");
+
+            if (wood == null)
+            {
+                wood = ScriptableObject.CreateInstance<HorrorGame.Inventory.ItemData>();
+                wood.itemID = "wood";
+                wood.itemName = "Gỗ";
+                wood.maxStack = 99;
+            }
+            if (stone == null)
+            {
+                stone = ScriptableObject.CreateInstance<HorrorGame.Inventory.ItemData>();
+                stone.itemID = "stone";
+                stone.itemName = "Đá";
+                stone.maxStack = 99;
+            }
+            if (leaf == null)
+            {
+                leaf = ScriptableObject.CreateInstance<HorrorGame.Inventory.ItemData>();
+                leaf.itemID = "leaf";
+                leaf.itemName = "Lá Cây";
+                leaf.maxStack = 99;
+            }
+
+            inv.AddItem(wood, 50);
+            inv.AddItem(stone, 30);
+            inv.AddItem(leaf, 20);
+            ShowNotice("✅ Đã nhận 50 Gỗ, 30 Đá, 20 Lá để trải nghiệm xây dựng!");
+        }
+
+        // =============================================
         // HIỂN THỊ THÔNG BÁO
         // =============================================
         void ShowNotice(string text)
@@ -647,6 +694,15 @@ namespace HorrorGame.Survival
 
             // Tiêu đề
             GUI.Label(new Rect(menuX, menuY + 10, menuWidth, 40), "🔨 XÂY DỰNG", titleStyle);
+
+            // Nút test nguyên liệu (để trải nghiệm xây dựng ngay)
+            GUIStyle testBtnStyle = new GUIStyle(GUI.skin.button);
+            testBtnStyle.fontSize = 11;
+            testBtnStyle.fontStyle = FontStyle.Bold;
+            if (GUI.Button(new Rect(menuX + 15, menuY + 12, 110, 26), "+50 Gỗ/Đá (Test)", testBtnStyle))
+            {
+                GiveTestMaterials();
+            }
 
             // Nút đóng
             GUIStyle closeStyle = new GUIStyle(GUI.skin.button);

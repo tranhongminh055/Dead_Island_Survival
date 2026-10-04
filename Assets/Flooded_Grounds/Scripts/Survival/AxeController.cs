@@ -436,6 +436,8 @@ namespace HorrorGame.Survival
 
         void Update()
         {
+            if (HorrorGame.UI.GameMenuManager.IsPaused) return;
+
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
             {
                 if (axeInstance != null && axeInstance.activeSelf) axeInstance.SetActive(false);
@@ -571,6 +573,22 @@ namespace HorrorGame.Survival
                 // Kiểm tra có phải ChoppableTree không
                 ChoppableTree tree = hit.transform.GetComponent<ChoppableTree>();
                 if (tree == null) tree = hit.transform.GetComponentInParent<ChoppableTree>();
+
+                // Nếu chưa có script, tự động nhận diện nếu đối tượng là cây trong scene
+                if (tree == null)
+                {
+                    string targetName = hit.transform.name.ToLower();
+                    Transform p = hit.transform.parent;
+                    string parentName = p != null ? p.name.ToLower() : "";
+
+                    if (targetName.Contains("tree") || targetName.Contains("trunk") || targetName.Contains("wood") || targetName.Contains("pine") || targetName.Contains("branch") ||
+                        parentName.Contains("tree") || parentName.Contains("trunk") || parentName.Contains("wood") || parentName.Contains("pine"))
+                    {
+                        GameObject treeTarget = (p != null && (parentName.Contains("tree") || parentName.Contains("trunk"))) ? p.gameObject : hit.transform.gameObject;
+                        tree = treeTarget.GetComponent<ChoppableTree>();
+                        if (tree == null) tree = treeTarget.AddComponent<ChoppableTree>();
+                    }
+                }
 
                 if (tree != null)
                 {

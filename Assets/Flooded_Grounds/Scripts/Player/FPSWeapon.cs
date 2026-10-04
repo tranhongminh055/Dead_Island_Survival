@@ -327,6 +327,8 @@ public class FPSWeapon : MonoBehaviour
     void Update()
     {
         // Khi cutscene mở đầu đang diễn ra, tuyệt đối cất súng và không cho phép rút súng
+        if (HorrorGame.UI.GameMenuManager.IsPaused) return;
+
         if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
         {
             if (gunInstance != null && gunInstance.activeSelf)

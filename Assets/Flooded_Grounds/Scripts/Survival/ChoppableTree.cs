@@ -74,6 +74,22 @@ namespace HorrorGame.Survival
             {
                 leafItemData = Resources.Load<HorrorGame.Inventory.ItemData>("LeafItem");
             }
+
+            // Tự động nạp âm thanh chặt và đổ cây
+            if (chopHitSound == null)
+            {
+#if UNITY_EDITOR
+                chopHitSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/sound axe chop tree/âm tahh rìu khi chặt cây.mp3");
+                if (chopHitSound == null)
+                    chopHitSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/sound axe chop tree/Chopping wood - Sound effects - Jeff Hottman.mp3");
+#endif
+            }
+            if (treeFallSound == null)
+            {
+#if UNITY_EDITOR
+                treeFallSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/DeepRattle.mp3");
+#endif
+            }
         }
 
         void Update()

@@ -77,8 +77,16 @@ namespace HorrorGame.Inventory
 
         private void Update()
         {
-            // Bấm phím I để mở/tắt túi đồ (giống The Forest)
-            if (Input.GetKeyDown(KeyCode.I))
+            if (HorrorGame.UI.GameMenuManager.IsPaused) return;
+
+            // Bấm phím I hoặc TAB để mở/tắt túi đồ
+            if (Input.GetKeyDown(KeyCode.I) || Input.GetKeyDown(KeyCode.Tab))
+            {
+                ToggleInventory();
+            }
+
+            // Nếu túi đồ đang mở mà bấm ESC thì đóng túi đồ
+            if (isInventoryOpen && Input.GetKeyDown(KeyCode.Escape))
             {
                 ToggleInventory();
             }

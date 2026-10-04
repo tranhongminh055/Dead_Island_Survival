@@ -72,6 +72,8 @@ namespace HorrorGame.Survival
 
         void Update()
         {
+            if (HorrorGame.UI.GameMenuManager.IsPaused) return;
+
             if (Input.GetKeyDown(craftMenuKey))
             {
                 ToggleMenu();
