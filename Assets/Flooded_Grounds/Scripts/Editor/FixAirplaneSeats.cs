@@ -26,7 +26,7 @@ public class FixAirplaneSeats : EditorWindow
             c400.transform.position = new Vector3(0f, 1000f, 0f);
             c400.transform.localScale = Vector3.one * 10f;
             
-            Debug.Log("✅ Đã tự động đặt C400 vào Scene tại Y=1000.");
+            Debug.Log(" Đã tự động đặt C400 vào Scene tại Y=1000.");
         }
 
         int fixedCount = 0;

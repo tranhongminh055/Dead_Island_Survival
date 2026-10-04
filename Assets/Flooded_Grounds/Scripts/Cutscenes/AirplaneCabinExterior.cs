@@ -105,11 +105,25 @@ namespace HorrorGame.Cutscenes
             isEmergency = true;
             emergencyElapsed = 0f;
 
-            // Tạo particle mưa xiên khi lao vào bão
-            CreateRainParticles();
+            try
+            {
+                // Tạo particle mưa xiên khi lao vào bão
+                CreateRainParticles();
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning("[AirplaneCabinExterior] Rain particles error: " + ex.Message);
+            }
 
-            // Tạo particle tia lửa động cơ bốc cháy
-            CreateEngineFireTrail();
+            try
+            {
+                // Tạo particle tia lửa động cơ bốc cháy
+                CreateEngineFireTrail();
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning("[AirplaneCabinExterior] Fire trail error: " + ex.Message);
+            }
         }
 
         private void Update()
@@ -347,6 +361,52 @@ namespace HorrorGame.Cutscenes
         // PARTICLE EFFECTS — MƯA BÃO + LỬA ĐỘNG CƠ
         // ──────────────────────────────────────────────
 
+        private Material softParticleMat;
+        private Material GetSoftParticleMaterial()
+        {
+            if (softParticleMat != null) return softParticleMat;
+            Shader shader = Shader.Find("Particles/Additive");
+            if (shader == null) shader = Shader.Find("Mobile/Particles/Additive");
+            if (shader == null) shader = Shader.Find("Particles/Alpha Blended");
+            if (shader == null) shader = Shader.Find("Mobile/Particles/Alpha Blended");
+            if (shader == null) shader = Shader.Find("Legacy Shaders/Particles/Additive");
+            if (shader == null) shader = Shader.Find("Legacy Shaders/Particles/Alpha Blended");
+            if (shader == null) shader = Shader.Find("Particles/Standard Unlit");
+            if (shader == null) shader = Shader.Find("Unlit/Transparent");
+            if (shader == null) shader = Shader.Find("Sprites/Default");
+            if (shader == null) shader = Shader.Find("Standard");
+            if (shader == null) shader = Shader.Find("Diffuse");
+
+            if (shader != null)
+            {
+                softParticleMat = new Material(shader);
+            }
+            else
+            {
+                Material defaultMat = Resources.GetBuiltinResource<Material>("Default-Particle.mat");
+                if (defaultMat != null)
+                {
+                    softParticleMat = new Material(defaultMat);
+                }
+            }
+
+            if (softParticleMat != null)
+            {
+                Texture2D tex = new Texture2D(32, 32, TextureFormat.ARGB32, false);
+                for (int y = 0; y < 32; y++) {
+                    for (int x = 0; x < 32; x++) {
+                        float dist = Vector2.Distance(new Vector2(x, y), new Vector2(15.5f, 15.5f));
+                        float alpha = Mathf.Clamp01(1f - (dist / 15.5f));
+                        alpha = alpha * alpha * (3f - 2f * alpha);
+                        tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                    }
+                }
+                tex.Apply();
+                softParticleMat.mainTexture = tex;
+            }
+            return softParticleMat;
+        }
+
         private void CreateRainParticles()
         {
             if (rainParticleSystem != null) return;
@@ -466,16 +526,7 @@ namespace HorrorGame.Cutscenes
             noise.frequency = 3f;
             noise.scrollSpeed = 2f;
 
-            Shader fireShader = Shader.Find("Particles/Standard Unlit");
-            if (fireShader == null) fireShader = Shader.Find("Legacy Shaders/Particles/Additive");
-            if (fireShader == null) fireShader = Shader.Find("Mobile/Particles/Additive");
-            if (fireShader != null)
-            {
-                Material fireMat = new Material(fireShader);
-                fireMat.color = new Color(1f, 0.5f, 0.1f, 0.8f);
-                var psr = fireObj.GetComponent<ParticleSystemRenderer>();
-                if (psr != null) psr.sharedMaterial = fireMat;
-            }
+            if (fireObj.GetComponent<ParticleSystemRenderer>() != null) fireObj.GetComponent<ParticleSystemRenderer>().sharedMaterial = GetSoftParticleMaterial();
 
             engineFireTrailPS.Play();
 

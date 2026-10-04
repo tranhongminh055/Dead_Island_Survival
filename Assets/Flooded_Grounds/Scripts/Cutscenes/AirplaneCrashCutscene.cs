@@ -135,6 +135,7 @@ namespace HorrorGame.Cutscenes
         private float cabinLookYaw = 5.5f;
         private float cabinLookPitch = 2.5f;
         private bool isCabinFreeLookActive = false;
+        private bool hasAdvancedTime = false;
         
         private Coroutine subtitleCoroutine;
 
@@ -206,11 +207,10 @@ namespace HorrorGame.Cutscenes
                 Camera cam = playerController.GetComponentInChildren<Camera>();
                 if (cam != null)
                 {
-                    // FIX: NÃ¡ÂºÂ¿u game Ã„â€˜ÃƒÂ£ bÃ¡Â»â€¹ lÃ¡Â»â€”i tÃ¡Â»Â« lÃ¡ÂºÂ§n test trÃ†Â°Ã¡Â»â€ºc, originalCamLocalPos sÃ¡ÂºÂ½ bÃ¡Â»â€¹ sai.
-                    // Ta giÃ¡ÂºÂ£ Ã„â€˜Ã¡Â»â€¹nh gÃƒÂ³c nhÃƒÂ¬n FPS chuÃ¡ÂºÂ©n cÃƒÂ³ localPosition gÃ¡ÂºÂ§n vÃ¡Â»â€ºi Vector3.zero (nÃ¡ÂºÂ¿u gÃ¡ÂºÂ¯n vÃƒÂ o Head)
-                    // hoÃ¡ÂºÂ·c (0, 1.6f, 0) nÃ¡ÂºÂ¿u gÃ¡ÂºÂ¯n vÃƒÂ o Root. Ta sÃ¡ÂºÂ½ kiÃ¡Â»Æ’m tra y Ã„â€˜Ã¡Â»Æ’ tÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng thÃƒÂ­ch Ã¡Â»Â©ng.
-                    originalCamLocalPos = cam.transform.localPosition;
-                    originalCamLocalRot = cam.transform.localRotation; // LuÃƒÂ´n reset gÃƒÂ³c nhÃƒÂ¬n thÃ¡ÂºÂ³ng vÃ¡Â»Â phÃƒÂ­a trÃ†Â°Ã¡Â»â€ºc
+                    // FIX: Đảm bảo reset chính xác nếu scene bị lưu sai trạng thái từ lần test trước
+                    // Ép cứng góc nhìn thứ nhất (First-Person) ngay trong đầu nhân vật tại tầm mắt
+                    originalCamLocalPos = new Vector3(0f, 0.65f, 0.15f);
+                    originalCamLocalRot = Quaternion.identity; // Luôn reset góc nhìn thẳng về phía trước
                     hasSavedCamTransform = true;
                 }
             }
@@ -265,12 +265,115 @@ namespace HorrorGame.Cutscenes
             StartCoroutine(PlayCutscene());
         }
 
+        private bool isSkipped = false;
+
         private void Update()
         {
+            // Bỏ qua cutscene khi bấm Space, Enter hoặc Escape
+            if (!isSkipped && (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Escape)))
+            {
+                SkipCutscene();
+            }
+
             if (isCabinFreeLookActive && cutsceneCamera != null)
             {
                 HandleCabinMouseLook();
             }
+        }
+
+        private void SkipCutscene()
+        {
+            isSkipped = true;
+            IsCutsceneActive = false;
+            isCabinFreeLookActive = false;
+            StopAllCoroutines();
+
+            if (audioSource != null) audioSource.Stop();
+            if (voiceAudioSource != null) voiceAudioSource.Stop();
+            if (crashAudioSource != null) crashAudioSource.Stop();
+            if (cameraShake != null) cameraShake.StopShake();
+            
+            if (whiteFlashUI != null) whiteFlashUI.gameObject.SetActive(false);
+            if (blackScreenUI != null) blackScreenUI.gameObject.SetActive(false);
+            
+            ClearSubtitle();
+
+            if (!hasAdvancedTime && HorrorGame.Environment.DayNightCycle.Instance != null)
+            {
+                // Force time to 9 PM (night time) when skipping
+                HorrorGame.Environment.DayNightCycle.Instance.currentHour = 21f;
+                hasAdvancedTime = true;
+            }
+
+            if (CinematicPostProcessing.Instance != null)
+            {
+                CinematicPostProcessing.Instance.SetColorTint(Color.clear, 0f);
+                CinematicPostProcessing.Instance.AnimateLetterbox(0f, 0f);
+                CinematicPostProcessing.Instance.FadeScreenDamage(0f, 0f);
+                CinematicPostProcessing.Instance.FadeVignette(0f, Color.clear, 0f);
+            }
+
+            try
+            {
+                TeleportToForestLyingDown();
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning("[SkipCutscene] Exception in Teleport: " + ex.Message);
+            }
+
+            // ĐỨNG THẲNG DẬY - BỎ TƯ THẾ NẰM ĐẤT
+            Camera cam = playerController != null ? playerController.GetComponentInChildren<Camera>() : null;
+            if (cam != null)
+            {
+                // Ép cứng góc nhìn thứ nhất (First-Person) nằm gọn trong đầu nhân vật
+                Vector3 standLocalPos = new Vector3(0f, 0.65f, 0.15f);
+                cam.transform.localPosition = standLocalPos;
+                cam.transform.localRotation = Quaternion.identity; // Đứng thẳng 100%, không nghiêng cỏ
+                cam.fieldOfView = 60f;
+                Debug.Log("[SkipCutscene] Đã đứng dậy thành công! LocalPos=" + standLocalPos);
+            }
+
+            // Đảm bảo Player đứng thẳng hoàn toàn theo hướng spawn
+            if (playerController != null)
+            {
+                if (forestSpawnPoint != null)
+                {
+                    playerController.transform.position = forestSpawnPoint.position;
+                    playerController.transform.rotation = Quaternion.Euler(0, forestSpawnPoint.rotation.eulerAngles.y, 0);
+                }
+                else
+                {
+                    playerController.transform.rotation = Quaternion.Euler(0, playerController.transform.rotation.eulerAngles.y, 0);
+                }
+
+                CharacterController cc = playerController.GetComponent<CharacterController>();
+                if (cc != null) cc.enabled = true;
+                playerController.enabled = true;
+                
+                if (playerWeapon != null) playerWeapon.enabled = true;
+
+                Animator anim = playerController.GetComponentInChildren<Animator>();
+                if (anim != null) anim.enabled = true;
+            }
+
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+
+            SetPlayerRenderersVisible(true);
+            SetGameplayUIVisible(true);
+            SetPlayerInvincible(false);
+
+            // Cleanup objects
+            Transform alignPivot = airplaneCabin != null ? airplaneCabin.transform.Find("CabinAlignmentPivot") : null;
+            if (alignPivot != null) Destroy(alignPivot.gameObject);
+
+            // Bật lại môi trường
+            DynamicGI.UpdateEnvironment();
+
+            // Xóa script để không tốn tài nguyên
+            enabled = false;
+            Destroy(gameObject, 0.2f);
         }
 
         /// <summary>
@@ -429,8 +532,15 @@ namespace HorrorGame.Cutscenes
             }
 
             // Báo động ngoại cảnh (động cơ bốc khói, cánh rung lắc dữ dội, sét giật)
-            AirplaneCabinExterior exterior = FindObjectOfType<AirplaneCabinExterior>();
-            if (exterior != null) exterior.TriggerEmergency();
+            try
+            {
+                AirplaneCabinExterior exterior = FindObjectOfType<AirplaneCabinExterior>();
+                if (exterior != null) exterior.TriggerEmergency();
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning("[Cutscene] Error in exterior.TriggerEmergency: " + ex.Message);
+            }
 
             // Còi báo động phòng lái kêu liên tục (Loop) trong 15s
             if (alarmBeepClip != null)
@@ -1493,8 +1603,9 @@ namespace HorrorGame.Cutscenes
             {
                 if (!hasSavedCamTransform)
                 {
-                    originalCamLocalPos = cam.transform.localPosition;
-                    originalCamLocalRot = cam.transform.localRotation;
+                    // Ép cứng góc nhìn thứ nhất (First-Person) ngay trong đầu nhân vật
+                    originalCamLocalPos = new Vector3(0f, 0.65f, 0.15f);
+                    originalCamLocalRot = Quaternion.identity;
                     hasSavedCamTransform = true;
                 }
 
@@ -1535,118 +1646,160 @@ namespace HorrorGame.Cutscenes
             }
         }
 
+        private Material softParticleMat;
+        private Material GetSoftParticleMaterial()
+        {
+            if (softParticleMat != null) return softParticleMat;
+            Shader shader = Shader.Find("Particles/Additive");
+            if (shader == null) shader = Shader.Find("Mobile/Particles/Additive");
+            if (shader == null) shader = Shader.Find("Particles/Alpha Blended");
+            if (shader == null) shader = Shader.Find("Mobile/Particles/Alpha Blended");
+            if (shader == null) shader = Shader.Find("Legacy Shaders/Particles/Additive");
+            if (shader == null) shader = Shader.Find("Legacy Shaders/Particles/Alpha Blended");
+            if (shader == null) shader = Shader.Find("Particles/Standard Unlit");
+            if (shader == null) shader = Shader.Find("Unlit/Transparent");
+            if (shader == null) shader = Shader.Find("Sprites/Default");
+            if (shader == null) shader = Shader.Find("Standard");
+            if (shader == null) shader = Shader.Find("Diffuse");
+
+            if (shader != null)
+            {
+                softParticleMat = new Material(shader);
+            }
+            else
+            {
+                Material defaultMat = Resources.GetBuiltinResource<Material>("Default-Particle.mat");
+                if (defaultMat != null)
+                {
+                    softParticleMat = new Material(defaultMat);
+                }
+            }
+
+            if (softParticleMat != null)
+            {
+                Texture2D tex = new Texture2D(32, 32, TextureFormat.ARGB32, false);
+                for (int y = 0; y < 32; y++) {
+                    for (int x = 0; x < 32; x++) {
+                        float dist = Vector2.Distance(new Vector2(x, y), new Vector2(15.5f, 15.5f));
+                        float alpha = Mathf.Clamp01(1f - (dist / 15.5f));
+                        alpha = alpha * alpha * (3f - 2f * alpha);
+                        tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                    }
+                }
+                tex.Apply();
+                softParticleMat.mainTexture = tex;
+            }
+            return softParticleMat;
+        }
+
         private void CreateCrashEffects(Transform wreckTarget)
         {
-            // TÃ¡ÂºÂ¡o ÃƒÂ¡nh sÃƒÂ¡ng lÃ¡Â»Â­a bÃ¡ÂºÂ­p bÃƒÂ¹ng
-            GameObject fireLight = new GameObject("Wreck_FireLight");
-            fireLight.transform.position = wreckTarget.position + new Vector3(0, 5f, 0);
-            Light lit = fireLight.AddComponent<Light>();
-            lit.type = LightType.Point;
-            lit.range = 40f;
-            lit.intensity = 2.5f;
-            lit.color = new Color(1f, 0.4f, 0.1f); // Cam Ã„â€˜Ã¡Â»Â
-            lit.shadows = LightShadows.Soft;
-
-            // ChÃ¡Â»â€ºp tÃ¡ÂºÂ¯t lÃ¡Â»Â­a (Animation Ã„â€˜Ã†Â¡n giÃ¡ÂºÂ£n)
-            var flicker = fireLight.AddComponent<LightFlicker_Runtime>();
-            flicker.lightSource = lit;
-
-            // TÃ¡ÂºÂ¡o khÃƒÂ³i Ã„â€˜en
-            GameObject smokeObj = new GameObject("Wreck_Smoke");
-            smokeObj.transform.position = wreckTarget.position + new Vector3(0, 2f, 0);
-            smokeObj.transform.rotation = Quaternion.Euler(-90f, 0, 0); // HÃ†Â°Ã¡Â»â€ºng lÃƒÂªn
-            ParticleSystem ps = smokeObj.AddComponent<ParticleSystem>();
-            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            var main = ps.main;
-            main.duration = 5f;
-            main.loop = true;
-            main.startLifetime = 10f;
-            main.startSpeed = 8f;
-            main.startSize = 0.3f; // Ô vuông xám nhỏ lại thành tàn tro
-            main.startColor = new Color(0.1f, 0.1f, 0.1f, 0.6f);
-            main.maxParticles = 300;
-            var emission = ps.emission;
-            emission.rateOverTime = 50f;
-            var shape = ps.shape;
-            shape.shapeType = ParticleSystemShapeType.Cone;
-            shape.angle = 15f;
-            shape.radius = 2f;
-
-            Shader smokeShader = Shader.Find("Particles/Standard Unlit");
-            if (smokeShader == null) smokeShader = Shader.Find("Legacy Shaders/Particles/Alpha Blended");
-            if (smokeShader == null) smokeShader = Shader.Find("Mobile/Particles/Alpha Blended");
-            if (smokeShader != null) {
-                Material smokeMat = new Material(smokeShader);
-                smokeMat.color = new Color(0.1f, 0.1f, 0.1f, 0.6f);
-                if (smokeMat.HasProperty("_TintColor")) smokeMat.SetColor("_TintColor", new Color(0.1f, 0.1f, 0.1f, 0.6f));
-                ps.GetComponent<ParticleSystemRenderer>().sharedMaterial = smokeMat;
-            }
-
-            // TÃ¡ÂºÂ¡o lÃ¡Â»Â­a
-            GameObject fireObj = new GameObject("Wreck_Fire");
-            fireObj.transform.position = wreckTarget.position;
-            fireObj.transform.rotation = Quaternion.Euler(-90f, 0, 0);
-            ParticleSystem pFire = fireObj.AddComponent<ParticleSystem>();
-            pFire.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            var fMain = pFire.main;
-            fMain.duration = 5f;
-            fMain.loop = true;
-            fMain.startLifetime = 2.5f;
-            fMain.startSpeed = 10f;
-            fMain.startSize = 1.2f;
-            fMain.startColor = new Color(1f, 0.3f, 0f, 0.8f); // Ã„ÂÃ¡Â»Â cam
-            fMain.maxParticles = 150;
-            var fEmission = pFire.emission;
-            fEmission.rateOverTime = 80f; // Tăng số lượng hạt lên vì kích thước hạt bé
-            var fShape = pFire.shape;
-            fShape.shapeType = ParticleSystemShapeType.Hemisphere;
-            fShape.radius = 4.0f; // Lan rộng ra
-
-            Shader fireShader = Shader.Find("Particles/Standard Unlit");
-            if (fireShader == null) fireShader = Shader.Find("Legacy Shaders/Particles/Additive");
-            if (fireShader == null) fireShader = Shader.Find("Mobile/Particles/Additive");
-            if (fireShader != null) {
-                Material fireMat = new Material(fireShader);
-                fireMat.color = new Color(1f, 0.4f, 0.1f, 0.8f);
-                if (fireMat.HasProperty("_TintColor")) fireMat.SetColor("_TintColor", new Color(1f, 0.4f, 0.1f, 0.8f));
-                pFire.GetComponent<ParticleSystemRenderer>().sharedMaterial = fireMat;
-            }
-
-            ps.Play();
-            pFire.Play();
-
-            // TÃ¡ÂºÂ¡o mÃ¡ÂºÂ£nh vÃ¡Â»Â¡ vÃ„Æ’ng tung tÃƒÂ³e xung quanh
-            for (int i = 0; i < 20; i++)
+            if (wreckTarget == null) return;
+            try
             {
-                PrimitiveType pt = Random.value > 0.5f ? PrimitiveType.Cube : PrimitiveType.Cylinder;
-                GameObject debris = GameObject.CreatePrimitive(pt);
-                debris.name = "C400_Debris_" + i;
-                
-                // RÃ¡ÂºÂ£i ngÃ¡ÂºÂ«u nhiÃƒÂªn trong bÃƒÂ¡n kÃƒÂ­nh 20m xung quanh xÃƒÂ¡c mÃƒÂ¡y bay
-                Vector2 randCircle = Random.insideUnitCircle * 20f;
-                Vector3 spawnPos = wreckTarget.position + new Vector3(randCircle.x, 20f, randCircle.y); // ThÃ¡ÂºÂ£ tÃ¡Â»Â« trÃƒÂªn cao rÃ¡Â»â€ºt xuÃ¡Â»â€˜ng
-                debris.transform.position = spawnPos;
-                
-                // KÃƒÂ­ch thÃ†Â°Ã¡Â»â€ºc ngÃ¡ÂºÂ«u nhiÃƒÂªn mÃ¡ÂºÂ£nh vÃ¡Â»Â¡ sÃ¡ÂºÂ¯t thÃƒÂ©p
-                debris.transform.localScale = new Vector3(Random.Range(0.2f, 1.5f), Random.Range(0.1f, 3f), Random.Range(0.2f, 2f));
-                debris.transform.rotation = Random.rotation;
+                // Tạo ánh sáng lửa bập bùng
+                GameObject fireLight = new GameObject("Wreck_FireLight");
+                fireLight.transform.position = wreckTarget.position + new Vector3(0, 5f, 0);
+                Light lit = fireLight.AddComponent<Light>();
+                lit.type = LightType.Point;
+                lit.range = 40f;
+                lit.intensity = 2.5f;
+                lit.color = new Color(1f, 0.4f, 0.1f);
+                lit.shadows = LightShadows.Soft;
 
-                // ThÃƒÂªm Rigidbody Ã„â€˜Ã¡Â»Æ’ nÃƒÂ³ tÃ¡Â»Â± rÃ¡Â»â€ºt vÃƒÂ  lÃ„Æ’n lÃƒÂ³c dÃ†Â°Ã¡Â»â€ºi Ã„â€˜Ã¡ÂºÂ¥t tÃ¡Â»Â± nhiÃƒÂªn
-                Rigidbody rb = debris.AddComponent<Rigidbody>();
-                rb.mass = Random.Range(10f, 100f);
-                rb.drag = 0.5f;
-                rb.angularDrag = 0.5f;
+                var flicker = fireLight.AddComponent<LightFlicker_Runtime>();
+                flicker.lightSource = lit;
 
-                // Ã„ÂÃ¡Â»â€¢i mÃƒÂ u thÃƒÂ nh kim loÃ¡ÂºÂ¡i chÃƒÂ¡y Ã„â€˜en xÃ¡Â»â€°n
-                Renderer r = debris.GetComponent<Renderer>();
-                if (r != null)
+                Material pMat = GetSoftParticleMaterial();
+
+                // Tạo khói đen
+                GameObject smokeObj = new GameObject("Wreck_Smoke");
+                smokeObj.transform.position = wreckTarget.position + new Vector3(0, 2f, 0);
+                smokeObj.transform.rotation = Quaternion.Euler(-90f, 0, 0);
+                ParticleSystem ps = smokeObj.AddComponent<ParticleSystem>();
+                ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                var main = ps.main;
+                main.duration = 5f;
+                main.loop = true;
+                main.startLifetime = 10f;
+                main.startSpeed = 8f;
+                main.startSize = 0.3f;
+                main.startColor = new Color(0.1f, 0.1f, 0.1f, 0.6f);
+                main.maxParticles = 300;
+                var emission = ps.emission;
+                emission.rateOverTime = 50f;
+                var shape = ps.shape;
+                shape.shapeType = ParticleSystemShapeType.Cone;
+                shape.angle = 15f;
+                shape.radius = 2f;
+
+                if (pMat != null)
                 {
-                    Material mat = new Material(Shader.Find("Standard"));
-                    mat.color = new Color(0.15f, 0.15f, 0.15f); // Ã„Âen chÃƒÂ¡y
-                    mat.SetFloat("_Metallic", 0.8f);
-                    mat.SetFloat("_Glossiness", 0.2f);
-                    r.material = mat;
+                    ps.GetComponent<ParticleSystemRenderer>().sharedMaterial = pMat;
                 }
+
+                // Tạo lửa
+                GameObject fireObj = new GameObject("Wreck_Fire");
+                fireObj.transform.position = wreckTarget.position;
+                fireObj.transform.rotation = Quaternion.Euler(-90f, 0, 0);
+                ParticleSystem pFire = fireObj.AddComponent<ParticleSystem>();
+                pFire.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                var fMain = pFire.main;
+                fMain.duration = 5f;
+                fMain.loop = true;
+                fMain.startLifetime = 2.5f;
+                fMain.startSpeed = 10f;
+                fMain.startSize = 1.2f;
+                fMain.startColor = new Color(1f, 0.3f, 0f, 0.8f);
+                fMain.maxParticles = 150;
+                var fEmission = pFire.emission;
+                fEmission.rateOverTime = 80f;
+                var fShape = pFire.shape;
+                fShape.shapeType = ParticleSystemShapeType.Hemisphere;
+                fShape.radius = 4.0f;
+
+                if (pMat != null)
+                {
+                    pFire.GetComponent<ParticleSystemRenderer>().sharedMaterial = pMat;
+                }
+
+                ps.Play();
+                pFire.Play();
+
+                // Tạo mảnh vỡ
+                for (int i = 0; i < 20; i++)
+                {
+                    PrimitiveType pt = Random.value > 0.5f ? PrimitiveType.Cube : PrimitiveType.Cylinder;
+                    GameObject debris = GameObject.CreatePrimitive(pt);
+                    debris.name = "C400_Debris_" + i;
+                    
+                    Vector2 randCircle = Random.insideUnitCircle * 20f;
+                    Vector3 spawnPos = wreckTarget.position + new Vector3(randCircle.x, 20f, randCircle.y);
+                    debris.transform.position = spawnPos;
+                    debris.transform.localScale = new Vector3(Random.Range(0.2f, 1.5f), Random.Range(0.1f, 3f), Random.Range(0.2f, 2f));
+                    debris.transform.rotation = Random.rotation;
+
+                    Rigidbody rb = debris.AddComponent<Rigidbody>();
+                    rb.mass = Random.Range(10f, 100f);
+                    rb.drag = 0.5f;
+                    rb.angularDrag = 0.5f;
+
+                    Renderer r = debris.GetComponent<Renderer>();
+                    if (r != null)
+                    {
+                        Shader s = Shader.Find("Standard") ?? Shader.Find("Diffuse");
+                        if (s != null)
+                        {
+                            Material mat = new Material(s);
+                            mat.color = new Color(0.15f, 0.15f, 0.15f);
+                            r.material = mat;
+                        }
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning("[CreateCrashEffects] Lỗi khi tạo hiệu ứng khói lửa: " + ex.Message);
             }
         }
 
@@ -1850,8 +2003,11 @@ namespace HorrorGame.Cutscenes
             }
 
             // Tua thời gian trong game trôi qua vài tiếng (từ chiều sang đêm hoặc từ đêm sang sáng)
-            if (DayNightCycle.Instance != null)
-                DayNightCycle.Instance.currentHour += 4f;
+            if (HorrorGame.Environment.DayNightCycle.Instance != null && !hasAdvancedTime)
+            {
+                HorrorGame.Environment.DayNightCycle.Instance.currentHour = 21f;
+                hasAdvancedTime = true;
+            }
 
             // 22s - 32s: Dòng chữ vài giờ sau
             SetSubtitle("... (Nhiều giờ sau, trong cánh rừng hoang vu) ...");
@@ -1928,8 +2084,8 @@ namespace HorrorGame.Cutscenes
                         // Độ run rẩy cơ bắp do kiệt sức (muscle tremor)
                         float tremble = Mathf.Sin(elapsed * 28f) * 0.006f * (1f - p * 0.5f);
 
-                        Vector3 kneelPos = new Vector3(originalCamLocalPos.x + tremble, 0.78f + dipY, originalCamLocalPos.z + 0.08f);
-                        currentPos = Vector3.Lerp(new Vector3(originalCamLocalPos.x, 0.32f, originalCamLocalPos.z + 0.20f), kneelPos, p);
+                        Vector3 kneelPos = new Vector3(originalCamLocalPos.x + tremble, 0.42f + dipY, originalCamLocalPos.z + 0.08f);
+                        currentPos = Vector3.Lerp(new Vector3(originalCamLocalPos.x, 0.28f, originalCamLocalPos.z + 0.20f), kneelPos, p);
 
                         // Đầu ngước lên nhìn cảnh xác máy bay bốc cháy hoang tàn
                         Quaternion kneelRot = Quaternion.Euler(8f, -4f, 5f);
@@ -1938,7 +2094,7 @@ namespace HorrorGame.Cutscenes
                     else if (t < 0.85f)
                     {
                         // ── GIAI ĐOẠN 3 (55% – 85%): DỒN LỰC ĐỨNG DẬY BẰNG HAI CHÂN & BƯỚC LOẠNG CHOẠNG ──
-                        // Người bật dậy lên độ cao đứng đầy đủ (Y từ 0.78m lên ~1.65m)
+                        // Người bật dậy lên độ cao đứng đầy đủ
                         float p = Mathf.SmoothStep(0f, 1f, (t - 0.55f) / 0.30f);
 
                         // Độ lắc lư thăng bằng khi đứng lên: hơi cúi mặt kiểm tra bước chân (Pitch -4.5°), lắc sang hai bên (Roll 2.8°)
@@ -1946,7 +2102,7 @@ namespace HorrorGame.Cutscenes
                         float balanceRoll  = Mathf.Cos(p * Mathf.PI * 2f) * 2.8f * (1f - p);
                         float heaveBob     = Mathf.Sin(p * Mathf.PI * 1.5f) * 0.04f;
 
-                        Vector3 standPos = Vector3.Lerp(new Vector3(originalCamLocalPos.x, 0.78f, originalCamLocalPos.z + 0.08f), originalCamLocalPos, p);
+                        Vector3 standPos = Vector3.Lerp(new Vector3(originalCamLocalPos.x, 0.42f, originalCamLocalPos.z + 0.08f), originalCamLocalPos, p);
                         currentPos = standPos + new Vector3(0, heaveBob, 0);
 
                         Quaternion targetRot = Quaternion.Euler(originalCamLocalRot.eulerAngles.x + balancePitch, originalCamLocalRot.eulerAngles.y, balanceRoll);

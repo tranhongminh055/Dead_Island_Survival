@@ -46,6 +46,19 @@ namespace HorrorGame.Player
             // Khóa con trỏ chuột vào giữa màn hình
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+
+            if (playerCamera != null && !HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+            {
+                playerCamera.localPosition = new Vector3(0f, 0.65f, 0.15f);
+            }
+        }
+
+        void OnEnable()
+        {
+            if (playerCamera != null && !HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+            {
+                playerCamera.localPosition = new Vector3(0f, 0.65f, 0.15f);
+            }
         }
 
         void Update()

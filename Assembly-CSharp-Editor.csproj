@@ -52,6 +52,7 @@
   </ItemGroup>
   <ItemGroup>
      <Compile Include="Assets\Editor\AirplaneCabinBuilder.cs" />
+     <Compile Include="Assets\Editor\AutoFixGun.cs" />
      <Compile Include="Assets\Editor\AutoStaticBatcher.cs" />
      <Compile Include="Assets\Editor\AutoTrailerCreator.cs" />
      <Compile Include="Assets\Editor\CrashWreckageBuilder.cs" />
@@ -103,6 +104,7 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\FindFloor.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\FixAirplaneCabin.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\FixAirplaneSeats.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\FixParticles.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\IntroSetupWizard.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\ListC400Children.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Editor\SetFlyingC400.cs" />

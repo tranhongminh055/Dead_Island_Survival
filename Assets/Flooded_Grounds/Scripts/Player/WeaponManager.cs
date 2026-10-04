@@ -14,6 +14,9 @@ namespace HorrorGame.Player
 
         private int currentWeaponIndex = -1; // -1 = không cầm gì (tay không)
 
+        // Cache tham chiếu FPSWeapon để đồng bộ trạng thái
+        private FPSWeapon fpsWeapon;
+
         [Header("UI Hiển thị")]
         public bool showWeaponName = true; // Hiện tên súng trên màn hình
 
@@ -24,6 +27,9 @@ namespace HorrorGame.Player
 
         void Start()
         {
+            // Tìm FPSWeapon để đồng bộ trạng thái
+            fpsWeapon = Object.FindObjectOfType<FPSWeapon>();
+
             // Khi vào game, tắt hết tất cả súng (giấu đi)
             HideAllWeapons();
 
@@ -52,7 +58,7 @@ namespace HorrorGame.Player
 
             // Bấm phím số 1-9 để rút/cất súng
             if (Input.GetKeyDown(KeyCode.Alpha1)) ToggleWeapon(0);
-            if (Input.GetKeyDown(KeyCode.Alpha2)) ToggleWeapon(1);
+            // Alpha2 được dùng cho AxeController (rìu), không xử lý ở đây
             if (Input.GetKeyDown(KeyCode.Alpha3)) ToggleWeapon(2);
             if (Input.GetKeyDown(KeyCode.Alpha4)) ToggleWeapon(3);
             if (Input.GetKeyDown(KeyCode.Alpha5)) ToggleWeapon(4);
@@ -92,9 +98,22 @@ namespace HorrorGame.Player
             weaponSlots[index].SetActive(true);
             currentWeaponIndex = index;
 
+            // Bật tất cả Renderer trên khẩu súng để hiển thị đúng
+            Renderer[] renderers = weaponSlots[index].GetComponentsInChildren<Renderer>(true);
+            foreach (Renderer r in renderers)
+            {
+                if (r != null) r.enabled = true;
+            }
+
             // Bật script Gun trên khẩu súng này
             Gun gun = weaponSlots[index].GetComponent<Gun>();
             if (gun != null) gun.enabled = true;
+
+            // Đồng bộ trạng thái với FPSWeapon (nếu có)
+            if (fpsWeapon != null)
+            {
+                fpsWeapon.EquipFromManager();
+            }
 
             currentWeaponName = weaponSlots[index].name;
             weaponNameTimer = weaponNameDisplayTime;
@@ -112,6 +131,13 @@ namespace HorrorGame.Player
                 weaponNameTimer = weaponNameDisplayTime;
                 Debug.Log("Đã cất súng");
             }
+
+            // Đồng bộ trạng thái với FPSWeapon (nếu có)
+            if (fpsWeapon != null)
+            {
+                fpsWeapon.HolsterFromManager();
+            }
+
             currentWeaponIndex = -1;
         }
 

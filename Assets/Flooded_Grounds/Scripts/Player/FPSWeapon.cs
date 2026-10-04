@@ -16,6 +16,16 @@ public class FPSWeapon : MonoBehaviour
     public Vector3 gunRotation = new Vector3(0, 180, 0);
     public Vector3 gunScale = new Vector3(0.4f, 0.4f, 0.4f);
 
+    [Header("Tự động căn súng thẳng như đang cầm (khuyên dùng)")]
+    [Tooltip("Tự đo model súng, xoay nòng chĩa thẳng về phía trước, tự chỉnh kích thước. Khi bật, Gun Scale bị bỏ qua và Gun Rotation chỉ dùng để nghiêng thêm.")]
+    public bool autoFitGun = true;
+    [Tooltip("Chiều dài khẩu súng (mét). Tăng = súng to hơn")]
+    public float gunLength = 0.55f;
+    [Tooltip("Tick nếu nòng súng chĩa ngược về phía người chơi")]
+    public bool flipGunDirection = false;
+    [Tooltip("Nếu súng bị lật ngửa/nghiêng: thử 180, 90 hoặc -90")]
+    public float gunRoll = 0f;
+
     [Header("Thông số súng")]
     public float damage = 25f;
     public float range = 100f;
@@ -47,6 +57,11 @@ public class FPSWeapon : MonoBehaviour
     private bool isEquipped = false;
     private float nextFireTime = 0f;
 
+    /// <summary>
+    /// Kiểm tra súng có đang được trang bị không (dùng bởi AxeController)
+    /// </summary>
+    public bool IsEquipped { get { return isEquipped; } }
+
     // Recoil state
     private Vector3 currentGunPosition;
     private Vector3 currentGunRotation;
@@ -57,6 +72,9 @@ public class FPSWeapon : MonoBehaviour
     // Audio & FX
     private AudioSource audioSource;
     private Light flashLight;
+
+    // Cache WeaponManager để tránh FindObjectOfType mỗi frame
+    private bool hasWeaponManager = false;
 
     // UI
     private GUIStyle ammoStyle;
@@ -86,10 +104,15 @@ public class FPSWeapon : MonoBehaviour
             }
         }
 
-        Renderer[] rs = GetComponentsInChildren<Renderer>(true);
-        foreach (Renderer r in rs) {
-            if (r != null) r.enabled = false;
-        }
+        // Cache kiểm tra WeaponManager
+        hasWeaponManager = Object.FindObjectOfType<HorrorGame.Player.WeaponManager>() != null;
+
+        // Tắt MeshRenderer gốc trên Camera (model súng gắn trực tiếp trong Scene)
+        // để ẩn nó đi. gunInstance (clone) sẽ được tạo riêng và hiển thị ở vị trí FPS đúng.
+        MeshRenderer meshOnCamera = GetComponent<MeshRenderer>();
+        if (meshOnCamera != null) meshOnCamera.enabled = false;
+        MeshCollider meshCol = GetComponent<MeshCollider>();
+        if (meshCol != null) meshCol.enabled = false;
 
         // Tạo nguồn phát âm thanh trên Camera
         audioSource = gameObject.AddComponent<AudioSource>();
@@ -108,7 +131,7 @@ public class FPSWeapon : MonoBehaviour
         // TỰ ĐỘNG CĂN CHỈNH CAMERA VÀO ĐÚNG MẮT NHÂN VẬT (chỉ khi KHÔNG có Cutscene máy bay đang chạy)
         if (!HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
         {
-            transform.localPosition = new Vector3(0f, 0.88f, 0.25f);
+            transform.localPosition = new Vector3(0f, 0.65f, 0.15f);
             transform.localRotation = Quaternion.Euler(0, 0, 0);
         }
 
@@ -133,6 +156,21 @@ public class FPSWeapon : MonoBehaviour
 
     void CreateGunVisual()
     {
+        // Giảm near clip để báng súng sát camera không bị cắt mất
+        Camera cam = GetComponent<Camera>();
+        if (cam != null && cam.nearClipPlane > 0.05f) cam.nearClipPlane = 0.02f;
+
+        if (gunModelPrefab != null && autoFitGun)
+        {
+            gunInstance = CreateAutoFitGun();
+            gunInstance.transform.localPosition = gunPosition;
+            gunInstance.transform.localRotation = Quaternion.Euler(gunRotation);
+            currentGunPosition = gunPosition;
+            currentGunRotation = gunRotation;
+            Debug.Log("Đã tạo súng (auto-fit) thành công! Vị trí: " + gunPosition);
+            return;
+        }
+
         if (gunModelPrefab != null)
         {
             // Nếu đã kéo model súng vào ô gunModelPrefab
@@ -158,6 +196,82 @@ public class FPSWeapon : MonoBehaviour
         }
 
         Debug.Log("Đã tạo súng thành công! Vị trí: " + gunPosition);
+    }
+
+    /// <summary>
+    /// Tạo súng nằm trong 1 "GunHolder": model được tự xoay sao cho trục dài nhất (nòng)
+    /// chĩa về phía trước (Z), trục cao thứ hai hướng lên (Y), rồi chỉnh kích thước và căn giữa.
+    /// </summary>
+    GameObject CreateAutoFitGun()
+    {
+        GameObject holder = new GameObject("GunHolder");
+        holder.transform.SetParent(transform, false);
+
+        GameObject model = Instantiate(gunModelPrefab, holder.transform);
+        model.transform.localPosition = Vector3.zero;
+        model.transform.localRotation = Quaternion.identity;
+        model.transform.localScale = Vector3.one;
+
+        Bounds b = GetLocalBounds(model, holder.transform);
+        if (b.size == Vector3.zero) return holder;
+
+        // Sắp xếp các trục theo độ dài: dài nhất = nòng, thứ hai = chiều cao súng
+        Vector3[] axes = { Vector3.right, Vector3.up, Vector3.forward };
+        float[] len = { b.size.x, b.size.y, b.size.z };
+        int longest = 0;
+        for (int i = 1; i < 3; i++) if (len[i] > len[longest]) longest = i;
+        int second = -1;
+        for (int i = 0; i < 3; i++)
+        {
+            if (i == longest) continue;
+            if (second < 0 || len[i] > len[second]) second = i;
+        }
+
+        // R sao cho: R * trục_dài = forward, R * trục_cao = up
+        Quaternion align = Quaternion.Inverse(Quaternion.LookRotation(axes[longest], axes[second]));
+        Quaternion fix = Quaternion.Euler(0f, flipGunDirection ? 180f : 0f, gunRoll);
+        model.transform.localRotation = fix * align;
+
+        // Chỉnh kích thước theo chiều dài mong muốn
+        b = GetLocalBounds(model, holder.transform);
+        float k = gunLength / Mathf.Max(b.size.z, 0.0001f);
+        model.transform.localScale = Vector3.one * k;
+
+        // Căn tâm súng về gốc của holder
+        b = GetLocalBounds(model, holder.transform);
+        model.transform.localPosition = -b.center;
+
+        // Súng FPS không cần đổ bóng
+        foreach (Renderer r in model.GetComponentsInChildren<Renderer>())
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+        return holder;
+    }
+
+    public static Bounds GetLocalBounds(GameObject root, Transform space)
+    {
+        bool has = false;
+        Bounds result = new Bounds();
+        foreach (Renderer r in root.GetComponentsInChildren<Renderer>())
+        {
+            Mesh mesh = null;
+            MeshFilter mf = r.GetComponent<MeshFilter>();
+            if (mf != null) mesh = mf.sharedMesh;
+            SkinnedMeshRenderer smr = r as SkinnedMeshRenderer;
+            if (smr != null) mesh = smr.sharedMesh;
+            if (mesh == null) continue;
+
+            Bounds mb = mesh.bounds;
+            for (int i = 0; i < 8; i++)
+            {
+                Vector3 c = mb.center + Vector3.Scale(mb.extents, new Vector3(
+                    (i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
+                Vector3 p = space.InverseTransformPoint(r.transform.TransformPoint(c));
+                if (!has) { result = new Bounds(p, Vector3.zero); has = true; }
+                else result.Encapsulate(p);
+            }
+        }
+        return result;
     }
 
     GameObject CreatePlaceholderGun()
@@ -223,8 +337,11 @@ public class FPSWeapon : MonoBehaviour
             return;
         }
 
-        // Bấm phím 1 để rút/cất súng
-        if (Input.GetKeyDown(toggleKey))
+        // Nếu có WeaponManager đang hoạt động, nhường quyền xử lý phím cho WeaponManager
+        // để tránh xung đột 2 script cùng bắt phím 1
+
+        // Bấm phím 1 để rút/cất súng (chỉ khi KHÔNG có WeaponManager)
+        if (!hasWeaponManager && Input.GetKeyDown(toggleKey))
         {
             // Nếu có liên kết với Túi đồ, kiểm tra xem súng có trong túi không
             if (weaponItemData != null && HorrorGame.Inventory.InventoryManager.Instance != null)
@@ -317,6 +434,13 @@ public class FPSWeapon : MonoBehaviour
         if (gunInstance != null)
         {
             gunInstance.SetActive(isEquipped);
+
+            // Bật/tắt tất cả Renderer bên trong model súng để hiện/ẩn đúng cách
+            Renderer[] renderers = gunInstance.GetComponentsInChildren<Renderer>(true);
+            foreach (Renderer r in renderers)
+            {
+                if (r != null) r.enabled = isEquipped;
+            }
         }
 
         if (isEquipped)
@@ -345,6 +469,69 @@ public class FPSWeapon : MonoBehaviour
         weaponNameTimer = 2f;
     }
 
+    /// <summary>
+    /// Được gọi bởi WeaponManager khi rút súng qua hệ thống weaponSlots.
+    /// Đồng bộ trạng thái isEquipped để các script khác (AxeController...) kiểm tra đúng.
+    /// </summary>
+    public void EquipFromManager()
+    {
+        if (!isEquipped)
+        {
+            isEquipped = true;
+
+            if (gunInstance != null)
+            {
+                gunInstance.SetActive(true);
+                Renderer[] renderers = gunInstance.GetComponentsInChildren<Renderer>(true);
+                foreach (Renderer r in renderers)
+                {
+                    if (r != null) r.enabled = true;
+                }
+            }
+
+            weaponNameText = (gunModelPrefab != null) ? gunModelPrefab.name : "Súng";
+            weaponNameTimer = 2f;
+
+            if (equipSound != null && audioSource != null)
+            {
+                audioSource.PlayOneShot(equipSound);
+            }
+
+            if (playerAnimator != null)
+            {
+                playerAnimator.SetBool("IsArmed", true);
+            }
+
+            Debug.Log("[FPSWeapon] EquipFromManager: Đã rút súng");
+        }
+    }
+
+    /// <summary>
+    /// Được gọi bởi WeaponManager khi cất súng.
+    /// </summary>
+    public void HolsterFromManager()
+    {
+        if (isEquipped)
+        {
+            isEquipped = false;
+
+            if (gunInstance != null)
+            {
+                gunInstance.SetActive(false);
+            }
+
+            weaponNameText = "Cất súng";
+            weaponNameTimer = 2f;
+
+            if (playerAnimator != null)
+            {
+                playerAnimator.SetBool("IsArmed", false);
+            }
+
+            Debug.Log("[FPSWeapon] HolsterFromManager: Đã cất súng");
+        }
+    }
+
     void Shoot()
     {
         currentAmmo--;
@@ -361,6 +548,9 @@ public class FPSWeapon : MonoBehaviour
             audioSource.clip = shootSound;
             audioSource.Play();
         }
+
+        // Báo động tiếng súng: Mọi Zombie trong bán kính 80m sẽ nghe thấy và chạy lại
+        HorrorGame.Enemy.EnemyAI.AlertAllZombies(transform.position, 80f);
 
         // Tạo hiệu ứng giật súng (Recoil)
         currentGunPosition += new Vector3(0, 0, recoilKickback);

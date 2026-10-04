@@ -65323,16 +65323,25 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   axeModelPrefab: {fileID: 0}
-  axePosition: {x: 0.4, y: -0.3, z: 0.5}
-  axeRotation: {x: 0, y: 180, z: 0}
+  attachedAxeVisual: {fileID: 1587848019}
+  forceCameraAttachment: 1
+  axePosition: {x: 0.28, y: -0.3, z: 0.55}
+  axeRotation: {x: 10, y: 0, z: 12}
   axeScale: {x: 0.35, y: 0.35, z: 0.35}
+  autoFitAxe: 1
+  axeLength: 0.6
+  flipAxeUpsideDown: 0
+  axeRoll: 0
   chopDamage: 25
   chopRange: 3
   chopCooldown: 0.8
   axeItemData: {fileID: 11400000, guid: 4e296054d1256a04ca23b9381db8ec92, type: 2}
   equipKey: 50
-  chopSound: {fileID: 0}
-  equipSound: {fileID: 0}
+  chopSound: {fileID: 8300000, guid: 7464f15d519620147ad63ce75c604bb1, type: 3}
+  equipSound: {fileID: 8300000, guid: 41b3c085d19208847953102425e9c0b4, type: 3}
+  handAxePosition: {x: 0.05, y: 0.1, z: 0.05}
+  handAxeRotation: {x: 0, y: 90, z: -90}
+  handAxeScale: {x: 1.5, y: 1.5, z: 1.5}
 --- !u!1001 &510542482
 Prefab:
   m_ObjectHideFlags: 0
@@ -159320,10 +159329,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 32ff442f2321e524e89be42c2a9daa58, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gunModelPrefab: {fileID: 0}
-  gunPosition: {x: 0.3, y: -0.3, z: 0.6}
-  gunRotation: {x: 0, y: 180, z: 0}
-  gunScale: {x: 0.3, y: 0.3, z: 0.3}
+  gunModelPrefab: {fileID: 1293143113558022, guid: d3b55aa4fdece8e4e88063899f0f5366,
+    type: 2}
+  gunPosition: {x: 0.18, y: -0.17, z: 0.45}
+  gunRotation: {x: 0, y: 0, z: 0}
+  gunScale: {x: 0.05, y: 0.05, z: 0.05}
+  autoFitGun: 1
+  gunLength: 0.55
+  flipGunDirection: 0
+  gunRoll: 0
   damage: 25
   range: 100
   fireRate: 8
@@ -198275,6 +198289,60 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 4769
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &1524106338
+Prefab:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    m_TransformParent: {fileID: 568948207}
+    m_Modifications:
+    - target: {fileID: 400000, guid: 51da7bb49e0902c4283d754248625e66, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0.031
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: 51da7bb49e0902c4283d754248625e66, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.059
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: 51da7bb49e0902c4283d754248625e66, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.027
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: 51da7bb49e0902c4283d754248625e66, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.41055784
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: 51da7bb49e0902c4283d754248625e66, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0.5874895
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: 51da7bb49e0902c4283d754248625e66, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0.55225945
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: 51da7bb49e0902c4283d754248625e66, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.42580268
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: 51da7bb49e0902c4283d754248625e66, type: 3}
+      propertyPath: m_RootOrder
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: 51da7bb49e0902c4283d754248625e66, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: -91.646
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: 51da7bb49e0902c4283d754248625e66, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 17.413
+      objectReference: {fileID: 0}
+    - target: {fileID: 400000, guid: 51da7bb49e0902c4283d754248625e66, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 86.82201
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+  m_ParentPrefab: {fileID: 100100000, guid: 51da7bb49e0902c4283d754248625e66, type: 3}
+  m_IsPrefabParent: 0
 --- !u!1001 &1524972840
 Prefab:
   m_ObjectHideFlags: 0
@@ -206165,6 +206233,10 @@ Prefab:
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: 6c2bb458d4ac1614485f1c8ba5adb8f9, type: 2}
   m_IsPrefabParent: 0
+--- !u!1 &1587848019 stripped
+GameObject:
+  m_PrefabParentObject: {fileID: 100000, guid: 51da7bb49e0902c4283d754248625e66, type: 3}
+  m_PrefabInternal: {fileID: 1524106338}
 --- !u!1001 &1588186540
 Prefab:
   m_ObjectHideFlags: 0
