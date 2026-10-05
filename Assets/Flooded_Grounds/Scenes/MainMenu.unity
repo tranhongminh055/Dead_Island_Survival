@@ -210,7 +210,8 @@ MonoBehaviour:
   mainMenuSceneName: MainMenu
   menuBackgroundTexture: {fileID: 2800000, guid: df085ee1e9abcc04b8221871ddcbe7b4,
     type: 3}
-  menuMusic: {fileID: 8300000, guid: fb1bae38399f65b49afbec6f762e733b, type: 3}
+  backgroundScaleMode: 0
+  menuMusic: {fileID: 8300000, guid: 0756453ac94aa984786d881de724c68e, type: 3}
   buttonClickSound: {fileID: 0}
   buttonHoverSound: {fileID: 0}
   showMenuOnPlayInGameScene: 1

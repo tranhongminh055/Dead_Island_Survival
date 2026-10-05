@@ -38,7 +38,7 @@ namespace HorrorGame.Survival
 
         [Header("Thông số chặt cây")]
         public float chopDamage = 25f;      // Sát thương mỗi nhát chặt
-        public float chopRange = 3f;        // Tầm chặt
+        public float chopRange = 3.5f;       // Tầm chặt (3.5m cho thoải mái)
         public float chopCooldown = 0.8f;   // Thời gian giữa mỗi nhát (giây)
 
         [Header("Tích hợp Túi Đồ")]
@@ -84,6 +84,9 @@ namespace HorrorGame.Survival
 
         void Start()
         {
+            // Ghi đè chopRange cho thoải mái (scene cũ có thể serialize = 3)
+            if (chopRange < 3.5f) chopRange = 3.5f;
+
             // Tự động load ItemData rìu từ Resources nếu chưa gán
             if (axeItemData == null)
             {
@@ -112,6 +115,19 @@ namespace HorrorGame.Survival
 
             audioSource = GetComponent<AudioSource>();
             if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+
+#if UNITY_EDITOR
+            if (chopSound == null)
+            {
+                chopSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/sound axe chop tree/âm tahh rìu khi chặt cây.mp3");
+                if (chopSound == null)
+                    chopSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/sound axe chop tree/wings_of_freedom-chopping-wood-435769.mp3");
+            }
+            if (equipSound == null)
+            {
+                equipSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/sound axe chop tree/litupsubway-ui-equip-sfx-513361.mp3");
+            }
+#endif
 
             if (attachedAxeVisual != null && autoFitAxe && forceCameraAttachment)
             {
@@ -564,54 +580,164 @@ namespace HorrorGame.Survival
             // Phát âm thanh chặt
             if (chopSound != null) audioSource.PlayOneShot(chopSound);
 
-            // Raycast kiểm tra có trúng cây không
-            RaycastHit hit;
-            Ray ray = new Ray(transform.position, transform.forward);
+            Camera cam = GetComponentInChildren<Camera>();
+            if (cam == null) cam = Camera.main;
+            Transform aim = cam != null ? cam.transform : transform;
+            Ray ray = new Ray(aim.position, aim.forward);
+            Debug.Log(string.Format("[AxeController] PerformChop: ray origin={0}, dir={1}, range={2}", ray.origin, ray.direction, chopRange));
 
-            if (Physics.Raycast(ray, out hit, chopRange))
+            // 1. Raycast vật lý
+            RaycastHit hit = new RaycastHit();
+            bool hasHit = false;
+            float hitDist = float.MaxValue;
+            RaycastHit[] hits = Physics.RaycastAll(ray, chopRange, ~0, QueryTriggerInteraction.Ignore);
+            foreach (RaycastHit h in hits)
             {
-                // Kiểm tra có phải ChoppableTree không
-                ChoppableTree tree = hit.transform.GetComponent<ChoppableTree>();
-                if (tree == null) tree = hit.transform.GetComponentInParent<ChoppableTree>();
-
-                // Nếu chưa có script, tự động nhận diện nếu đối tượng là cây trong scene
-                if (tree == null)
+                if (h.transform.IsChildOf(transform)) continue;
+                if (h.distance < hitDist)
                 {
-                    string targetName = hit.transform.name.ToLower();
-                    Transform p = hit.transform.parent;
-                    string parentName = p != null ? p.name.ToLower() : "";
+                    hitDist = h.distance;
+                    hit = h;
+                    hasHit = true;
+                }
+            }
 
-                    if (targetName.Contains("tree") || targetName.Contains("trunk") || targetName.Contains("wood") || targetName.Contains("pine") || targetName.Contains("branch") ||
-                        parentName.Contains("tree") || parentName.Contains("trunk") || parentName.Contains("wood") || parentName.Contains("pine"))
+            // Hỗ trợ SphereCast để chém cận chiến thoải mái, không lo hụt khi lệch vài cm
+            if (!hasHit || (hasHit && hit.collider.GetComponent<Terrain>() != null))
+            {
+                RaycastHit[] sphereHits = Physics.SphereCastAll(ray, 0.35f, chopRange, ~0, QueryTriggerInteraction.Ignore);
+                foreach (RaycastHit sh in sphereHits)
+                {
+                    if (sh.transform.IsChildOf(transform)) continue;
+                    if (sh.collider.GetComponent<ChoppableTree>() != null || 
+                        sh.collider.GetComponentInParent<ChoppableTree>() != null ||
+                        sh.collider.GetComponent<ChoppableStump>() != null ||
+                        sh.collider.GetComponentInParent<ChoppableStump>() != null)
                     {
-                        GameObject treeTarget = (p != null && (parentName.Contains("tree") || parentName.Contains("trunk"))) ? p.gameObject : hit.transform.gameObject;
-                        tree = treeTarget.GetComponent<ChoppableTree>();
-                        if (tree == null) tree = treeTarget.AddComponent<ChoppableTree>();
+                        hit = sh;
+                        hasHit = true;
+                        hitDist = sh.distance;
+                        break;
                     }
                 }
+            }
 
-                if (tree != null)
+            // 2. Cây vẽ bằng Terrain (không có Collider) -> dò bằng hình học
+            Terrain treeTerrain;
+            int treeIndex;
+            Vector3 treePoint;
+            float treeDist;
+            bool foundTerrainTree = TerrainTreeChopper.Instance.FindTreeAlongRay(ray, chopRange, out treeTerrain, out treeIndex, out treePoint, out treeDist);
+            
+            // Chỉ bị cản nếu có chướng ngại vật cứng (không phải mặt đất) nằm chắn trước cây
+            bool isBlockedByObstacle = hasHit && hit.collider.GetComponent<Terrain>() == null &&
+                                       hit.collider.GetComponent<ChoppableTree>() == null &&
+                                       hit.collider.GetComponent<ChoppableStump>() == null &&
+                                       hitDist < treeDist;
+
+            if (foundTerrainTree && !isBlockedByObstacle)
+            {
+                ChoppableTree terrainTree = TerrainTreeChopper.Instance.ConvertToChoppable(treeTerrain, treeIndex);
+                if (terrainTree != null)
                 {
-                    tree.TakeChopDamage(chopDamage, hit.point);
-                    Debug.Log(string.Format("[AxeController] Chặt trúng cây! Damage: {0}, HP còn: {1}", chopDamage, tree.CurrentHealth));
+                    Debug.Log("[AxeController] ĐÃ CHẶT TRÚNG CÂY TERRAIN! Chuyển thành ChoppableTree.");
+                    DamageTree(terrainTree, treePoint);
+                    return;
+                }
+            }
+
+            if (!hasHit)
+            {
+                Debug.Log("[AxeController] Vung rìu vào không khí.");
+                return;
+            }
+
+            // 3. Kiểm tra gốc cây (ChoppableStump)
+            ChoppableStump stump = hit.transform.GetComponent<ChoppableStump>();
+            if (stump == null) stump = hit.transform.GetComponentInParent<ChoppableStump>();
+            if (stump != null)
+            {
+                stump.TakeChopDamage(chopDamage, hit.point);
+                SpawnWoodChips(hit.point);
+                displayText = "Chặt gốc cây...";
+                displayTimer = 1.5f;
+                return;
+            }
+
+            // 4. Cây là GameObject trong scene
+            ChoppableTree tree = hit.transform.GetComponent<ChoppableTree>();
+            if (tree == null) tree = hit.transform.GetComponentInParent<ChoppableTree>();
+
+            // Nếu chưa có script, tự động nhận diện nếu đối tượng là cây trong scene
+            if (tree == null && hit.collider.GetComponent<Terrain>() == null)
+            {
+                string targetName = hit.transform.name.ToLower();
+                Transform p = hit.transform.parent;
+                string parentName = p != null ? p.name.ToLower() : "";
+
+                if (targetName.Contains("tree") || targetName.Contains("trunk") || targetName.Contains("wood") || targetName.Contains("pine") || targetName.Contains("branch") ||
+                    parentName.Contains("tree") || parentName.Contains("trunk") || parentName.Contains("wood") || parentName.Contains("pine"))
+                {
+                    GameObject treeTarget = (p != null && (parentName.Contains("tree") || parentName.Contains("trunk"))) ? p.gameObject : hit.transform.gameObject;
+                    tree = treeTarget.GetComponent<ChoppableTree>();
+                    if (tree == null) tree = treeTarget.AddComponent<ChoppableTree>();
+                }
+            }
+
+            if (tree != null)
+            {
+                DamageTree(tree, hit.point);
+            }
+            else
+            {
+                // Kiểm tra thú rừng
+                AnimalAI animal = hit.transform.GetComponent<AnimalAI>();
+                if (animal == null) animal = hit.transform.GetComponentInParent<AnimalAI>();
+
+                if (animal != null)
+                {
+                    animal.TakeDamage(chopDamage);
+                    displayText = "Đánh trúng " + animal.GetAnimalName() + "!";
+                    displayTimer = 2f;
                 }
                 else
                 {
-                    // Kiểm tra có phải thú rừng không
-                    AnimalAI animal = hit.transform.GetComponent<AnimalAI>();
-                    if (animal == null) animal = hit.transform.GetComponentInParent<AnimalAI>();
-
-                    if (animal != null)
-                    {
-                        animal.TakeDamage(chopDamage);
-                        displayText = "Đánh trúng " + animal.animalType + "!";
-                        displayTimer = 2f;
-                    }
-                    else
-                    {
-                        Debug.Log("[AxeController] Chặt trúng: " + hit.transform.name + " (không phải cây/thú)");
-                    }
+                    Debug.Log("[AxeController] Chặt trúng: " + hit.transform.name);
                 }
+            }
+        }
+
+        void DamageTree(ChoppableTree tree, Vector3 point)
+        {
+            tree.TakeChopDamage(chopDamage, point, transform.position);
+            SpawnWoodChips(point);
+
+            if (tree.CurrentHealth > 0)
+                displayText = string.Format("Chặt cây... ({0}/{1})", Mathf.CeilToInt(tree.CurrentHealth), Mathf.CeilToInt(tree.maxHealth));
+            else
+                displayText = "🌲 CÂY ĐỔ! Nhặt gỗ và lá rơi ra";
+            displayTimer = 1.8f;
+
+            Debug.Log(string.Format("[AxeController] Chặt trúng cây! Damage: {0}, HP còn: {1}", chopDamage, tree.CurrentHealth));
+        }
+
+        /// <summary>Văng vụn gỗ nhỏ tại điểm chém để người chơi thấy rõ đã chém trúng</summary>
+        void SpawnWoodChips(Vector3 point)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                GameObject chip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Destroy(chip.GetComponent<Collider>());
+                chip.name = "WoodChip";
+                chip.transform.position = point + Random.insideUnitSphere * 0.1f;
+                chip.transform.localScale = new Vector3(0.05f, 0.02f, 0.08f);
+                chip.transform.rotation = Random.rotation;
+                chip.GetComponent<Renderer>().material.color = new Color(0.6f, 0.42f, 0.22f);
+
+                Rigidbody rb = chip.AddComponent<Rigidbody>();
+                rb.mass = 0.02f;
+                rb.velocity = (Random.insideUnitSphere + Vector3.up) * 2.5f;
+                Destroy(chip, 1.2f);
             }
         }
 
@@ -719,6 +845,9 @@ namespace HorrorGame.Survival
             GUI.color = Color.white;
             GUI.DrawTexture(new Rect(cx - 2, cy - 2, 4, 4), Texture2D.whiteTexture);
 
+            // Gợi ý ngắm mục tiêu trong tầm
+            DrawTargetHint(cx, cy);
+
             // Hiển thị tên rìu
             if (displayTimer > 0)
             {
@@ -743,6 +872,63 @@ namespace HorrorGame.Survival
 
                 GUI.Label(new Rect(tx + 2, ty + 2, 300, 40), displayText, shadowStyle);
                 GUI.Label(new Rect(tx, ty, 300, 40), displayText, textStyle);
+            }
+        }
+
+        private GUIStyle hintStyle;
+        private GUIStyle hintShadowStyle;
+
+        void DrawTargetHint(float cx, float cy)
+        {
+            Camera cam = GetComponentInChildren<Camera>();
+            if (cam == null) cam = Camera.main;
+            if (cam == null) return;
+
+            Ray ray = new Ray(cam.transform.position, cam.transform.forward);
+            string prompt = "";
+
+            Terrain terrain;
+            int treeIdx;
+            Vector3 treePt;
+            float treeDist;
+            if (TerrainTreeChopper.Instance.FindTreeAlongRay(ray, chopRange, out terrain, out treeIdx, out treePt, out treeDist))
+            {
+                prompt = "🌲 [Chuột Trái] Chặt Cây";
+            }
+            else
+            {
+                RaycastHit hit;
+                if (Physics.SphereCast(ray, 0.35f, out hit, chopRange, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    if (hit.collider.GetComponent<ChoppableTree>() != null || hit.collider.GetComponentInParent<ChoppableTree>() != null)
+                    {
+                        prompt = "🌲 [Chuột Trái] Chặt Cây";
+                    }
+                    else if (hit.collider.GetComponent<ChoppableStump>() != null || hit.collider.GetComponentInParent<ChoppableStump>() != null)
+                    {
+                        prompt = "🪵 [Chuột Trái] Chặt Gốc Cây";
+                    }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(prompt))
+            {
+                if (hintStyle == null)
+                {
+                    hintStyle = new GUIStyle();
+                    hintStyle.fontSize = 15;
+                    hintStyle.fontStyle = FontStyle.Bold;
+                    hintStyle.normal.textColor = new Color(1f, 0.95f, 0.6f);
+                    hintStyle.alignment = TextAnchor.MiddleCenter;
+
+                    hintShadowStyle = new GUIStyle(hintStyle);
+                    hintShadowStyle.normal.textColor = Color.black;
+                }
+
+                float hx = cx - 150f;
+                float hy = cy + 22f;
+                GUI.Label(new Rect(hx + 1.5f, hy + 1.5f, 300, 25), prompt, hintShadowStyle);
+                GUI.Label(new Rect(hx, hy, 300, 25), prompt, hintStyle);
             }
         }
 

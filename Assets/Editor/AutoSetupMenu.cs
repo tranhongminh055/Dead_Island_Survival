@@ -74,6 +74,12 @@ namespace HorrorGame.Editor
             EnsureBuildingSystemOnPlayer();
         }
 
+        [MenuItem("Horror Game/🦌 Kích Hoạt Thú Rừng (Animal Spawner)", false, 11)]
+        public static void ForceSetupAnimalSpawner()
+        {
+            EnsureAnimalSpawnerInCurrentScene();
+        }
+
         [MenuItem("Horror Game/⚙ Cài Đặt Hệ Thống Menu (Main Menu + Pause)", false, 20)]
         public static void ForceSetupMenu()
         {
@@ -106,6 +112,9 @@ namespace HorrorGame.Editor
 
             // 4. Đảm bảo Player có hệ thống Xây Dựng (BuildingSystem)
             EnsureBuildingSystemOnPlayer();
+
+            // 5. Đảm bảo Scene có hệ thống Thú Rừng (AnimalSpawner)
+            EnsureAnimalSpawnerInCurrentScene();
 
             EditorPrefs.SetBool(KEY_SETUP_MENU, true);
         }
@@ -148,8 +157,14 @@ namespace HorrorGame.Editor
             Texture2D avatarTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Flooded_Grounds/avata game/avata chinh thuc.png");
             if (avatarTex != null) menu.menuBackgroundTexture = avatarTex;
 
-            // Gán nhạc nền u tối cho Menu
-            AudioClip bgSound = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/Background.mp3");
+            // Gán nhạc nền kinh dị cho Menu (ưu tiên thư mục "sound main menu")
+            AudioClip bgSound = null;
+            string[] musicGuids = AssetDatabase.FindAssets("t:AudioClip", new[] { "Assets/Flooded_Grounds/sound main menu" });
+            if (musicGuids.Length > 0)
+            {
+                bgSound = AssetDatabase.LoadAssetAtPath<AudioClip>(AssetDatabase.GUIDToAssetPath(musicGuids[0]));
+            }
+            if (bgSound == null) bgSound = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/Background.mp3");
             if (bgSound == null) bgSound = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/WindHowl.mp3");
             if (bgSound != null)
             {
@@ -168,7 +183,14 @@ namespace HorrorGame.Editor
             try
             {
                 Texture2D avatarTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Flooded_Grounds/avata game/avata chinh thuc.png");
-                AudioClip bgSound = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/Background.mp3");
+                // Ưu tiên nhạc kinh dị từ thư mục "sound main menu"
+                AudioClip bgSound = null;
+                string[] mGuids = AssetDatabase.FindAssets("t:AudioClip", new[] { "Assets/Flooded_Grounds/sound main menu" });
+                if (mGuids.Length > 0)
+                {
+                    bgSound = AssetDatabase.LoadAssetAtPath<AudioClip>(AssetDatabase.GUIDToAssetPath(mGuids[0]));
+                }
+                if (bgSound == null) bgSound = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/Background.mp3");
                 if (bgSound == null) bgSound = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/WindHowl.mp3");
 
                 Scene s = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
@@ -270,6 +292,19 @@ namespace HorrorGame.Editor
                     EditorSceneManager.MarkSceneDirty(player.gameObject.scene);
                     Debug.Log("✅ [BuildingSystem] Đã tự động gắn BuildingSystem lên Player! Nhấn phím [B] trong game để mở menu xây dựng.");
                 }
+            }
+        }
+
+        private static void EnsureAnimalSpawnerInCurrentScene()
+        {
+            var spawner = Object.FindObjectOfType<HorrorGame.Survival.AnimalSpawner>();
+            if (spawner == null)
+            {
+                GameObject spawnerObj = new GameObject("[AnimalSpawner]");
+                spawner = spawnerObj.AddComponent<HorrorGame.Survival.AnimalSpawner>();
+                EditorUtility.SetDirty(spawnerObj);
+                EditorSceneManager.MarkSceneDirty(spawnerObj.scene);
+                Debug.Log("✅ [AnimalSpawner] Đã tự động tạo [AnimalSpawner] trong Scene! Hươu, Thỏ, Lợn rừng đã sẵn sàng.");
             }
         }
     }

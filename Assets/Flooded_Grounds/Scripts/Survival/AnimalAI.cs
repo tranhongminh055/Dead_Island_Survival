@@ -1,72 +1,84 @@
 using UnityEngine;
+using UnityEngine.AI;
 using HorrorGame.Inventory;
 
 namespace HorrorGame.Survival
 {
     public enum AnimalType
     {
-        Deer,       // Hươu - nhát gan, chạy nhanh
-        Rabbit,     // Thỏ - rất nhỏ, siêu nhanh
-        Boar        // Lợn rừng - hung dữ, tấn công lại
+        Deer,       // Hươu - nhát gan, chạy nhanh, cho nhiều thịt và da
+        Rabbit,     // Thỏ - nhỏ, nhảy nhanh, cho ít thịt
+        Boar        // Lợn rừng - hung dữ, tấn công lại player
     }
 
     public enum AnimalState
     {
-        Idle,       // Đứng yên
+        Idle,       // Đứng yên quan sát
         Wandering,  // Đi lang thang
-        Eating,     // Ăn cỏ
-        Fleeing,    // Chạy trốn player
-        Chasing,    // Đuổi theo player (chỉ Boar)
-        Attacking,  // Tấn công player (chỉ Boar)
-        Dead        // Đã chết
+        Eating,     // Ăn cỏ (cúi đầu)
+        Fleeing,    // Hoảng sợ bỏ chạy
+        Chasing,    // Rượt đuổi player (Boar)
+        Attacking,  // Tấn công cắn/húc (Boar)
+        Dead        // Đã chết, có thể thu hoạch thịt
     }
 
     /// <summary>
-    /// AI cho thú rừng - Hệ thống săn bắt kiểu The Forest.
-    /// Thú có thể đi lang thang, ăn cỏ, phát hiện player, chạy trốn hoặc tấn công.
-    /// Player giết thú bằng rìu/súng → rơi thịt sống + da thú.
+    /// AI Động Vật Sinh Tồn kiểu The Forest.
+    /// Hỗ trợ NavMeshAgent, hoạt ảnh động học (chân bước, thỏ nhảy, cúi gặm cỏ),
+    /// tự né nước biển, nhận sát thương từ Rìu/Súng, và cho phép người chơi ấn E thu hoạch thịt/da.
     /// </summary>
     public class AnimalAI : MonoBehaviour
     {
-        [Header("── Thông Số ──")]
+        [Header("── Cấu Hình Thú ──")]
         public AnimalType animalType = AnimalType.Deer;
         public float maxHealth = 60f;
         public float moveSpeed = 3.5f;
-        public float runSpeed = 8f;
-        public float detectionRange = 20f;  // Phát hiện player
-        public float fleeRange = 35f;       // Chạy bao xa mới dừng
-        public bool isAggressive = false;   // Tấn công player?
+        public float runSpeed = 8.5f;
+        public float detectionRange = 20f;  // Cự ly phát hiện người chơi
+        public float fleeRange = 35f;       // Cự ly chạy trốn an toàn
+        public bool isAggressive = false;   // Tự vệ hoặc chủ động tấn công?
         public float attackDamage = 15f;
         public float attackRange = 2.5f;
-        public float attackCooldown = 1.5f;
+        public float attackCooldown = 1.6f;
 
-        [Header("── Loot ──")]
+        [Header("── Thu Hoạch (Loot) ──")]
         public int meatDropAmount = 3;
         public int hideDropAmount = 2;
 
+        [Header("── Khung Xương Động Học ──")]
+        public Transform headTransform;
+        public Transform bodyTransform;
+        public Transform[] legTransforms;
+        public float baseBodyY = 0f;
+
         [HideInInspector] public Transform playerTransform;
 
-        // State
+        // Trạng thái nội bộ
         private AnimalState currentState = AnimalState.Idle;
         private float currentHealth;
         private float stateTimer = 0f;
         private Vector3 wanderTarget;
         private float nextAttackTime = 0f;
+        private NavMeshAgent agent;
 
-        // Raycast
+        // Animation động học
+        private float animTimer = 0f;
+        private bool isMoving = false;
+
+        // Mặt đất & nước
+        private const float WATER_LEVEL = 15.6f;
         private float groundCheckTimer = 0f;
 
-        // HP Bar
+        // UI & Tương tác
         private bool showHealthBar = false;
         private float healthBarTimer = 0f;
-
-        // Death
         private bool isDead = false;
         private float deathTimer = 0f;
         private bool lootDropped = false;
-
-        // UI
         private bool playerLookingAtThis = false;
+        private string harvestNotice = "";
+        private float harvestNoticeTimer = 0f;
+
         private GUIStyle interactStyle;
         private GUIStyle shadowStyle;
 
@@ -75,7 +87,37 @@ namespace HorrorGame.Survival
             currentHealth = maxHealth;
             currentState = AnimalState.Idle;
             stateTimer = Random.Range(2f, 5f);
+
+            // Cài đặt NavMeshAgent
+            agent = GetComponent<NavMeshAgent>();
+            if (agent != null)
+            {
+                agent.speed = moveSpeed;
+                agent.acceleration = 12f;
+                agent.angularSpeed = 240f;
+                agent.stoppingDistance = 0.5f;
+            }
+
             PickNewWanderTarget();
+        }
+
+        void Start()
+        {
+            if (currentHealth <= 0) Initialize();
+            FindPlayer();
+        }
+
+        private void FindPlayer()
+        {
+            if (playerTransform != null) return;
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null) playerTransform = p.transform;
+            else
+            {
+                var pc = FindObjectOfType<HorrorGame.Player.PlayerController>();
+                if (pc != null) playerTransform = pc.transform;
+                else if (Camera.main != null) playerTransform = Camera.main.transform;
+            }
         }
 
         void Update()
@@ -86,11 +128,12 @@ namespace HorrorGame.Survival
                 return;
             }
 
+            FindPlayer();
             if (playerTransform == null) return;
 
             float distToPlayer = Vector3.Distance(transform.position, playerTransform.position);
 
-            // Cập nhật state
+            // Kiểm tra trạng thái AI
             switch (currentState)
             {
                 case AnimalState.Idle:
@@ -113,29 +156,40 @@ namespace HorrorGame.Survival
                     break;
             }
 
-            // Giữ trên mặt đất
-            SnapToGround();
+            // Hoạt ảnh cử động (chân bước, nhún nhảy, gặm cỏ)
+            UpdateProceduralAnimation();
 
-            // Kiểm tra player nhìn vào
+            // Đảm bảo không rơi xuống đáy biển
+            ClampToGroundAndLand();
+
+            // Kiểm tra xem người chơi có đang nhìn vào thú không
             CheckPlayerLooking();
 
-            // Cập nhật HP bar timer
+            // Đếm ngược thời gian thanh máu
             if (showHealthBar)
             {
                 healthBarTimer -= Time.deltaTime;
                 if (healthBarTimer <= 0f) showHealthBar = false;
             }
+
+            if (harvestNoticeTimer > 0f)
+            {
+                harvestNoticeTimer -= Time.deltaTime;
+            }
         }
 
         // ═══════════════════════════════════════════════════════
-        // STATE HANDLERS
+        // CÁC TRẠNG THÁI AI
         // ═══════════════════════════════════════════════════════
 
         private void HandleIdle(float distToPlayer)
         {
+            isMoving = false;
+            StopAgent();
+
             stateTimer -= Time.deltaTime;
 
-            // Phát hiện player
+            // Nhận diện người chơi
             if (distToPlayer < detectionRange)
             {
                 if (isAggressive)
@@ -152,25 +206,24 @@ namespace HorrorGame.Survival
 
             if (stateTimer <= 0f)
             {
-                // Chuyển sang đi lang thang hoặc ăn
-                float roll = Random.value;
-                if (roll < 0.6f)
+                // Ngẫu nhiên đi lại hoặc gặm cỏ
+                if (Random.value < 0.65f)
                 {
                     currentState = AnimalState.Wandering;
                     PickNewWanderTarget();
-                    stateTimer = Random.Range(5f, 12f);
+                    stateTimer = Random.Range(6f, 14f);
                 }
                 else
                 {
                     currentState = AnimalState.Eating;
-                    stateTimer = Random.Range(3f, 8f);
+                    stateTimer = Random.Range(3f, 7f);
                 }
             }
         }
 
         private void HandleWandering(float distToPlayer)
         {
-            // Phát hiện player
+            // Phát hiện người chơi
             if (distToPlayer < detectionRange)
             {
                 currentState = isAggressive ? AnimalState.Chasing : AnimalState.Fleeing;
@@ -178,35 +231,24 @@ namespace HorrorGame.Survival
             }
 
             stateTimer -= Time.deltaTime;
-            if (stateTimer <= 0f)
+            if (stateTimer <= 0f || Vector3.Distance(transform.position, wanderTarget) < 1.8f)
             {
                 currentState = AnimalState.Idle;
                 stateTimer = Random.Range(2f, 5f);
+                isMoving = false;
+                StopAgent();
                 return;
             }
 
-            // Di chuyển về phía target
-            Vector3 direction = (wanderTarget - transform.position).normalized;
-            direction.y = 0;
-
-            if (direction.sqrMagnitude > 0.01f)
-            {
-                transform.position += direction * moveSpeed * Time.deltaTime;
-                transform.rotation = Quaternion.Slerp(transform.rotation,
-                    Quaternion.LookRotation(direction), 5f * Time.deltaTime);
-            }
-
-            // Đã tới target
-            if (Vector3.Distance(transform.position, wanderTarget) < 2f)
-            {
-                currentState = AnimalState.Idle;
-                stateTimer = Random.Range(2f, 5f);
-            }
+            isMoving = true;
+            MoveTowards(wanderTarget, moveSpeed);
         }
 
         private void HandleEating(float distToPlayer)
         {
-            // Phát hiện player
+            isMoving = false;
+            StopAgent();
+
             if (distToPlayer < detectionRange)
             {
                 currentState = isAggressive ? AnimalState.Chasing : AnimalState.Fleeing;
@@ -214,10 +256,6 @@ namespace HorrorGame.Survival
             }
 
             stateTimer -= Time.deltaTime;
-
-            // Animation ăn cỏ: cúi đầu xuống
-            // (Sẽ thêm animation sau, placeholder: xoay nhẹ)
-
             if (stateTimer <= 0f)
             {
                 currentState = AnimalState.Idle;
@@ -227,19 +265,29 @@ namespace HorrorGame.Survival
 
         private void HandleFleeing(float distToPlayer)
         {
-            // Chạy xa khỏi player
-            Vector3 awayFromPlayer = (transform.position - playerTransform.position).normalized;
-            awayFromPlayer.y = 0;
+            isMoving = true;
 
-            transform.position += awayFromPlayer * runSpeed * Time.deltaTime;
-            transform.rotation = Quaternion.Slerp(transform.rotation,
-                Quaternion.LookRotation(awayFromPlayer), 10f * Time.deltaTime);
+            // Chạy xa khỏi người chơi
+            Vector3 fleeDir = (transform.position - playerTransform.position).normalized;
+            fleeDir.y = 0;
+            Vector3 fleePos = transform.position + fleeDir * 20f;
 
-            // Đã chạy đủ xa
-            if (distToPlayer > fleeRange || distToPlayer > detectionRange * 2f)
+            // Kiểm tra điểm trốn hợp lệ trên đất liền
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(fleePos, out hit, 12f, NavMesh.AllAreas) && hit.position.y >= WATER_LEVEL)
+            {
+                fleePos = hit.position;
+            }
+
+            MoveTowards(fleePos, runSpeed);
+
+            // Đã chạy đủ xa an toàn
+            if (distToPlayer > fleeRange)
             {
                 currentState = AnimalState.Idle;
                 stateTimer = Random.Range(3f, 6f);
+                isMoving = false;
+                StopAgent();
             }
         }
 
@@ -251,46 +299,49 @@ namespace HorrorGame.Survival
                 return;
             }
 
-            // Đuổi theo player
-            Vector3 toPlayer = (playerTransform.position - transform.position).normalized;
-            toPlayer.y = 0;
+            isMoving = true;
+            MoveTowards(playerTransform.position, runSpeed);
 
-            transform.position += toPlayer * runSpeed * Time.deltaTime;
-            transform.rotation = Quaternion.Slerp(transform.rotation,
-                Quaternion.LookRotation(toPlayer), 10f * Time.deltaTime);
-
-            // Đủ gần để tấn công
-            if (distToPlayer < attackRange)
+            // Đủ cự ly tấn công
+            if (distToPlayer <= attackRange)
             {
                 currentState = AnimalState.Attacking;
+                isMoving = false;
+                StopAgent();
             }
 
-            // Player chạy quá xa → bỏ cuộc
-            if (distToPlayer > detectionRange * 2.5f)
+            // Người chơi chạy quá xa -> bỏ cuộc
+            if (distToPlayer > detectionRange * 2.2f)
             {
                 currentState = AnimalState.Idle;
                 stateTimer = Random.Range(3f, 6f);
+                isMoving = false;
+                StopAgent();
             }
         }
 
         private void HandleAttacking(float distToPlayer)
         {
-            if (!isAggressive) return;
+            isMoving = false;
+            StopAgent();
 
-            // Quay mặt về player
-            Vector3 toPlayer = (playerTransform.position - transform.position).normalized;
-            toPlayer.y = 0;
-            transform.rotation = Quaternion.LookRotation(toPlayer);
+            // Nhìn thẳng vào player
+            Vector3 lookDir = (playerTransform.position - transform.position).normalized;
+            lookDir.y = 0;
+            if (lookDir.sqrMagnitude > 0.001f)
+            {
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), 10f * Time.deltaTime);
+            }
 
-            // Tấn công theo cooldown
-            if (Time.time >= nextAttackTime && distToPlayer < attackRange)
+            // Đòn đánh theo nhịp
+            if (Time.time >= nextAttackTime && distToPlayer <= attackRange)
             {
                 nextAttackTime = Time.time + attackCooldown;
                 AttackPlayer();
             }
 
-            // Player chạy xa → đuổi theo
-            if (distToPlayer > attackRange * 1.5f)
+            // Player lùi xa -> rượt tiếp
+            if (distToPlayer > attackRange * 1.3f)
             {
                 currentState = AnimalState.Chasing;
             }
@@ -298,17 +349,164 @@ namespace HorrorGame.Survival
 
         private void AttackPlayer()
         {
-            // Gây sát thương cho player
             HorrorGame.Player.PlayerStats stats = playerTransform.GetComponent<HorrorGame.Player.PlayerStats>();
             if (stats != null)
             {
                 stats.TakeDamage(attackDamage);
-                Debug.Log("🐗 " + animalType + " tấn công player! Sát thương: " + attackDamage);
+                Debug.Log("🐗 [AnimalAI] " + GetAnimalName() + " tấn công người chơi! Sát thương: " + attackDamage);
             }
         }
 
         // ═══════════════════════════════════════════════════════
-        // NHẬN SÁT THƯƠNG
+        // ĐIỀU HƯỚNG & DI CHUYỂN
+        // ═══════════════════════════════════════════════════════
+
+        private void MoveTowards(Vector3 destination, float speed)
+        {
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            {
+                agent.isStopped = false;
+                agent.speed = speed;
+                agent.SetDestination(destination);
+            }
+            else
+            {
+                // Fallback nếu không có NavMesh: di chuyển trực tiếp
+                Vector3 dir = (destination - transform.position).normalized;
+                dir.y = 0;
+                if (dir.sqrMagnitude > 0.01f)
+                {
+                    transform.position += dir * speed * Time.deltaTime;
+                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), 8f * Time.deltaTime);
+                }
+            }
+        }
+
+        private void StopAgent()
+        {
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+            }
+        }
+
+        private void PickNewWanderTarget()
+        {
+            for (int i = 0; i < 8; i++)
+            {
+                Vector2 randomCircle = Random.insideUnitCircle * 18f;
+                Vector3 candidate = transform.position + new Vector3(randomCircle.x, 0, randomCircle.y);
+
+                NavMeshHit hit;
+                if (NavMesh.SamplePosition(candidate, out hit, 10f, NavMesh.AllAreas))
+                {
+                    if (hit.position.y >= WATER_LEVEL)
+                    {
+                        wanderTarget = hit.position;
+                        return;
+                    }
+                }
+                else
+                {
+                    // Fallback Terrain
+                    Terrain terrain = Terrain.activeTerrain;
+                    if (terrain != null)
+                    {
+                        float ty = terrain.SampleHeight(candidate) + terrain.transform.position.y;
+                        if (ty >= WATER_LEVEL)
+                        {
+                            wanderTarget = new Vector3(candidate.x, ty, candidate.z);
+                            return;
+                        }
+                    }
+                }
+            }
+
+            wanderTarget = transform.position;
+        }
+
+        private void ClampToGroundAndLand()
+        {
+            groundCheckTimer -= Time.deltaTime;
+            if (groundCheckTimer > 0f) return;
+            groundCheckTimer = 0.25f;
+
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            {
+                // NavMeshAgent đã tự bám đất
+                return;
+            }
+
+            RaycastHit hit;
+            if (Physics.Raycast(transform.position + Vector3.up * 8f, Vector3.down, out hit, 20f))
+            {
+                Vector3 pos = transform.position;
+                pos.y = hit.point.y;
+                transform.position = pos;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // HOẠT ẢNH ĐỘNG HỌC (PROCEDURAL ANIMATION)
+        // ═══════════════════════════════════════════════════════
+
+        private void UpdateProceduralAnimation()
+        {
+            if (isMoving)
+            {
+                float animSpeed = (currentState == AnimalState.Fleeing || currentState == AnimalState.Chasing) ? 14f : 8f;
+                animTimer += Time.deltaTime * animSpeed;
+
+                // 1. Chân bước tới lui xen kẽ tự nhiên
+                float legAngle = Mathf.Sin(animTimer) * 28f;
+                if (legTransforms != null && legTransforms.Length >= 4)
+                {
+                    if (legTransforms[0] != null) legTransforms[0].localRotation = Quaternion.Euler(legAngle, 0, 0);
+                    if (legTransforms[1] != null) legTransforms[1].localRotation = Quaternion.Euler(-legAngle, 0, 0);
+                    if (legTransforms[2] != null) legTransforms[2].localRotation = Quaternion.Euler(-legAngle, 0, 0);
+                    if (legTransforms[3] != null) legTransforms[3].localRotation = Quaternion.Euler(legAngle, 0, 0);
+                }
+
+                // 2. Thỏ nhảy tưng tưng (Hop)
+                if (animalType == AnimalType.Rabbit && bodyTransform != null)
+                {
+                    float hopY = Mathf.Abs(Mathf.Sin(animTimer)) * 0.22f;
+                    bodyTransform.localPosition = new Vector3(0, baseBodyY + hopY, 0);
+                }
+            }
+            else
+            {
+                // Khi đứng yên: duỗi thẳng chân lại
+                if (legTransforms != null)
+                {
+                    foreach (var leg in legTransforms)
+                    {
+                        if (leg != null) leg.localRotation = Quaternion.Slerp(leg.localRotation, Quaternion.identity, 8f * Time.deltaTime);
+                    }
+                }
+
+                if (animalType == AnimalType.Rabbit && bodyTransform != null)
+                {
+                    bodyTransform.localPosition = Vector3.Lerp(bodyTransform.localPosition, new Vector3(0, baseBodyY, 0), 8f * Time.deltaTime);
+                }
+            }
+
+            // 3. Hoạt ảnh gặm cỏ (cúi đầu)
+            if (headTransform != null)
+            {
+                if (currentState == AnimalState.Eating)
+                {
+                    headTransform.localRotation = Quaternion.Slerp(headTransform.localRotation, Quaternion.Euler(42f, 0, 0), 4f * Time.deltaTime);
+                }
+                else
+                {
+                    headTransform.localRotation = Quaternion.Slerp(headTransform.localRotation, Quaternion.identity, 6f * Time.deltaTime);
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // CHIẾN ĐẤU & THU HOẠCH
         // ═══════════════════════════════════════════════════════
 
         public void TakeDamage(float damage)
@@ -317,11 +515,11 @@ namespace HorrorGame.Survival
 
             currentHealth -= damage;
             showHealthBar = true;
-            healthBarTimer = 3f;
+            healthBarTimer = 3.5f;
 
-            Debug.Log("🎯 " + gameObject.name + " bị đánh! HP: " + currentHealth + "/" + maxHealth);
+            Debug.Log("🎯 [AnimalAI] " + gameObject.name + " trúng đòn! HP: " + Mathf.Max(0, currentHealth) + "/" + maxHealth);
 
-            // Bị đánh → chạy trốn hoặc tức giận
+            // Bị đánh -> hoảng sợ hoặc phản công điên cuồng
             if (!isAggressive)
             {
                 currentState = AnimalState.Fleeing;
@@ -343,30 +541,35 @@ namespace HorrorGame.Survival
             isDead = true;
             currentState = AnimalState.Dead;
             currentHealth = 0;
+            showHealthBar = false;
 
-            Debug.Log("💀 " + gameObject.name + " đã chết!");
+            if (agent != null && agent.enabled)
+            {
+                agent.isStopped = true;
+                agent.enabled = false;
+            }
 
-            // Hiệu ứng ngã: xoay ngang
-            transform.rotation = Quaternion.Euler(0, transform.eulerAngles.y, 90);
+            // Xoay nghiêng xác ngã trên mặt đất
+            transform.rotation = Quaternion.Euler(0, transform.eulerAngles.y, 90f);
 
-            deathTimer = 30f; // Xác tồn tại 30 giây
+            deathTimer = 45f; // Xác tồn tại 45 giây để thu hoạch
+            Debug.Log("💀 [AnimalAI] " + gameObject.name + " đã ngã gục! Hãy tới gần và nhấn [E] để thu hoạch.");
         }
 
         private void HandleDeath()
         {
             deathTimer -= Time.deltaTime;
 
-            // Player nhìn vào xác và nhấn E để thu thập
+            // Người chơi nhìn vào xác và ấn E để mổ thịt
             if (playerLookingAtThis && Input.GetKeyDown(KeyCode.E) && !lootDropped)
             {
                 CollectLoot();
             }
 
-            // Sau 30 giây xác biến mất
+            // Xác tan biến sau khi đã thu hoạch hoặc hết hạn
             if (deathTimer <= 0f && lootDropped)
             {
-                // Fade ra (đơn giản: scale nhỏ dần)
-                transform.localScale = Vector3.Lerp(transform.localScale, Vector3.zero, 2f * Time.deltaTime);
+                transform.localScale = Vector3.Lerp(transform.localScale, Vector3.zero, 3f * Time.deltaTime);
                 if (transform.localScale.magnitude < 0.1f)
                 {
                     Destroy(gameObject);
@@ -379,53 +582,51 @@ namespace HorrorGame.Survival
             lootDropped = true;
 
             InventoryManager inv = InventoryManager.Instance;
-            if (inv == null) return;
+            if (inv == null)
+            {
+                Debug.LogWarning("[AnimalAI] Không tìm thấy InventoryManager!");
+                return;
+            }
 
-            // Thêm thịt sống
-            ItemData rawMeat = GetOrCreateItemData("raw_meat", "Thịt Sống", 
-                "Thịt sống từ thú rừng. Cần nấu chín trước khi ăn.", 
-                ItemType.Consumable, true, 10);
+            // Tải hoặc tạo item thịt sống
+            ItemData rawMeat = Resources.Load<ItemData>("Items/raw_meat");
+            if (rawMeat == null) rawMeat = Resources.Load<ItemData>("raw_meat");
+            if (rawMeat == null)
+            {
+                rawMeat = ScriptableObject.CreateInstance<ItemData>();
+                rawMeat.itemID = "raw_meat";
+                rawMeat.itemName = "Thịt Sống";
+                rawMeat.description = "Thịt tươi sống từ thú rừng. Cần nấu chín trước khi ăn.";
+                rawMeat.itemType = ItemType.Consumable;
+                rawMeat.isStackable = true;
+                rawMeat.maxStack = 20;
+            }
             inv.AddItem(rawMeat, meatDropAmount);
 
-            // Thêm da thú
-            ItemData hide = GetOrCreateItemData("animal_hide", "Da Thú", 
-                "Da thú dùng để chế tạo giáp và túi đựng.", 
-                ItemType.Resource, true, 20);
+            // Tải hoặc tạo item da thú
+            ItemData hide = Resources.Load<ItemData>("Items/animal_hide");
+            if (hide == null) hide = Resources.Load<ItemData>("animal_hide");
+            if (hide == null)
+            {
+                hide = ScriptableObject.CreateInstance<ItemData>();
+                hide.itemID = "animal_hide";
+                hide.itemName = "Da Thú";
+                hide.description = "Da thú dùng để chế tạo cung tên, giáp da và túi đựng.";
+                hide.itemType = ItemType.Resource;
+                hide.isStackable = true;
+                hide.maxStack = 20;
+            }
             inv.AddItem(hide, hideDropAmount);
 
-            Debug.Log("🎒 Thu hoạch: " + meatDropAmount + "x Thịt Sống, " + hideDropAmount + "x Da Thú");
-        }
+            harvestNotice = string.Format("🥩 Thu hoạch: +{0} Thịt Sống, +{1} Da Thú!", meatDropAmount, hideDropAmount);
+            harvestNoticeTimer = 3.5f;
 
-        // ═══════════════════════════════════════════════════════
-        // HELPER
-        // ═══════════════════════════════════════════════════════
-
-        private void PickNewWanderTarget()
-        {
-            Vector2 random = Random.insideUnitCircle * 15f;
-            wanderTarget = transform.position + new Vector3(random.x, 0, random.y);
-        }
-
-        private void SnapToGround()
-        {
-            groundCheckTimer -= Time.deltaTime;
-            if (groundCheckTimer > 0f) return;
-            groundCheckTimer = 0.2f; // Mỗi 0.2 giây
-
-            RaycastHit hit;
-            if (Physics.Raycast(transform.position + Vector3.up * 5f, Vector3.down, out hit, 20f))
-            {
-                Vector3 pos = transform.position;
-                pos.y = hit.point.y;
-                transform.position = pos;
-            }
+            Debug.Log("🎒 [AnimalAI] " + harvestNotice);
         }
 
         private void CheckPlayerLooking()
         {
             playerLookingAtThis = false;
-            if (playerTransform == null) return;
-
             Camera cam = Camera.main;
             if (cam == null) return;
 
@@ -440,75 +641,47 @@ namespace HorrorGame.Survival
             }
         }
 
-        private ItemData GetOrCreateItemData(string id, string name, string desc, ItemType type, bool stackable, int maxStack)
-        {
-            // Thử load từ Resources trước
-            ItemData item = Resources.Load<ItemData>("Items/" + id);
-            if (item != null) return item;
-
-            item = Resources.Load<ItemData>(id);
-            if (item != null) return item;
-
-            // Tạo runtime
-            item = ScriptableObject.CreateInstance<ItemData>();
-            item.itemID = id;
-            item.itemName = name;
-            item.description = desc;
-            item.itemType = type;
-            item.isStackable = stackable;
-            item.maxStack = maxStack;
-            return item;
-        }
-
         // ═══════════════════════════════════════════════════════
-        // UI
+        // GIAO DIỆN HIỂN THỊ (GUI)
         // ═══════════════════════════════════════════════════════
 
         void OnGUI()
         {
-            if (playerTransform == null) return;
+            InitStyles();
 
-            // Khởi tạo style
-            if (interactStyle == null)
-            {
-                interactStyle = new GUIStyle(GUI.skin.label);
-                interactStyle.fontSize = 18;
-                interactStyle.fontStyle = FontStyle.Bold;
-                interactStyle.alignment = TextAnchor.MiddleCenter;
-                interactStyle.normal.textColor = Color.white;
-
-                shadowStyle = new GUIStyle(interactStyle);
-                shadowStyle.normal.textColor = Color.black;
-            }
-
-            float dist = Vector3.Distance(transform.position, playerTransform.position);
-
-            // Hiển thị HP bar khi bị đánh
-            if (showHealthBar && !isDead && dist < 30f)
+            // 1. Thanh máu trên đầu khi bị tấn công
+            if (showHealthBar && !isDead)
             {
                 DrawHealthBar();
             }
 
-            // Hiển thị tên thú khi player nhìn vào
-            if (playerLookingAtThis && dist < 10f)
+            // 2. Chữ tương tác khi nhìn vào xác hoặc thú sống
+            if (playerLookingAtThis)
             {
                 string label = "";
                 if (isDead && !lootDropped)
                 {
-                    label = "[E] Thu hoạch " + GetAnimalName();
+                    label = "[E] Thu hoạch " + GetAnimalName() + " (" + meatDropAmount + "x Thịt, " + hideDropAmount + "x Da)";
                 }
                 else if (!isDead)
                 {
-                    label = GetAnimalName();
-                    if (isAggressive) label += " ⚠️";
+                    label = GetAnimalName() + (isAggressive ? " ⚠️ Hung Dữ" : " 🌿 Nhút Nhát");
                 }
 
                 if (!string.IsNullOrEmpty(label))
                 {
-                    Rect pos = new Rect(Screen.width / 2 - 150, Screen.height / 2 + 40, 300, 30);
+                    Rect pos = new Rect(Screen.width / 2 - 200, Screen.height / 2 + 50, 400, 35);
                     GUI.Label(new Rect(pos.x + 2, pos.y + 2, pos.width, pos.height), label, shadowStyle);
                     GUI.Label(pos, label, interactStyle);
                 }
+            }
+
+            // 3. Thông báo vừa thu hoạch thành công
+            if (harvestNoticeTimer > 0f && !string.IsNullOrEmpty(harvestNotice))
+            {
+                Rect noticeRect = new Rect(Screen.width / 2 - 250, Screen.height / 2 - 60, 500, 40);
+                GUI.Label(new Rect(noticeRect.x + 2, noticeRect.y + 2, noticeRect.width, noticeRect.height), harvestNotice, shadowStyle);
+                GUI.Label(noticeRect, harvestNotice, interactStyle);
             }
         }
 
@@ -517,36 +690,50 @@ namespace HorrorGame.Survival
             Camera cam = Camera.main;
             if (cam == null) return;
 
-            Vector3 worldPos = transform.position + Vector3.up * 2.5f;
+            Vector3 worldPos = transform.position + Vector3.up * 1.8f;
             Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
 
             if (screenPos.z < 0) return;
 
-            float barWidth = 80f;
-            float barHeight = 8f;
+            float barWidth = 90f;
+            float barHeight = 9f;
             float x = screenPos.x - barWidth / 2;
             float y = Screen.height - screenPos.y - barHeight / 2;
 
-            // Background
+            // Nền đen
+            GUI.color = Color.black;
             GUI.DrawTexture(new Rect(x - 1, y - 1, barWidth + 2, barHeight + 2), Texture2D.whiteTexture);
 
-            // HP fill
-            float hpPercent = currentHealth / maxHealth;
-            Color hpColor = Color.Lerp(Color.red, Color.green, hpPercent);
-            Color prevColor = GUI.color;
-            GUI.color = hpColor;
+            // Cột máu
+            float hpPercent = Mathf.Clamp01(currentHealth / maxHealth);
+            GUI.color = Color.Lerp(new Color(0.9f, 0.2f, 0.2f), new Color(0.2f, 0.85f, 0.3f), hpPercent);
             GUI.DrawTexture(new Rect(x, y, barWidth * hpPercent, barHeight), Texture2D.whiteTexture);
-            GUI.color = prevColor;
+            GUI.color = Color.white;
         }
 
-        private string GetAnimalName()
+        private void InitStyles()
+        {
+            if (interactStyle == null)
+            {
+                interactStyle = new GUIStyle(GUI.skin.label);
+                interactStyle.fontSize = 17;
+                interactStyle.fontStyle = FontStyle.Bold;
+                interactStyle.alignment = TextAnchor.MiddleCenter;
+                interactStyle.normal.textColor = new Color(1f, 0.95f, 0.6f);
+
+                shadowStyle = new GUIStyle(interactStyle);
+                shadowStyle.normal.textColor = Color.black;
+            }
+        }
+
+        public string GetAnimalName()
         {
             switch (animalType)
             {
-                case AnimalType.Deer: return "Hươu";
-                case AnimalType.Rabbit: return "Thỏ";
+                case AnimalType.Deer: return "Hươu Rừng";
+                case AnimalType.Rabbit: return "Thỏ Rừng";
                 case AnimalType.Boar: return "Lợn Rừng";
-                default: return "Thú";
+                default: return "Thú Rừng";
             }
         }
     }

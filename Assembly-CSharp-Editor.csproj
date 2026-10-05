@@ -52,6 +52,7 @@
   </ItemGroup>
   <ItemGroup>
      <Compile Include="Assets\Editor\AirplaneCabinBuilder.cs" />
+     <Compile Include="Assets\Editor\AssignMenuMusic.cs" />
      <Compile Include="Assets\Editor\AutoFixGun.cs" />
      <Compile Include="Assets\Editor\AutoSetupMenu.cs" />
      <Compile Include="Assets\Editor\AutoStaticBatcher.cs" />

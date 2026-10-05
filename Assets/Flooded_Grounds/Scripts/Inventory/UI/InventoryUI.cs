@@ -22,6 +22,25 @@ namespace HorrorGame.Inventory.UI
             UpdateUI(); // Cập nhật lần đầu
         }
 
+        private void OnEnable()
+        {
+            // Mỗi lần mở panel, đảm bảo đã đăng ký event và cập nhật lại UI
+            if (InventoryManager.Instance != null)
+            {
+                // Hủy đăng ký trước để tránh đăng ký trùng
+                InventoryManager.Instance.onInventoryChangedEvent -= UpdateUI;
+                InventoryManager.Instance.onInventoryChangedEvent += UpdateUI;
+            }
+
+            // Lấy lại slotUIs nếu chưa có (trường hợp OnEnable chạy trước Start)
+            if (slotsParent != null && (slotUIs == null || slotUIs.Length == 0))
+            {
+                slotUIs = slotsParent.GetComponentsInChildren<InventorySlotUI>();
+            }
+
+            UpdateUI();
+        }
+
         private void OnDestroy()
         {
             // Hủy đăng ký sự kiện để tránh lỗi memory leak

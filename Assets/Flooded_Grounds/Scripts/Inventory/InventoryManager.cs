@@ -127,7 +127,12 @@ namespace HorrorGame.Inventory
             {
                 foreach (InventorySlot slot in slots)
                 {
-                    if (slot.item == item && slot.amount < item.maxStack)
+                    // So sánh bằng cả reference LẪN itemID để hỗ trợ runtime-created items
+                    bool sameItem = (slot.item == item) ||
+                                    (slot.item != null && !string.IsNullOrEmpty(slot.item.itemID) &&
+                                     !string.IsNullOrEmpty(item.itemID) && slot.item.itemID == item.itemID);
+
+                    if (sameItem && slot.amount < item.maxStack)
                     {
                         // Kiểm tra xem có vượt quá maxStack không
                         if (slot.amount + amount <= item.maxStack)

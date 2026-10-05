@@ -43,9 +43,20 @@ namespace HorrorGame.Survival
             // Tự load ItemData nếu chưa gán
             if (stoneItemData == null)
             {
-                stoneItemData = Resources.Load<HorrorGame.Inventory.ItemData>("StoneItem");
-                if (stoneItemData != null)
-                    Debug.Log("[CollectableStone] Tự load StoneItem từ Resources.");
+                stoneItemData = Resources.Load<HorrorGame.Inventory.ItemData>("Items/StoneItem");
+                if (stoneItemData == null)
+                    stoneItemData = Resources.Load<HorrorGame.Inventory.ItemData>("StoneItem");
+
+                if (stoneItemData == null)
+                {
+                    stoneItemData = ScriptableObject.CreateInstance<HorrorGame.Inventory.ItemData>();
+                    stoneItemData.itemID = "stone";
+                    stoneItemData.itemName = "Đá";
+                    stoneItemData.description = "Đá tự nhiên dùng để xây dựng và chế tạo.";
+                    stoneItemData.itemType = HorrorGame.Inventory.ItemType.Resource;
+                    stoneItemData.isStackable = true;
+                    stoneItemData.maxStack = 99;
+                }
             }
 
             // Tạo visual placeholder nếu object chưa có Renderer

@@ -28206,6 +28206,8 @@ MonoBehaviour:
   attackRange: 2
   attackCooldown: 2
   damage: 5
+  walkSpeed: 1.5
+  runSpeed: 3.6
   maxHealth: 100
 --- !u!195 &213755627
 NavMeshAgent:
@@ -65046,6 +65048,7 @@ GameObject:
   - component: {fileID: 510439848}
   - component: {fileID: 510439847}
   - component: {fileID: 510439850}
+  - component: {fileID: 510439851}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -65333,7 +65336,7 @@ MonoBehaviour:
   flipAxeUpsideDown: 0
   axeRoll: 0
   chopDamage: 25
-  chopRange: 3
+  chopRange: 3.5
   chopCooldown: 0.8
   axeItemData: {fileID: 11400000, guid: 4e296054d1256a04ca23b9381db8ec92, type: 2}
   equipKey: 50
@@ -65342,6 +65345,25 @@ MonoBehaviour:
   handAxePosition: {x: 0.05, y: 0.1, z: 0.05}
   handAxeRotation: {x: 0, y: 90, z: -90}
   handAxeScale: {x: 1.5, y: 1.5, z: 1.5}
+--- !u!114 &510439851
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 510439837}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 693c55737c51a004ea21cab88c637275, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  buildMenuKey: 98
+  buildRange: 10
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  recipes: []
+  buildSound: {fileID: 0}
+  cancelSound: {fileID: 0}
 --- !u!1001 &510542482
 Prefab:
   m_ObjectHideFlags: 0
@@ -101182,6 +101204,56 @@ Prefab:
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: b3c489c06c04c1d4d835d20adc6ab60a, type: 2}
   m_IsPrefabParent: 0
+--- !u!1 &773137768
+GameObject:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  serializedVersion: 5
+  m_Component:
+  - component: {fileID: 773137770}
+  - component: {fileID: 773137769}
+  m_Layer: 0
+  m_Name: '[GameMenuManager]'
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &773137769
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 773137768}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3d70004cc09b6948a11c6888d2ab8f3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  isMainMenuScene: 0
+  gameplaySceneName: Scene_A
+  mainMenuSceneName: MainMenu
+  menuBackgroundTexture: {fileID: 2800000, guid: df085ee1e9abcc04b8221871ddcbe7b4,
+    type: 3}
+  backgroundScaleMode: 0
+  menuMusic: {fileID: 8300000, guid: 0756453ac94aa984786d881de724c68e, type: 3}
+  buttonClickSound: {fileID: 0}
+  buttonHoverSound: {fileID: 0}
+  showMenuOnPlayInGameScene: 1
+--- !u!4 &773137770
+Transform:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 773137768}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 4791
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &773258001 stripped
 Transform:
   m_PrefabParentObject: {fileID: 4327116113608678, guid: 9ee1a311132cccc48ae237bc14167edb,
@@ -183229,12 +183301,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   zombiePrefab: {fileID: 213755625}
-  maxZombies: 20
-  spawnInterval: 2
+  maxZombies: 80
+  spawnInterval: 1
   spawnRadius: 30
   spawnPoints: []
   autoScatterOverMap: 1
-  crashSafeRadius: 120
+  spawnNearPlayer: 1
+  minPlayerDistance: 15
+  maxPlayerDistance: 55
+  despawnDistance: 140
+  initialHordeCount: 30
+  crashSafeRadius: 10
 --- !u!1001 &1417331064
 Prefab:
   m_ObjectHideFlags: 0
@@ -217075,6 +217152,56 @@ Prefab:
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: 6e3189c8f251ccb4abb64f3d59c2256a, type: 2}
   m_IsPrefabParent: 0
+--- !u!1 &1665256251
+GameObject:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  serializedVersion: 5
+  m_Component:
+  - component: {fileID: 1665256253}
+  - component: {fileID: 1665256252}
+  m_Layer: 0
+  m_Name: '[AnimalSpawner]'
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1665256252
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1665256251}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6241351df50fef04c85ac295b476abaa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerTransform: {fileID: 0}
+  maxAnimals: 16
+  initialSpawnCount: 12
+  spawnRadius: 75
+  minSpawnDistance: 18
+  despawnRadius: 135
+  spawnInterval: 7
+  deerChance: 0.45
+  rabbitChance: 0.35
+  boarChance: 0.2
+--- !u!4 &1665256253
+Transform:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1665256251}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 4792
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1665372143
 Prefab:
   m_ObjectHideFlags: 0

@@ -573,6 +573,14 @@ public class FPSWeapon : MonoBehaviour
                 enemy.TakeDamage(damage);
             }
 
+            // Kiểm tra Thú Rừng (AnimalAI)
+            HorrorGame.Survival.AnimalAI animal = hit.transform.GetComponent<HorrorGame.Survival.AnimalAI>();
+            if (animal == null) animal = hit.transform.GetComponentInParent<HorrorGame.Survival.AnimalAI>();
+            if (animal != null)
+            {
+                animal.TakeDamage(damage);
+            }
+
             // Đẩy vật lý
             if (hit.rigidbody != null)
             {

@@ -146,6 +146,8 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\CraftingSystem.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\GameStartSetup.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\ItemConsumption.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\ShelterRest.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\TerrainTreeChopper.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\UI\GameMenuManager.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\WaterFloat.cs" />
      <Compile Include="Assets\Scripts\CinematicEffects.cs" />

@@ -187,11 +187,23 @@ namespace HorrorGame.Survival
             builtInRecipes.Add(new BuiltInRecipe
             {
                 name = "🔥 Lửa Trại",
-                description = "Sưởi ấm và nấu ăn",
+                description = "Sưởi ấm và nướng chín thịt sống từ thú săn được",
                 ingredientNames = new string[] { "wood", "stone" },
                 ingredientAmounts = new int[] { 3, 2 },
                 ingredientDisplayNames = new string[] { "Gỗ", "Đá" },
                 createFunc = BuildingPrefabGenerator.CreateCampfire,
+                category = BuildingCategory.Utility
+            });
+
+            // 6. Rương Đồ
+            builtInRecipes.Add(new BuiltInRecipe
+            {
+                name = "📦 Rương Đồ",
+                description = "Rương gỗ chứa đồ 12 ngăn để cất giữ vật phẩm và nguyên liệu",
+                ingredientNames = new string[] { "wood" },
+                ingredientAmounts = new int[] { 8 },
+                ingredientDisplayNames = new string[] { "Gỗ" },
+                createFunc = BuildingPrefabGenerator.CreateWoodChest,
                 category = BuildingCategory.Utility
             });
 
@@ -235,11 +247,19 @@ namespace HorrorGame.Survival
 
                 UpdateGhostPreview();
 
-                // Scroll để xoay
+                // Xoay công trình: Scroll chuột hoặc phím Q / E / R
                 float scroll = Input.GetAxis("Mouse ScrollWheel");
                 if (Mathf.Abs(scroll) > 0.01f)
                 {
-                    ghostRotation += scroll * 45f;
+                    ghostRotation += scroll * 60f;
+                }
+                if (Input.GetKey(KeyCode.Q))
+                {
+                    ghostRotation -= 90f * Time.deltaTime;
+                }
+                if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.R))
+                {
+                    ghostRotation += 90f * Time.deltaTime;
                 }
 
                 // Click trái để đặt
@@ -352,8 +372,8 @@ namespace HorrorGame.Survival
                 ghostPreview.transform.position = hit.point;
                 ghostPreview.transform.rotation = Quaternion.Euler(0, ghostRotation, 0);
 
-                // Kiểm tra có chướng ngại vật không (overlap test)
-                canPlace = CheckCanPlace(hit.point);
+                // Kiểm tra có chướng ngại vật không
+                canPlace = CheckCanPlace(hit);
 
                 // Đổi màu ghost
                 ApplyGhostMaterial(ghostPreview, canPlace ? ghostValidMat : ghostInvalidMat);
@@ -367,29 +387,43 @@ namespace HorrorGame.Survival
             }
         }
 
-        bool CheckCanPlace(Vector3 position)
-        {
-            // Kiểm tra overlap sphere xung quanh vị trí đặt
-            // Bỏ qua terrain và mặt đất, chỉ quan tâm đến các vật thể khác
-            Collider[] overlaps = Physics.OverlapSphere(position + Vector3.up * 1f, 1f);
+        private const float WATER_LEVEL = 15.6f;
+        private string invalidPlacementReason = "";
 
+        bool CheckCanPlace(RaycastHit hit)
+        {
+            // 1. Kiểm tra dưới nước
+            if (hit.point.y < WATER_LEVEL)
+            {
+                invalidPlacementReason = "Không thể xây dựng dưới nước!";
+                return false;
+            }
+
+            // 2. Kiểm tra độ dốc địa hình
+            float slopeAngle = Vector3.Angle(hit.normal, Vector3.up);
+            if (slopeAngle > 38f)
+            {
+                invalidPlacementReason = "Địa hình quá dốc để đặt móng!";
+                return false;
+            }
+
+            // 3. Kiểm tra va chạm với các vật cản lớn
+            Collider[] overlaps = Physics.OverlapSphere(hit.point + Vector3.up * 1f, 1.1f);
             foreach (Collider col in overlaps)
             {
-                // Bỏ qua terrain
                 if (col.GetComponent<Terrain>() != null) continue;
-                // Bỏ qua player
                 if (col.CompareTag("Player")) continue;
-                // Bỏ qua ghost preview
-                if (col.transform.IsChildOf(ghostPreview.transform)) continue;
+                if (ghostPreview != null && col.transform.IsChildOf(ghostPreview.transform)) continue;
 
-                // Có vật cản → không đặt được
-                // (Chỉ cản khi vật đó là công trình đã đặt hoặc vật thể lớn)
-                if (col.GetComponent<Rigidbody>() != null || col.gameObject.isStatic)
+                // Có vật thể cứng cản trở
+                if (col.gameObject.isStatic || col.GetComponent<Rigidbody>() != null)
                 {
+                    invalidPlacementReason = "Vị trí bị vật cản che khuất!";
                     return false;
                 }
             }
 
+            invalidPlacementReason = "";
             return true;
         }
 
@@ -448,14 +482,14 @@ namespace HorrorGame.Survival
                 building.transform.position = pos;
                 building.transform.rotation = rot;
 
-                // Bật lại collider (để chặn va chạm)
-                Collider mainCol = building.GetComponent<Collider>();
-                if (mainCol != null) mainCol.enabled = true;
+                // Bật lại TẤT CẢ collider con (tường, sàn, mái, rương...) để người chơi đi lại bình thường
+                Collider[] allCols = building.GetComponentsInChildren<Collider>();
+                foreach (Collider c in allCols) c.enabled = true;
 
                 string buildName = selectedRecipeIndex < builtInRecipes.Count
                     ? builtInRecipes[selectedRecipeIndex].name
                     : "Công trình";
-                ShowNotice("✅ Đã xây " + buildName + "!");
+                ShowNotice("✅ Đã xây " + buildName + " thành công!");
                 Debug.Log(string.Format("[BuildingSystem] Đã đặt {0} tại {1}", buildName, pos));
             }
 
@@ -558,12 +592,12 @@ namespace HorrorGame.Survival
             var inv = Inventory.InventoryManager.Instance;
             if (inv == null) return;
 
-            HorrorGame.Inventory.ItemData wood = Resources.Load<HorrorGame.Inventory.ItemData>("WoodItem");
-            if (wood == null) wood = Resources.Load<HorrorGame.Inventory.ItemData>("Items/WoodItem");
-            HorrorGame.Inventory.ItemData stone = Resources.Load<HorrorGame.Inventory.ItemData>("StoneItem");
-            if (stone == null) stone = Resources.Load<HorrorGame.Inventory.ItemData>("Items/StoneItem");
-            HorrorGame.Inventory.ItemData leaf = Resources.Load<HorrorGame.Inventory.ItemData>("LeafItem");
-            if (leaf == null) leaf = Resources.Load<HorrorGame.Inventory.ItemData>("Items/LeafItem");
+            HorrorGame.Inventory.ItemData wood = Resources.Load<HorrorGame.Inventory.ItemData>("Items/WoodItem");
+            if (wood == null) wood = Resources.Load<HorrorGame.Inventory.ItemData>("WoodItem");
+            HorrorGame.Inventory.ItemData stone = Resources.Load<HorrorGame.Inventory.ItemData>("Items/StoneItem");
+            if (stone == null) stone = Resources.Load<HorrorGame.Inventory.ItemData>("StoneItem");
+            HorrorGame.Inventory.ItemData leaf = Resources.Load<HorrorGame.Inventory.ItemData>("Items/LeafItem");
+            if (leaf == null) leaf = Resources.Load<HorrorGame.Inventory.ItemData>("LeafItem");
 
             if (wood == null)
             {
@@ -824,17 +858,20 @@ namespace HorrorGame.Survival
 
             // Hướng dẫn phím ở cuối màn hình
             GUIStyle guideStyle = new GUIStyle();
-            guideStyle.fontSize = 16;
+            guideStyle.fontSize = 15;
             guideStyle.fontStyle = FontStyle.Bold;
-            guideStyle.normal.textColor = new Color(1f, 1f, 1f, 0.8f);
+            guideStyle.normal.textColor = canPlace ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.4f, 0.95f);
             guideStyle.alignment = TextAnchor.MiddleCenter;
 
             GUIStyle guideShadow = new GUIStyle(guideStyle);
-            guideShadow.normal.textColor = new Color(0, 0, 0, 0.8f);
+            guideShadow.normal.textColor = new Color(0, 0, 0, 0.9f);
 
-            string guide = "🖱️ Click trái: Đặt  |  Click phải: Hủy  |  Scroll: Xoay  |  ESC: Thoát";
-            float gy = Screen.height - 50f;
-            float gw = 700f;
+            string guide = canPlace
+                ? "🖱️ Click trái: Đặt công trình  |  Click phải / ESC: Hủy  |  Q / E / Scroll: Xoay"
+                : "❌ " + (string.IsNullOrEmpty(invalidPlacementReason) ? "Không thể đặt tại đây!" : invalidPlacementReason) + "  |  Click phải / ESC: Hủy";
+
+            float gy = Screen.height - 55f;
+            float gw = 750f;
             float gx = (Screen.width - gw) / 2f;
 
             GUI.Label(new Rect(gx + 2, gy + 2, gw, 30), guide, guideShadow);

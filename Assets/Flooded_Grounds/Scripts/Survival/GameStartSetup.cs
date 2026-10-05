@@ -66,7 +66,9 @@ namespace HorrorGame.Survival
             // Tự load axe item nếu chưa có
             if (axeItem == null)
             {
-                axeItem = Resources.Load<ItemData>("Items/Axe");
+                axeItem = Resources.Load<ItemData>("Items/AxeItem");
+                if (axeItem == null)
+                    axeItem = Resources.Load<ItemData>("Items/Axe");
                 if (axeItem == null)
                     axeItem = Resources.Load<ItemData>("AxeItem");
             }

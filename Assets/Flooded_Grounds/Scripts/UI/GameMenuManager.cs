@@ -139,11 +139,25 @@ namespace HorrorGame.UI
             if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.ignoreListenerPause = true; // Cho phép phát tiếng click ngay cả khi đang Pause
 
-            // Tìm nạp âm thanh nền u tối và tiếng click phím
+            // Tìm nạp âm thanh nền menu (ưu tiên file nhạc kinh dị trong thư mục "sound main menu")
             if (menuMusic == null)
             {
-                menuMusic = Resources.Load<AudioClip>("Background");
+                menuMusic = Resources.Load<AudioClip>("MenuMusic");
+                if (menuMusic == null)
+                    menuMusic = Resources.Load<AudioClip>("Background");
 #if UNITY_EDITOR
+                // Ưu tiên 1: File nhạc chính trong thư mục "sound main menu"
+                if (menuMusic == null)
+                {
+                    string[] guids = UnityEditor.AssetDatabase.FindAssets("t:AudioClip", new[] { "Assets/Flooded_Grounds/sound main menu" });
+                    if (guids.Length > 0)
+                    {
+                        string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
+                        menuMusic = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+                        Debug.Log("🎵 [Menu] Đã nạp nhạc nền menu: " + path);
+                    }
+                }
+                // Fallback: các file cũ
                 if (menuMusic == null)
                     menuMusic = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/Background.mp3");
                 if (menuMusic == null)
