@@ -62968,6 +62968,58 @@ Prefab:
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: 4364c4769d122564abbf7277ef60854f, type: 2}
   m_IsPrefabParent: 0
+--- !u!1 &493771398
+GameObject:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  serializedVersion: 5
+  m_Component:
+  - component: {fileID: 493771400}
+  - component: {fileID: 493771399}
+  m_Layer: 0
+  m_Name: LightningSystem_Module
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &493771399
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 493771398}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eb61ea11f7d45884f91df81f4fad0a71, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  flashLight: {fileID: 0}
+  flashColor: {r: 0.85, g: 0.92, b: 1, a: 1}
+  maxFlashIntensity: 3.5
+  thunderCloseClips: []
+  thunderMediumClips: []
+  thunderFarClips: []
+  thunderAudioSource: {fileID: 0}
+  enableCameraShake: 1
+  maxShakeMagnitude: 0.35
+  minStrikeDistance: 150
+  maxStrikeDistance: 1400
+  cloudHeight: 90
+--- !u!4 &493771400
+Transform:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 493771398}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 1103791114}
+  m_RootOrder: 1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &493887819
 Prefab:
   m_ObjectHideFlags: 0
@@ -65049,6 +65101,7 @@ GameObject:
   - component: {fileID: 510439847}
   - component: {fileID: 510439850}
   - component: {fileID: 510439851}
+  - component: {fileID: 510439852}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -65364,6 +65417,23 @@ MonoBehaviour:
   recipes: []
   buildSound: {fileID: 0}
   cancelSound: {fileID: 0}
+--- !u!114 &510439852
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 510439837}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b1010b00f926fb489088829d4ee3f89, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  wetness: 0
+  wetRate: 4.5
+  dryRate: 2
+  campfireDryRate: 8
+  coldThreshold: 60
+  wetSanityDrainRate: 0.5
 --- !u!1001 &510542482
 Prefab:
   m_ObjectHideFlags: 0
@@ -142914,6 +142984,62 @@ Prefab:
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: c9ec0cf2c9954d144bcfcefa4161913f, type: 2}
   m_IsPrefabParent: 0
+--- !u!1 &1103791112
+GameObject:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  serializedVersion: 5
+  m_Component:
+  - component: {fileID: 1103791114}
+  - component: {fileID: 1103791113}
+  m_Layer: 0
+  m_Name: '[WeatherSystem]'
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1103791113
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1103791112}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c2a5e0b62df1fe4a89d91e77549b2b3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  currentWeather: 0
+  targetWeather: 0
+  transitionDuration: 12
+  autoChangeWeather: 1
+  weatherTimer: 300
+  rainEffect: {fileID: 1789838687}
+  lightningSystem: {fileID: 493771399}
+  rainLightAudio: {fileID: 0}
+  rainHeavyAudio: {fileID: 0}
+  windAudio: {fileID: 0}
+  shelterCheckDistance: 30
+  shelterLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!4 &1103791114
+Transform:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1103791112}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children:
+  - {fileID: 1789838688}
+  - {fileID: 493771400}
+  m_Father: {fileID: 0}
+  m_RootOrder: 4793
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1103938925
 Prefab:
   m_ObjectHideFlags: 0
@@ -233474,6 +233600,59 @@ Prefab:
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: cd395b40de0957d4d9c85b8e623a07d1, type: 2}
   m_IsPrefabParent: 0
+--- !u!1 &1789838686
+GameObject:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  serializedVersion: 5
+  m_Component:
+  - component: {fileID: 1789838688}
+  - component: {fileID: 1789838687}
+  m_Layer: 0
+  m_Name: RainEffect_Module
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1789838687
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1789838686}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9e0369a79cd70e4a8c12830c2ecafdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  rainParticles: {fileID: 0}
+  splashParticles: {fileID: 0}
+  mistParticles: {fileID: 0}
+  rainMaterial: {fileID: 0}
+  splashMaterial: {fileID: 0}
+  mistMaterial: {fileID: 0}
+  rainHeightAbovePlayer: 15
+  rainAreaSize: 35
+  maxRainRate: 2200
+  maxSplashRate: 350
+  maxMistRate: 40
+  fallSpeed: 28
+  windDirection: {x: 1, y: 0.5}
+--- !u!4 &1789838688
+Transform:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1789838686}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 1103791114}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1790141247
 Prefab:
   m_ObjectHideFlags: 0

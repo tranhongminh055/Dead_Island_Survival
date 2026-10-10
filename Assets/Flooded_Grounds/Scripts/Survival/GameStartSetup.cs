@@ -29,7 +29,22 @@ namespace HorrorGame.Survival
             // Chờ cutscene kết thúc rồi mới setup
             if (hasSetup) return;
 
-            // Kiểm tra cutscene đã xong chưa (IsCutsceneActive == false VÀ player đã được enable)
+            // 1. Tuyệt đối không setup khi đang ở Main Menu!
+            if (HorrorGame.UI.GameMenuManager.Instance != null && HorrorGame.UI.GameMenuManager.Instance.isMainMenuScene)
+            {
+                return;
+            }
+
+            // 2. Nếu có Cutscene máy bay trong Scene -> BẮT BUỘC phải chờ Cutscene chạy xong hoàn toàn!
+            if (FindObjectOfType<HorrorGame.Cutscenes.AirplaneCrashCutscene>() != null)
+            {
+                if (!HorrorGame.Cutscenes.AirplaneCrashCutscene.HasCutsceneFinished)
+                {
+                    return;
+                }
+            }
+
+            // 3. Đảm bảo cutscene không còn active
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
 
             // Đợi thêm 1 frame để đảm bảo mọi thứ đã sẵn sàng
@@ -50,6 +65,11 @@ namespace HorrorGame.Survival
             // 2. KHỞI TẠO ANIMAL SPAWNER
             // ═══════════════════════════════════════════════════════
             SetupAnimalSpawner();
+
+            // ═══════════════════════════════════════════════════════
+            // 3. KHỞI TẠO HỆ THỐNG MƯA & SẤM CHỚP (WEATHER SYSTEM)
+            // ═══════════════════════════════════════════════════════
+            SetupWeatherSystem();
 
             Debug.Log("🎮 [GameStartSetup] Setup hoàn tất! Chúc sinh tồn vui vẻ!");
         }
@@ -105,6 +125,27 @@ namespace HorrorGame.Survival
                 spawner.spawnRadius = spawnRadius;
                 spawner.playerTransform = this.transform;
                 Debug.Log("🦌 [GameStartSetup] Đã tạo AnimalSpawner!");
+            }
+        }
+
+        private void SetupWeatherSystem()
+        {
+            if (HorrorGame.Environment.Weather.WeatherSystem.Instance == null)
+            {
+                GameObject weatherObj = new GameObject("[WeatherSystem]");
+                weatherObj.AddComponent<HorrorGame.Environment.Weather.WeatherSystem>();
+                Debug.Log("⛈️ [GameStartSetup] Đã tự động kích hoạt WeatherSystem tự nhiên (Mưa & Sấm Chớp)!");
+            }
+
+            // Kích hoạt trận mưa bão sấm chớp mở đầu
+            if (HorrorGame.Environment.Weather.WeatherSystem.Instance != null)
+            {
+                HorrorGame.Environment.Weather.WeatherSystem.Instance.TriggerPostTrailerStorm();
+            }
+
+            if (GetComponent<HorrorGame.Environment.Weather.PlayerWetness>() == null)
+            {
+                gameObject.AddComponent<HorrorGame.Environment.Weather.PlayerWetness>();
             }
         }
     }

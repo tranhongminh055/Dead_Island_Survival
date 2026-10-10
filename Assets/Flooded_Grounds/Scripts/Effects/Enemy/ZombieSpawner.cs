@@ -115,8 +115,8 @@ namespace HorrorGame.Enemy
                 Debug.Log(string.Format("ZombieSpawner: Đã kích hoạt binh đoàn Zombie ({0} con) trên khắp hòn đảo!", count));
             }
 
-            // Dọn dẹp danh sách: Xóa những con Zombie đã bị bắn chết
-            activeZombies.RemoveAll(item => item == null);
+            // Dọn dẹp danh sách: Xóa những con Zombie đã bị bắn chết hoặc đã bị hủy
+            activeZombies.RemoveAll(item => item == null || (item.GetComponent<EnemyAI>() != null && item.GetComponent<EnemyAI>().IsDead));
 
             // Chỉ thu hồi zombie ở quá xa (> 140m) KHI ĐÃ ĐẠT GẦN MAX để nhường slot sinh gần người chơi
             if (playerTransform != null && activeZombies.Count >= maxZombies - 5)
@@ -239,6 +239,8 @@ namespace HorrorGame.Enemy
             {
                 GameObject newZombie = Instantiate(zombiePrefab, finalPosition, Quaternion.identity);
                 newZombie.SetActive(true);
+                EnemyAI ai = newZombie.GetComponent<EnemyAI>();
+                if (ai != null) ai.EnsureCollider();
                 activeZombies.Add(newZombie);
                 float distToPl = playerTransform != null ? Vector3.Distance(finalPosition, playerTransform.position) : 0f;
                 Debug.Log(string.Format("ZombieSpawner: Đã spawn 1 con Zombie tại {0} (cách người chơi {1:F1}m)", finalPosition, distToPl));

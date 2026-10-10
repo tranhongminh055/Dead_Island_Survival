@@ -28,6 +28,8 @@ namespace HorrorGame.Cutscenes
     {
         /// <summary>Cờ toàn cục thông báo phân cảnh mở đầu đang chạy</summary>
         public static bool IsCutsceneActive { get; private set; }
+        /// <summary>Cờ thông báo trailer máy bay đã kết thúc hoàn toàn và người chơi đã vào game thật</summary>
+        public static bool HasCutsceneFinished { get; private set; }
 
         // ──────────────────────────────────────────────
         // INSPECTOR FIELDS
@@ -174,6 +176,7 @@ namespace HorrorGame.Cutscenes
         private float originalAmbientIntensity;
         private void Start()
         {
+            HasCutsceneFinished = false;
             enableCabinFreeLook = false;
             enableCabinFreeLook = false;
 
@@ -313,6 +316,7 @@ namespace HorrorGame.Cutscenes
         {
             isSkipped = true;
             IsCutsceneActive = false;
+            HasCutsceneFinished = true;
             isCabinFreeLookActive = false;
             StopAllCoroutines();
 
@@ -398,6 +402,12 @@ namespace HorrorGame.Cutscenes
 
             // Bật lại môi trường
             DynamicGI.UpdateEnvironment();
+
+            // Kích hoạt ngay trận bão mưa sấm chớp khi bỏ qua trailer
+            if (HorrorGame.Environment.Weather.WeatherSystem.Instance != null)
+            {
+                HorrorGame.Environment.Weather.WeatherSystem.Instance.TriggerPostTrailerStorm(-1f, true);
+            }
 
             // Xóa script để không tốn tài nguyên
             enabled = false;
@@ -664,6 +674,7 @@ namespace HorrorGame.Cutscenes
             if (playerWeapon     != null) playerWeapon.enabled     = true;
 
             IsCutsceneActive = false;
+            HasCutsceneFinished = true;
             SetPlayerInvincible(false);
 
             // Tắt script cutscene sau khi hoàn thành (thay vì Destroy để không làm lỗi Inspector)
@@ -2069,6 +2080,16 @@ namespace HorrorGame.Cutscenes
             }
 
             SetSubtitle("[Bạn]: \"*Hít một hơi thật sâu* I'm... I'm still alive. I have to survive on this island, whatever it takes!\"\n<size=17><color=#D1D5DB>(Mình... mình vẫn còn sống! Phải tìm cách sinh tồn trên hòn đảo này thôi!)</color></size>");
+
+            // Trailer trên máy bay đã xong, bắt đầu tỉnh dậy trong khu rừng hoang
+            IsCutsceneActive = false;
+            HasCutsceneFinished = true;
+
+            // Kích hoạt trận bão mưa sấm chớp dữ dội ngay khi người chơi mở mắt tỉnh dậy
+            if (HorrorGame.Environment.Weather.WeatherSystem.Instance != null)
+            {
+                HorrorGame.Environment.Weather.WeatherSystem.Instance.TriggerPostTrailerStorm(-1f, true);
+            }
 
             // Mở mắt từ từ (Fade Black 1.0 -> 0.0)
             StartCoroutine(FadeBlack(1f, 0f, 2.5f));

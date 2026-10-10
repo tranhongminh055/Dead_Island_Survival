@@ -117,6 +117,13 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\DayNightCycle.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\ItemSpawner.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\LootChest.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\Weather\LightningSystem.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\Weather\PlayerWetness.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\Weather\RainEffect.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\Weather\WeatherData.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\Weather\WeatherDebugUI.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\Weather\WeatherSystem.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\Weather\WeatherType.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\FPSController\CharController_Motor.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\FPSDisplay.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\FPSOptimizer.cs" />
@@ -142,6 +149,7 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\BuildingSystem.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\ChoppableTree.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\CollectableStone.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\ConstructionBlueprint.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\CookingStation.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\CraftingSystem.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\GameStartSetup.cs" />

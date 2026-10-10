@@ -690,19 +690,34 @@ namespace HorrorGame.Survival
             }
             else
             {
-                // Kiểm tra thú rừng
-                AnimalAI animal = hit.transform.GetComponent<AnimalAI>();
-                if (animal == null) animal = hit.transform.GetComponentInParent<AnimalAI>();
+                // Kiểm tra Zombie
+                HorrorGame.Enemy.EnemyAI enemy = hit.transform.GetComponent<HorrorGame.Enemy.EnemyAI>();
+                if (enemy == null) enemy = hit.transform.GetComponentInParent<HorrorGame.Enemy.EnemyAI>();
+                if (enemy == null) enemy = hit.transform.GetComponentInChildren<HorrorGame.Enemy.EnemyAI>();
 
-                if (animal != null)
+                if (enemy != null)
                 {
-                    animal.TakeDamage(chopDamage);
-                    displayText = "Đánh trúng " + animal.GetAnimalName() + "!";
-                    displayTimer = 2f;
+                    enemy.TakeDamage(chopDamage, hit.point);
+                    HorrorGame.Enemy.EnemyAI.SpawnBloodImpact(hit.point, hit.normal);
+                    displayText = "Chém trúng Zombie! (-" + chopDamage + " HP)";
+                    displayTimer = 1.8f;
                 }
                 else
                 {
-                    Debug.Log("[AxeController] Chặt trúng: " + hit.transform.name);
+                    // Kiểm tra thú rừng
+                    AnimalAI animal = hit.transform.GetComponent<AnimalAI>();
+                    if (animal == null) animal = hit.transform.GetComponentInParent<AnimalAI>();
+
+                    if (animal != null)
+                    {
+                        animal.TakeDamage(chopDamage);
+                        displayText = "Đánh trúng " + animal.GetAnimalName() + "!";
+                        displayTimer = 2f;
+                    }
+                    else
+                    {
+                        Debug.Log("[AxeController] Chặt trúng: " + hit.transform.name);
+                    }
                 }
             }
         }

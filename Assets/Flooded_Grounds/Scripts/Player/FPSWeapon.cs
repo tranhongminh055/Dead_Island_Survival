@@ -26,11 +26,12 @@ public class FPSWeapon : MonoBehaviour
     [Tooltip("Nếu súng bị lật ngửa/nghiêng: thử 180, 90 hoặc -90")]
     public float gunRoll = 0f;
 
-    [Header("Thông số súng")]
+    [Header("Thông số súng & Đạn")]
     public float damage = 25f;
     public float range = 100f;
     public float fireRate = 8f;
     public int maxAmmo = 30;
+    public int reserveAmmo = 60; // Số đạn dự trữ (nạp được 2 băng tiếp theo)
     public float reloadTime = 2f;
 
     [Header("Tích hợp Túi Đồ (Inventory)")]
@@ -43,6 +44,7 @@ public class FPSWeapon : MonoBehaviour
     public AudioClip shootSound; // Kéo file âm thanh tiếng súng vào đây
     public AudioClip reloadSound; // (Tùy chọn) Kéo file âm thanh nạp đạn vào đây
     public AudioClip equipSound; // (Tùy chọn) Kéo file âm thanh rút súng vào đây
+    public AudioClip emptyClickSound; // (Tùy chọn) Kéo file âm thanh cạch khi hết đạn vào đây
     public ParticleSystem muzzleFlash; // (Tùy chọn) Kéo file Particle tia lửa vào đây
 
     [Header("Recoil (Hoạt ảnh giật súng)")]
@@ -56,6 +58,11 @@ public class FPSWeapon : MonoBehaviour
     private bool isReloading = false;
     private bool isEquipped = false;
     private float nextFireTime = 0f;
+
+    // Hiệu ứng chớp lửa đầu nòng
+    private GameObject muzzleFlameObj;
+    private Coroutine muzzleFlashRoutine;
+    private Transform muzzleTransform;
 
     /// <summary>
     /// Kiểm tra súng có đang được trang bị không (dùng bởi AxeController)
@@ -137,6 +144,13 @@ public class FPSWeapon : MonoBehaviour
 
         currentAmmo = maxAmmo;
         CreateGunVisual();
+        SetupMuzzleFlashEffect();
+
+        // Tự động gán âm thanh cạch khi hết đạn nếu chưa có
+        if (emptyClickSound == null)
+        {
+            emptyClickSound = reloadSound;
+        }
 
         // Tìm Animator của nhân vật (từ GameObject cha)
         if (transform.parent != null)
@@ -306,6 +320,230 @@ public class FPSWeapon : MonoBehaviour
         return gun;
     }
 
+    void SetupMuzzleFlashEffect()
+    {
+        if (gunInstance == null) return;
+
+        // 1. Tìm hoặc tạo điểm đầu nòng súng (Muzzle Point)
+        Transform mPoint = gunInstance.transform.Find("MuzzlePoint");
+        if (mPoint == null)
+        {
+            GameObject mpObj = new GameObject("MuzzlePoint");
+            mpObj.transform.SetParent(gunInstance.transform, false);
+            // gunLength thường là 0.55m -> đầu nòng ở khoảng z = gunLength * 0.52f, cao y = 0.035f
+            mpObj.transform.localPosition = new Vector3(0f, 0.035f, gunLength * 0.52f);
+            mpObj.transform.localRotation = Quaternion.identity;
+            mPoint = mpObj.transform;
+        }
+        muzzleTransform = mPoint;
+
+        // 2. Định vị đèn flashLight ngay tại đầu nòng để ánh sáng chớp lửa phát ra đúng chỗ
+        if (flashLight != null)
+        {
+            flashLight.transform.SetParent(mPoint, false);
+            flashLight.transform.localPosition = Vector3.zero;
+            flashLight.color = new Color(1f, 0.85f, 0.3f);
+            flashLight.range = 15f;
+            flashLight.intensity = 0f;
+        }
+
+        // 3. Tự động khởi tạo ParticleSystem tia lửa nếu chưa có
+        if (muzzleFlash == null)
+        {
+            GameObject psObj = new GameObject("MuzzleSparksFX");
+            psObj.transform.SetParent(mPoint, false);
+            psObj.transform.localPosition = Vector3.zero;
+            psObj.transform.localRotation = Quaternion.identity;
+
+            ParticleSystem ps = psObj.AddComponent<ParticleSystem>();
+            ParticleSystem.MainModule main = ps.main;
+            main.duration = 0.1f;
+            main.loop = false;
+            main.playOnAwake = false;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.04f, 0.08f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(4f, 9f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.28f);
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.95f, 0.4f, 1f), new Color(1f, 0.45f, 0.05f, 1f));
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+
+            ParticleSystem.EmissionModule emission = ps.emission;
+            emission.rateOverTime = 0;
+            emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, 16) });
+
+            ParticleSystem.ShapeModule shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 20f;
+            shape.radius = 0.02f;
+
+            ParticleSystemRenderer rend = psObj.GetComponent<ParticleSystemRenderer>();
+            Shader s = Shader.Find("Particles/Additive");
+            if (s == null) s = Shader.Find("Mobile/Particles/Additive");
+            if (s == null) s = Shader.Find("Sprites/Default");
+            if (s != null)
+            {
+                Material mat = new Material(s);
+                mat.color = new Color(1f, 0.85f, 0.25f, 1f);
+                rend.material = mat;
+            }
+
+            muzzleFlash = ps;
+        }
+
+        // 4. Tạo ngọn lửa chớp 3D rực sáng (Muzzle Flame Visual)
+        if (muzzleFlameObj == null)
+        {
+            muzzleFlameObj = new GameObject("MuzzleFlameVisual");
+            muzzleFlameObj.transform.SetParent(mPoint, false);
+            muzzleFlameObj.transform.localPosition = Vector3.zero;
+
+            MeshFilter mf = muzzleFlameObj.AddComponent<MeshFilter>();
+            MeshRenderer mr = muzzleFlameObj.AddComponent<MeshRenderer>();
+
+            Mesh mesh = new Mesh();
+            Vector3[] verts = new Vector3[]
+            {
+                // Quad 1 (Mặt phẳng XY)
+                new Vector3(-0.15f, -0.15f, 0.02f), new Vector3(0.15f, -0.15f, 0.02f),
+                new Vector3(0.15f, 0.15f, 0.02f), new Vector3(-0.15f, 0.15f, 0.02f),
+                // Quad 2 (Chéo)
+                new Vector3(-0.15f, 0.15f, 0.02f), new Vector3(0.15f, -0.15f, 0.02f),
+                new Vector3(0.15f, 0.15f, 0.02f), new Vector3(-0.15f, -0.15f, 0.02f),
+                // Ngọn lửa phụt ra phía trước (+Z)
+                new Vector3(-0.09f, 0f, 0.01f), new Vector3(0.09f, 0f, 0.01f), new Vector3(0f, 0f, 0.35f),
+                new Vector3(0f, -0.09f, 0.01f), new Vector3(0f, 0.09f, 0.01f), new Vector3(0f, 0f, 0.35f)
+            };
+            int[] tris = new int[]
+            {
+                0, 1, 2, 0, 2, 3, 2, 1, 0, 3, 2, 0,
+                4, 5, 6, 4, 6, 7, 6, 5, 4, 7, 6, 4,
+                8, 9, 10, 10, 9, 8,
+                11, 12, 13, 13, 12, 11
+            };
+            Vector2[] uvs = new Vector2[]
+            {
+                new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 1), new Vector2(0, 1),
+                new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 1), new Vector2(0, 1),
+                new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 1),
+                new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 1)
+            };
+            Color[] colors = new Color[]
+            {
+                new Color(1f, 0.6f, 0.1f, 0.95f), new Color(1f, 0.6f, 0.1f, 0.95f),
+                new Color(1f, 0.95f, 0.3f, 1f), new Color(1f, 0.95f, 0.3f, 1f),
+                new Color(1f, 0.6f, 0.1f, 0.95f), new Color(1f, 0.6f, 0.1f, 0.95f),
+                new Color(1f, 0.95f, 0.3f, 1f), new Color(1f, 0.95f, 0.3f, 1f),
+                new Color(1f, 0.8f, 0.2f, 1f), new Color(1f, 0.8f, 0.2f, 1f), new Color(1f, 1f, 0.9f, 1f),
+                new Color(1f, 0.8f, 0.2f, 1f), new Color(1f, 0.8f, 0.2f, 1f), new Color(1f, 1f, 0.9f, 1f)
+            };
+            mesh.vertices = verts;
+            mesh.triangles = tris;
+            mesh.uv = uvs;
+            mesh.colors = colors;
+            mesh.RecalculateNormals();
+            mf.mesh = mesh;
+
+            Shader s = Shader.Find("Particles/Additive");
+            if (s == null) s = Shader.Find("Mobile/Particles/Additive");
+            if (s == null) s = Shader.Find("Sprites/Default");
+            Material mat = new Material(s);
+            mat.color = new Color(1f, 0.9f, 0.3f, 1f);
+            mr.material = mat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+
+            muzzleFlameObj.SetActive(false);
+        }
+    }
+
+    IEnumerator MuzzleFlashRoutine()
+    {
+        if (muzzleFlameObj != null)
+        {
+            muzzleFlameObj.SetActive(true);
+            muzzleFlameObj.transform.localRotation = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
+            float s = Random.Range(0.85f, 1.35f);
+            muzzleFlameObj.transform.localScale = new Vector3(s, s, s);
+        }
+
+        yield return new WaitForSeconds(0.045f);
+
+        if (muzzleFlameObj != null)
+        {
+            muzzleFlameObj.SetActive(false);
+        }
+        muzzleFlashRoutine = null;
+    }
+
+    /// <summary>
+    /// Đếm tổng số đạn đang có trong túi đồ
+    /// </summary>
+    public int GetInventoryAmmoCount()
+    {
+        int count = 0;
+        if (HorrorGame.Inventory.InventoryManager.Instance != null && HorrorGame.Inventory.InventoryManager.Instance.slots != null)
+        {
+            foreach (var slot in HorrorGame.Inventory.InventoryManager.Instance.slots)
+            {
+                if (slot != null && slot.item != null && slot.amount > 0)
+                {
+                    if (slot.item.itemType == HorrorGame.Inventory.ItemType.Ammunition ||
+                        (!string.IsNullOrEmpty(slot.item.itemID) && slot.item.itemID.ToLower().Contains("ammo")) ||
+                        (!string.IsNullOrEmpty(slot.item.itemName) && slot.item.itemName.ToLower().Contains("đạn")))
+                    {
+                        count += slot.amount;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    /// <summary>
+    /// Tiêu thụ đạn từ túi đồ khi thay đạn
+    /// </summary>
+    public int ConsumeInventoryAmmo(int neededAmount)
+    {
+        int remainingNeeded = neededAmount;
+        if (HorrorGame.Inventory.InventoryManager.Instance != null && HorrorGame.Inventory.InventoryManager.Instance.slots != null)
+        {
+            foreach (var slot in HorrorGame.Inventory.InventoryManager.Instance.slots)
+            {
+                if (slot != null && slot.item != null && slot.amount > 0)
+                {
+                    if (slot.item.itemType == HorrorGame.Inventory.ItemType.Ammunition ||
+                        (!string.IsNullOrEmpty(slot.item.itemID) && slot.item.itemID.ToLower().Contains("ammo")) ||
+                        (!string.IsNullOrEmpty(slot.item.itemName) && slot.item.itemName.ToLower().Contains("đạn")))
+                    {
+                        int take = Mathf.Min(remainingNeeded, slot.amount);
+                        slot.RemoveAmount(take);
+                        remainingNeeded -= take;
+                        if (remainingNeeded <= 0) break;
+                    }
+                }
+            }
+            if (HorrorGame.Inventory.InventoryManager.Instance.onInventoryChangedEvent != null)
+            {
+                HorrorGame.Inventory.InventoryManager.Instance.onInventoryChangedEvent();
+            }
+        }
+        return neededAmount - remainingNeeded;
+    }
+
+    /// <summary>
+    /// Dừng ngay lập tức âm thanh bắn súng khi hết đạn, nạp đạn hoặc cất súng
+    /// </summary>
+    public void StopShootAudio()
+    {
+        if (audioSource != null && audioSource.isPlaying)
+        {
+            if (audioSource.clip == shootSound)
+            {
+                audioSource.Stop();
+                audioSource.clip = null;
+            }
+        }
+    }
+
     void SetupGUIStyles()
     {
         ammoStyle = new GUIStyle();
@@ -366,26 +604,92 @@ public class FPSWeapon : MonoBehaviour
             }
         }
 
-        if (!isEquipped || isReloading) return;
-
-        // Bấm R hoặc hết đạn -> Thay đạn
-        if (currentAmmo <= 0 || (Input.GetKeyDown(KeyCode.R) && currentAmmo < maxAmmo))
+        if (!isEquipped)
         {
-            StartCoroutine(Reload());
+            StopShootAudio();
             return;
         }
 
-        // Bấm chuột trái để bắn
-        if (Input.GetButton("Fire1") && Time.time >= nextFireTime)
+        if (isReloading)
         {
-            nextFireTime = Time.time + 1f / fireRate;
-            Shoot();
+            StopShootAudio();
+            return;
         }
 
-        // Nhả chuột trái -> Tắt ngay lập tức âm thanh (sửa lỗi tiếng súng nổ dư)
+        // Khi hết đạn trong băng -> Dừng ngay lập tức âm thanh bắn súng đang phát dở
+        if (currentAmmo <= 0)
+        {
+            StopShootAudio();
+        }
+
+        // Bấm phím R để thay đạn
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            if (currentAmmo < maxAmmo)
+            {
+                int totalAvailable = reserveAmmo + GetInventoryAmmoCount();
+                if (totalAvailable > 0)
+                {
+                    StopShootAudio();
+                    StartCoroutine(Reload());
+                    return;
+                }
+                else
+                {
+                    weaponNameText = "Không còn đạn dự trữ trong túi đồ!";
+                    weaponNameTimer = 2f;
+                    if (emptyClickSound != null && audioSource != null)
+                    {
+                        audioSource.PlayOneShot(emptyClickSound);
+                    }
+                }
+            }
+            else
+            {
+                weaponNameText = "Băng đạn đã đầy!";
+                weaponNameTimer = 1.5f;
+            }
+        }
+
+        // Bấm chuột trái để bắn
+        if (Input.GetButton("Fire1"))
+        {
+            if (currentAmmo <= 0)
+            {
+                // Khi hết đạn -> Tuyệt đối ngắt tiếng súng nổ
+                StopShootAudio();
+
+                // Phát tiếng cạch cạch (chỉ kêu khi vừa nhấn chuột xuống)
+                if (Input.GetButtonDown("Fire1"))
+                {
+                    int totalAvailable = reserveAmmo + GetInventoryAmmoCount();
+                    if (totalAvailable > 0)
+                    {
+                        weaponNameText = "Hết đạn trong băng! Bấm [R] để nạp đạn";
+                    }
+                    else
+                    {
+                        weaponNameText = "HẾT SẠCH ĐẠN! Cần tìm thêm hộp đạn";
+                    }
+                    weaponNameTimer = 2f;
+
+                    if (emptyClickSound != null && audioSource != null)
+                    {
+                        audioSource.PlayOneShot(emptyClickSound);
+                    }
+                }
+            }
+            else if (Time.time >= nextFireTime)
+            {
+                nextFireTime = Time.time + 1f / fireRate;
+                Shoot();
+            }
+        }
+
+        // Nhả chuột trái -> Tắt ngay lập tức âm thanh bắn súng
         if (Input.GetButtonUp("Fire1"))
         {
-            if (audioSource.isPlaying) audioSource.Stop();
+            StopShootAudio();
         }
 
         // Làm mờ dần ánh sáng chớp lửa súng
@@ -423,14 +727,15 @@ public class FPSWeapon : MonoBehaviour
 
     public void AddAmmo(int amount)
     {
-        currentAmmo += amount;
-        weaponNameText = string.Format("+{0} Viên đạn ({1}/{2})", amount, currentAmmo, maxAmmo);
+        reserveAmmo += amount;
+        weaponNameText = string.Format("+{0} Viên đạn dự trữ! ({1} trong băng | {2} dự trữ)", amount, currentAmmo, (reserveAmmo + GetInventoryAmmoCount()));
         weaponNameTimer = 2.5f;
-        Debug.Log("[FPSWeapon] Đã nạp thêm " + amount + " viên đạn! Hiện có: " + currentAmmo);
+        Debug.Log("[FPSWeapon] Đã nạp thêm " + amount + " viên đạn vào dự trữ! Hiện có: " + reserveAmmo);
     }
 
     public void ToggleWeapon()
     {
+        StopShootAudio();
         isEquipped = !isEquipped;
 
         if (gunInstance != null)
@@ -513,6 +818,7 @@ public class FPSWeapon : MonoBehaviour
     /// </summary>
     public void HolsterFromManager()
     {
+        StopShootAudio();
         if (isEquipped)
         {
             isEquipped = false;
@@ -536,13 +842,21 @@ public class FPSWeapon : MonoBehaviour
 
     void Shoot()
     {
+        if (currentAmmo <= 0) return;
         currentAmmo--;
 
         // Bật tia lửa (nếu có Particle)
         if (muzzleFlash != null) muzzleFlash.Play();
         
-        // Bật ánh sáng chớp lửa (tăng cường độ sáng)
-        if (flashLight != null) flashLight.intensity = 8f;
+        // Kích hoạt ngọn lửa chớp 3D tại đầu nòng
+        if (muzzleFlameObj != null)
+        {
+            if (muzzleFlashRoutine != null) StopCoroutine(muzzleFlashRoutine);
+            muzzleFlashRoutine = StartCoroutine(MuzzleFlashRoutine());
+        }
+
+        // Bật ánh sáng chớp lửa (tăng cường độ sáng mạnh tại đầu nòng)
+        if (flashLight != null) flashLight.intensity = 14f;
 
         // Phát tiếng súng (Reset lại mỗi lần bắn để không bị dội âm)
         if (shootSound != null)
@@ -558,30 +872,71 @@ public class FPSWeapon : MonoBehaviour
         currentGunPosition += new Vector3(0, 0, recoilKickback);
         currentGunRotation += new Vector3(recoilRotation, Random.Range(-2f, 2f), 0); // Thêm rung lắc nhẹ 2 bên
 
-        // Bắn tia Raycast từ giữa màn hình ra phía trước
-        RaycastHit hit;
-        Ray ray = new Ray(transform.position, transform.forward);
+        // Bắn tia Raycast chính xác từ tâm màn hình (Camera Viewport Center)
+        Camera cam = GetComponent<Camera>();
+        if (cam == null) cam = Camera.main;
+        Ray ray = (cam != null) ? cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f)) : new Ray(transform.position, transform.forward);
 
-        if (Physics.Raycast(ray, out hit, range))
+        RaycastHit[] hits = Physics.RaycastAll(ray, range);
+        RaycastHit closestHit = new RaycastHit();
+        bool hasHit = false;
+        float minDistance = float.MaxValue;
+        Transform playerRoot = transform.root;
+
+        for (int i = 0; i < hits.Length; i++)
         {
-            Debug.Log("Bắn trúng: " + hit.transform.name);
+            RaycastHit h = hits[i];
+            if (h.collider == null) continue;
+            // Bỏ qua chính người chơi và vũ khí
+            if (h.collider.transform.IsChildOf(playerRoot) || h.collider.CompareTag("Player")) continue;
+            // Bỏ qua Trigger
+            if (h.collider.isTrigger) continue;
 
-            // Kiểm tra Zombie
+            if (h.distance < minDistance)
+            {
+                minDistance = h.distance;
+                closestHit = h;
+                hasHit = true;
+            }
+        }
+
+        if (hasHit)
+        {
+            RaycastHit hit = closestHit;
+            Debug.Log("[FPSWeapon] Bắn trúng: " + hit.transform.name);
+
+            // 1. Kiểm tra Zombie (ở chính nó, hoặc cha/con)
             HorrorGame.Enemy.EnemyAI enemy = hit.transform.GetComponent<HorrorGame.Enemy.EnemyAI>();
+            if (enemy == null) enemy = hit.transform.GetComponentInParent<HorrorGame.Enemy.EnemyAI>();
+            if (enemy == null) enemy = hit.transform.GetComponentInChildren<HorrorGame.Enemy.EnemyAI>();
+
             if (enemy != null)
             {
-                enemy.TakeDamage(damage);
-            }
+                // Kiểm tra bắn trúng đầu (Headshot: cao hơn chân 1.35m)
+                float currentDamage = damage;
+                bool isHeadshot = (hit.point.y - enemy.transform.position.y) > 1.35f;
+                if (isHeadshot)
+                {
+                    currentDamage *= 2f;
+                    Debug.Log("🎯 [FPSWeapon] HEADSHOT Zombie! Sát thương nhân đôi: " + currentDamage);
+                }
 
-            // Kiểm tra Thú Rừng (AnimalAI)
-            HorrorGame.Survival.AnimalAI animal = hit.transform.GetComponent<HorrorGame.Survival.AnimalAI>();
-            if (animal == null) animal = hit.transform.GetComponentInParent<HorrorGame.Survival.AnimalAI>();
-            if (animal != null)
+                enemy.TakeDamage(currentDamage, hit.point);
+                HorrorGame.Enemy.EnemyAI.SpawnBloodImpact(hit.point, hit.normal);
+            }
+            else
             {
-                animal.TakeDamage(damage);
+                // 2. Kiểm tra Thú Rừng (AnimalAI)
+                HorrorGame.Survival.AnimalAI animal = hit.transform.GetComponent<HorrorGame.Survival.AnimalAI>();
+                if (animal == null) animal = hit.transform.GetComponentInParent<HorrorGame.Survival.AnimalAI>();
+                if (animal != null)
+                {
+                    animal.TakeDamage(damage);
+                    HorrorGame.Enemy.EnemyAI.SpawnBloodImpact(hit.point, hit.normal);
+                }
             }
 
-            // Đẩy vật lý
+            // Đẩy vật lý (nếu có Rigidbody)
             if (hit.rigidbody != null)
             {
                 hit.rigidbody.AddForce(-hit.normal * 60f);
@@ -592,6 +947,10 @@ public class FPSWeapon : MonoBehaviour
     IEnumerator Reload()
     {
         isReloading = true;
+
+        // Dừng ngay lập tức âm thanh bắn súng khi bắt đầu thay đạn
+        StopShootAudio();
+
         weaponNameText = "Đang nạp đạn...";
         Debug.Log("Đang nạp đạn...");
 
@@ -603,10 +962,24 @@ public class FPSWeapon : MonoBehaviour
 
         yield return new WaitForSeconds(reloadTime);
 
-        currentAmmo = maxAmmo;
+        int needed = maxAmmo - currentAmmo;
+        // 1. Tiêu thụ đạn trong túi đồ trước (nếu có)
+        int fromInv = ConsumeInventoryAmmo(needed);
+        needed -= fromInv;
+
+        // 2. Tiêu thụ từ đạn dự trữ reserveAmmo
+        int fromReserve = 0;
+        if (needed > 0 && reserveAmmo > 0)
+        {
+            fromReserve = Mathf.Min(needed, reserveAmmo);
+            reserveAmmo -= fromReserve;
+        }
+
+        currentAmmo += (fromInv + fromReserve);
         isReloading = false;
         weaponNameText = (gunModelPrefab != null) ? gunModelPrefab.name : "Súng";
-        Debug.Log("Nạp đạn xong!");
+        int totalReserve = reserveAmmo + GetInventoryAmmoCount();
+        Debug.Log(string.Format("Nạp đạn xong! Trong băng: {0}/{1} | Dự trữ: {2}", currentAmmo, maxAmmo, totalReserve));
     }
 
     // Vẽ giao diện đạn + tâm ngắm lên màn hình
@@ -628,16 +1001,21 @@ public class FPSWeapon : MonoBehaviour
         GUI.DrawTexture(new Rect(cx - crossThick / 2, cy - crossSize, crossThick, crossSize * 2), Texture2D.whiteTexture);
 
         // === SỐ ĐẠN ===
-        string ammoText = currentAmmo + " / " + maxAmmo;
+        int totalReserve = reserveAmmo + GetInventoryAmmoCount();
+        string ammoText = currentAmmo + " / " + totalReserve;
         if (isReloading) ammoText = "Nạp đạn...";
+        else if (currentAmmo == 0 && totalReserve == 0) ammoText = "0 / 0 (HẾT ĐẠN)";
 
-        float ax = Screen.width - 220;
+        float ax = Screen.width - 240;
         float ay = Screen.height - 60;
 
         GUI.color = Color.black;
-        GUI.Label(new Rect(ax + 2, ay + 2, 200, 40), ammoText, ammoShadowStyle);
-        GUI.color = Color.white;
-        GUI.Label(new Rect(ax, ay, 200, 40), ammoText, ammoStyle);
+        GUI.Label(new Rect(ax + 2, ay + 2, 230, 40), ammoText, ammoShadowStyle);
+        
+        if (currentAmmo == 0) GUI.color = Color.red;
+        else GUI.color = Color.white;
+        
+        GUI.Label(new Rect(ax, ay, 230, 40), ammoText, ammoStyle);
 
         // === TÊN SÚNG (hiện 2 giây khi đổi súng) ===
         if (weaponNameTimer > 0)

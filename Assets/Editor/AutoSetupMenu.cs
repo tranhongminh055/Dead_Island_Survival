@@ -9,7 +9,7 @@ namespace HorrorGame.Editor
     [InitializeOnLoad]
     public class AutoSetupMenu
     {
-        private const string KEY_SETUP_MENU = "AutoSetupMenu_Done_V4";
+        private const string KEY_SETUP_MENU = "AutoSetupMenu_Done_V5";
 
         static AutoSetupMenu()
         {
@@ -80,6 +80,12 @@ namespace HorrorGame.Editor
             EnsureAnimalSpawnerInCurrentScene();
         }
 
+        [MenuItem("Horror Game/⛈️ Kích Hoạt Hệ Thống Mưa & Sấm Chớp (Weather System)", false, 12)]
+        public static void ForceSetupWeatherSystem()
+        {
+            EnsureWeatherSystemInCurrentScene();
+        }
+
         [MenuItem("Horror Game/⚙ Cài Đặt Hệ Thống Menu (Main Menu + Pause)", false, 20)]
         public static void ForceSetupMenu()
         {
@@ -115,6 +121,9 @@ namespace HorrorGame.Editor
 
             // 5. Đảm bảo Scene có hệ thống Thú Rừng (AnimalSpawner)
             EnsureAnimalSpawnerInCurrentScene();
+
+            // 6. Đảm bảo Scene có hệ thống Thời Tiết (WeatherSystem)
+            EnsureWeatherSystemInCurrentScene();
 
             EditorPrefs.SetBool(KEY_SETUP_MENU, true);
         }
@@ -306,6 +315,11 @@ namespace HorrorGame.Editor
                 EditorSceneManager.MarkSceneDirty(spawnerObj.scene);
                 Debug.Log("✅ [AnimalSpawner] Đã tự động tạo [AnimalSpawner] trong Scene! Hươu, Thỏ, Lợn rừng đã sẵn sàng.");
             }
+        }
+
+        private static void EnsureWeatherSystemInCurrentScene()
+        {
+            HorrorGame.Editor.WeatherSystemSetup.SetupWeatherInScene();
         }
     }
 }

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.AI;
+using System.Collections;
 
 namespace HorrorGame.Enemy
 {
@@ -30,9 +31,32 @@ namespace HorrorGame.Enemy
         private Animator animator;
         private bool isDead = false;
         private float lastAttackTime = 0f;
+        private Coroutine flashRoutine;
+
+        public bool IsDead { get { return isDead; } }
+        public float CurrentHealth { get { return currentHealth; } }
+
+        void Awake()
+        {
+            EnsureCollider();
+        }
+
+        public void EnsureCollider()
+        {
+            CapsuleCollider col = GetComponent<CapsuleCollider>();
+            if (col == null)
+            {
+                col = gameObject.AddComponent<CapsuleCollider>();
+            }
+            col.center = new Vector3(0f, 0.95f, 0f);
+            col.height = 1.9f;
+            col.radius = 0.35f;
+            col.isTrigger = false;
+        }
 
         void Start()
         {
+            EnsureCollider();
             agent = GetComponent<NavMeshAgent>();
             animator = GetComponent<Animator>();
             currentHealth = maxHealth; // Hồi đầy máu khi mới sinh ra
@@ -195,26 +219,191 @@ namespace HorrorGame.Enemy
         // Gọi hàm này khi Zombie bị người chơi bắn/chém trúng
         public void TakeDamage(float amount)
         {
-            if (isDead) return;
-            
-            currentHealth -= amount;
-            Debug.Log("Zombie bị bắn trúng! Máu còn: " + currentHealth);
+            TakeDamage(amount, Vector3.zero);
+        }
 
-            if (currentHealth <= 0)
+        public void TakeDamage(float amount, Vector3 hitPoint)
+        {
+            if (isDead) return;
+
+            currentHealth -= amount;
+            Debug.Log(string.Format("[EnemyAI] Zombie bị bắn trúng! -{0} HP, còn lại: {1}/{2}", amount, Mathf.Max(0, currentHealth), maxHealth));
+
+            // Hiệu ứng chớp đỏ toàn thân báo hiệu trúng đòn
+            if (gameObject.activeInHierarchy)
+            {
+                if (flashRoutine != null) StopCoroutine(flashRoutine);
+                flashRoutine = StartCoroutine(HitFlashRoutine());
+            }
+
+            // Bị bắn trúng -> Ngay lập tức quay lại rượt đuổi người chơi (nếu có)
+            if (player != null && !isDead)
+            {
+                if (agent != null && agent.isActiveAndEnabled && agent.isOnNavMesh)
+                {
+                    agent.speed = runSpeed;
+                    agent.SetDestination(player.position);
+                }
+                if (animator != null && animator.isActiveAndEnabled)
+                {
+                    animator.SetFloat("Speed", 1f);
+                }
+            }
+
+            if (currentHealth <= 0f)
             {
                 Die();
             }
         }
 
+        private IEnumerator HitFlashRoutine()
+        {
+            SkinnedMeshRenderer[] smrs = GetComponentsInChildren<SkinnedMeshRenderer>();
+            if (smrs == null || smrs.Length == 0) yield break;
+
+            Color[] origColors = new Color[smrs.Length];
+            for (int i = 0; i < smrs.Length; i++)
+            {
+                if (smrs[i] != null && smrs[i].material != null && smrs[i].material.HasProperty("_Color"))
+                {
+                    origColors[i] = smrs[i].material.color;
+                    smrs[i].material.color = new Color(1f, 0.2f, 0.2f, 1f);
+                }
+            }
+
+            yield return new WaitForSeconds(0.08f);
+
+            for (int i = 0; i < smrs.Length; i++)
+            {
+                if (smrs[i] != null && smrs[i].material != null && smrs[i].material.HasProperty("_Color"))
+                {
+                    smrs[i].material.color = origColors[i];
+                }
+            }
+            flashRoutine = null;
+        }
+
         private void Die()
         {
+            if (isDead) return;
             isDead = true;
-            agent.isStopped = true; // Ngừng tìm đường
-            animator.SetTrigger("Die");
-            
-            // Tắt va chạm để người chơi có thể bước qua xác chết
-            Collider coll = GetComponent<Collider>();
-            if (coll != null) coll.enabled = false;
+
+            Debug.Log("[EnemyAI] Zombie đã bị tiêu diệt!");
+
+            // Ngừng tìm đường và tắt NavMeshAgent an toàn
+            if (agent != null)
+            {
+                if (agent.isActiveAndEnabled && agent.isOnNavMesh)
+                {
+                    agent.isStopped = true;
+                }
+                agent.enabled = false;
+            }
+
+            // Tắt toàn bộ Collider trên người Zombie để người chơi có thể bước qua xác và đạn không vướng
+            Collider[] colls = GetComponentsInChildren<Collider>();
+            for (int i = 0; i < colls.Length; i++)
+            {
+                if (colls[i] != null) colls[i].enabled = false;
+            }
+
+            // Tắt Animator để dừng dáng đứng vĩnh viễn và thực hiện ngã gục
+            if (animator != null)
+            {
+                animator.enabled = false;
+            }
+
+            // Kích hoạt hoạt ảnh gục ngã xuống đất
+            if (gameObject.activeInHierarchy)
+            {
+                StartCoroutine(DeathToppleRoutine());
+            }
+            else
+            {
+                Destroy(gameObject);
+            }
+        }
+
+        private IEnumerator DeathToppleRoutine()
+        {
+            float duration = 0.55f;
+            float elapsed = 0f;
+            Vector3 startPos = transform.position;
+            Quaternion startRot = transform.rotation;
+
+            // Ngã ngửa ra sau tiếp đất tự nhiên
+            Quaternion targetRot = Quaternion.Euler(-80f, transform.eulerAngles.y, 0f);
+            Vector3 targetPos = startPos - transform.forward * 0.35f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float ease = Mathf.Sin(t * Mathf.PI * 0.5f);
+                transform.rotation = Quaternion.Slerp(startRot, targetRot, ease);
+                transform.position = Vector3.Lerp(startPos, targetPos, ease);
+                yield return null;
+            }
+
+            // Xác nằm nguyên trên mặt đất trong 12 giây
+            yield return new WaitForSeconds(12f);
+
+            // Chìm dần xuống đất trước khi biến mất
+            float sinkDuration = 2f;
+            float sinkElapsed = 0f;
+            Vector3 settlePos = transform.position;
+            while (sinkElapsed < sinkDuration)
+            {
+                sinkElapsed += Time.deltaTime;
+                float st = sinkElapsed / sinkDuration;
+                transform.position = settlePos - new Vector3(0f, st * 1.0f, 0f);
+                yield return null;
+            }
+
+            Destroy(gameObject);
+        }
+
+        /// <summary>
+        /// Hiệu ứng văng máu khi đạn hoặc vũ khí chém trúng cơ thể
+        /// </summary>
+        public static void SpawnBloodImpact(Vector3 position, Vector3 normal)
+        {
+            GameObject fx = new GameObject("BloodImpactFX");
+            fx.transform.position = position;
+            if (normal != Vector3.zero)
+            {
+                fx.transform.rotation = Quaternion.LookRotation(normal);
+            }
+
+            ParticleSystem ps = fx.AddComponent<ParticleSystem>();
+            ParticleSystem.MainModule main = ps.main;
+            main.duration = 0.2f;
+            main.loop = false;
+            main.startLifetime = 0.35f;
+            main.startSpeed = 3f;
+            main.startSize = 0.15f;
+            main.startColor = new Color(0.7f, 0.05f, 0.05f, 0.95f);
+            main.playOnAwake = true;
+
+            ParticleSystem.EmissionModule emission = ps.emission;
+            emission.rateOverTime = 0;
+            emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, 18) });
+
+            ParticleSystem.ShapeModule shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 35f;
+            shape.radius = 0.05f;
+
+            ParticleSystemRenderer rend = fx.GetComponent<ParticleSystemRenderer>();
+            Shader sh = Shader.Find("Particles/Additive");
+            if (sh == null) sh = Shader.Find("Sprites/Default");
+            if (sh != null)
+            {
+                rend.material = new Material(sh);
+                rend.material.color = new Color(0.7f, 0.05f, 0.05f, 0.95f);
+            }
+
+            Destroy(fx, 0.6f);
         }
 
         // Dùng cái này để dễ dàng nhìn thấy vòng tròn giới hạn trong cửa sổ Scene

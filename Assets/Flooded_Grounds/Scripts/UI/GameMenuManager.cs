@@ -245,10 +245,20 @@ namespace HorrorGame.UI
             AudioSource[] all = FindObjectsOfType<AudioSource>();
             foreach (var a in all)
             {
-                if (a != audioSource)
+                if (a == null || a == audioSource) continue;
+
+                // Tuyệt đối không bật lại âm thanh mưa gió nếu đang xem trailer hoặc chưa vào game thật
+                if (HorrorGame.Environment.Weather.WeatherSystem.Instance != null)
                 {
-                    a.UnPause();
+                    if (a == HorrorGame.Environment.Weather.WeatherSystem.Instance.rainLightAudio ||
+                        a == HorrorGame.Environment.Weather.WeatherSystem.Instance.rainHeavyAudio ||
+                        a == HorrorGame.Environment.Weather.WeatherSystem.Instance.windAudio)
+                    {
+                        continue;
+                    }
                 }
+
+                a.UnPause();
             }
         }
 

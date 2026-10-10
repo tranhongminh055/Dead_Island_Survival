@@ -21,29 +21,40 @@ namespace HorrorGame.Survival
             Material roofMat = GetMaterial("BLD_Cabins_Mossy", new Color(0.38f, 0.24f, 0.10f));
             Material floorMat = GetMaterial("BLD_Cabins", new Color(0.42f, 0.26f, 0.12f));
 
-            float wallHeight = 2.6f;
-            float wallWidth = 4.2f;
+            float wallHeight = 3.2f; // Tăng lên 3.2m để không gian trần nhà cao ráo
+            float wallWidth = 4.4f;  // Rộng 4.4m
             float wallThick = 0.18f;
 
             // === SÀN NHÀ ===
-            CreatePrimitive(house, PrimitiveType.Cube, Vector3.zero,
-                new Vector3(wallWidth, 0.12f, wallWidth), floorMat, "Floor", true);
+            CreatePrimitive(house, PrimitiveType.Cube, new Vector3(0, 0.05f, 0),
+                new Vector3(wallWidth, 0.10f, wallWidth), floorMat, "Floor", true);
 
-            // === TƯỜNG TRƯỚC (CÓ CỬA RỘNG 1.2M ĐI VÀO THOẢI MÁI) ===
+            // DỐC BƯỚC VÀO CỬA (Ngưỡng cửa vát dốc giúp người chơi bước vào êm ái, không bị khựng)
+            GameObject doorRamp = CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(0, 0.02f, wallWidth / 2f + 0.35f),
+                new Vector3(2.0f, 0.04f, 0.7f), floorMat, "DoorRamp", true);
+            doorRamp.transform.localRotation = Quaternion.Euler(3f, 0, 0);
+
+            // === TƯỜNG TRƯỚC (CỬA RỘNG 2.0M, CAO 2.6M - NGƯỜI CHƠI ĐI QUA THOẢI MÁI) ===
+            float doorWidth = 2.0f;
+            float doorHeight = 2.6f;
+            float sideWallWidth = (wallWidth - doorWidth) / 2f; // 1.2m
+
             // Mảng tường trái cửa
             CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(-1.45f, wallHeight / 2f, wallWidth / 2f),
-                new Vector3(1.3f, wallHeight, wallThick), woodMat, "FrontWall_L", true);
+                new Vector3(-1.6f, wallHeight / 2f, wallWidth / 2f),
+                new Vector3(sideWallWidth, wallHeight, wallThick), woodMat, "FrontWall_L", true);
 
             // Mảng tường phải cửa
             CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(1.45f, wallHeight / 2f, wallWidth / 2f),
-                new Vector3(1.3f, wallHeight, wallThick), woodMat, "FrontWall_R", true);
+                new Vector3(1.6f, wallHeight / 2f, wallWidth / 2f),
+                new Vector3(sideWallWidth, wallHeight, wallThick), woodMat, "FrontWall_R", true);
 
-            // Xà ngang trên cửa (cửa cao 2.0m)
+            // Xà ngang trên cửa (đáy xà ở cao độ 2.6m, cách đỉnh đầu người chơi tới 60cm!)
+            float topWallHeight = wallHeight - doorHeight; // 0.6m
             CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(0, wallHeight - 0.3f, wallWidth / 2f),
-                new Vector3(1.6f, 0.6f, wallThick), woodMat, "FrontWall_Top", true);
+                new Vector3(0, doorHeight + topWallHeight / 2f, wallWidth / 2f),
+                new Vector3(doorWidth, topWallHeight, wallThick), woodMat, "FrontWall_Top", true);
 
             // === TƯỜNG SAU ===
             CreatePrimitive(house, PrimitiveType.Cube,
@@ -57,39 +68,39 @@ namespace HorrorGame.Survival
 
             // === TƯỜNG PHẢI (CÓ CỬA SỔ NHÌN RA NGOÀI) ===
             CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(wallWidth / 2f, 0.45f, 0),
-                new Vector3(wallThick, 0.9f, wallWidth), woodMat, "RightWall_Bottom", true);
+                new Vector3(wallWidth / 2f, 0.5f, 0),
+                new Vector3(wallThick, 1.0f, wallWidth), woodMat, "RightWall_Bottom", true);
 
             CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(wallWidth / 2f, wallHeight - 0.25f, 0),
-                new Vector3(wallThick, 0.5f, wallWidth), woodMat, "RightWall_Top", true);
+                new Vector3(wallWidth / 2f, wallHeight - 0.3f, 0),
+                new Vector3(wallThick, 0.6f, wallWidth), woodMat, "RightWall_Top", true);
 
             CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(wallWidth / 2f, 1.45f, -1.35f),
-                new Vector3(wallThick, 1.1f, 1.5f), woodMat, "RightWall_BackPart", true);
+                new Vector3(wallWidth / 2f, 1.8f, -1.4f),
+                new Vector3(wallThick, 1.6f, 1.6f), woodMat, "RightWall_BackPart", true);
 
             CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(wallWidth / 2f, 1.45f, 1.35f),
-                new Vector3(wallThick, 1.1f, 1.5f), woodMat, "RightWall_FrontPart", true);
+                new Vector3(wallWidth / 2f, 1.8f, 1.4f),
+                new Vector3(wallThick, 1.6f, 1.6f), woodMat, "RightWall_FrontPart", true);
 
             // === MÁI NHÀ CHỮ A ===
             GameObject roofL = CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(-1.25f, wallHeight + 0.65f, 0),
-                new Vector3(2.9f, 0.12f, wallWidth + 0.4f), roofMat, "Roof_L", true);
+                new Vector3(-1.35f, wallHeight + 0.7f, 0),
+                new Vector3(3.1f, 0.12f, wallWidth + 0.4f), roofMat, "Roof_L", true);
             roofL.transform.localRotation = Quaternion.Euler(0, 0, 24f);
 
             GameObject roofR = CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(1.25f, wallHeight + 0.65f, 0),
-                new Vector3(2.9f, 0.12f, wallWidth + 0.4f), roofMat, "Roof_R", true);
+                new Vector3(1.35f, wallHeight + 0.7f, 0),
+                new Vector3(3.1f, 0.12f, wallWidth + 0.4f), roofMat, "Roof_R", true);
             roofR.transform.localRotation = Quaternion.Euler(0, 0, -24f);
 
             // === GIƯỜNG NGỦ NGHỈ NGƠI TRONG GÓC NHÀ ===
             GameObject bed = CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(-1.2f, 0.25f, -1.2f),
+                new Vector3(-1.3f, 0.25f, -1.3f),
                 new Vector3(1.4f, 0.35f, 1.8f), woodMat, "Bed_Wood", true);
 
-            GameObject mattress = CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(-1.2f, 0.45f, -1.2f),
+            CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(-1.3f, 0.45f, -1.3f),
                 new Vector3(1.2f, 0.15f, 1.6f), GetMaterial("NAT_CobbleRocks1", new Color(0.85f, 0.8f, 0.7f)), "Mattress", true);
 
             // Gắn ShelterRest lên giường ngủ
@@ -111,26 +122,37 @@ namespace HorrorGame.Survival
             Material stoneDark = GetMaterial("NAT_Rocks1", new Color(0.38f, 0.38f, 0.36f));
             Material roofMat = GetMaterial("BLD_Cabins_Mossy", new Color(0.42f, 0.28f, 0.12f));
 
-            float wallHeight = 2.8f;
-            float wallWidth = 4.6f;
+            float wallHeight = 3.4f; // Cao 3.4m kiên cố và rộng rãi
+            float wallWidth = 4.8f;  // Rộng 4.8m
             float wallThick = 0.25f;
 
             // === SÀN ĐÁ ===
-            CreatePrimitive(house, PrimitiveType.Cube, Vector3.zero,
-                new Vector3(wallWidth, 0.16f, wallWidth), stoneDark, "Floor", true);
+            CreatePrimitive(house, PrimitiveType.Cube, new Vector3(0, 0.05f, 0),
+                new Vector3(wallWidth, 0.10f, wallWidth), stoneDark, "Floor", true);
 
-            // === TƯỜNG TRƯỚC (CÓ CỬA VÀO) ===
-            CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(-1.6f, wallHeight / 2f, wallWidth / 2f),
-                new Vector3(1.4f, wallHeight, wallThick), stoneMat, "FrontWall_L", true);
+            // Dốc ngưỡng cửa đá
+            GameObject doorRamp = CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(0, 0.02f, wallWidth / 2f + 0.35f),
+                new Vector3(2.0f, 0.04f, 0.7f), stoneDark, "DoorRamp", true);
+            doorRamp.transform.localRotation = Quaternion.Euler(3f, 0, 0);
+
+            // === TƯỜNG TRƯỚC (CÓ CỬA VÀO RỘNG 2.0M, CAO 2.7M) ===
+            float doorWidth = 2.0f;
+            float doorHeight = 2.7f;
+            float sideWallWidth = (wallWidth - doorWidth) / 2f; // 1.4m
 
             CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(1.6f, wallHeight / 2f, wallWidth / 2f),
-                new Vector3(1.4f, wallHeight, wallThick), stoneMat, "FrontWall_R", true);
+                new Vector3(-1.7f, wallHeight / 2f, wallWidth / 2f),
+                new Vector3(sideWallWidth, wallHeight, wallThick), stoneMat, "FrontWall_L", true);
 
             CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(0, wallHeight - 0.35f, wallWidth / 2f),
-                new Vector3(1.8f, 0.7f, wallThick), stoneMat, "FrontWall_Top", true);
+                new Vector3(1.7f, wallHeight / 2f, wallWidth / 2f),
+                new Vector3(sideWallWidth, wallHeight, wallThick), stoneMat, "FrontWall_R", true);
+
+            float topWallHeight = wallHeight - doorHeight; // 0.7m
+            CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(0, doorHeight + topWallHeight / 2f, wallWidth / 2f),
+                new Vector3(doorWidth, topWallHeight, wallThick), stoneMat, "FrontWall_Top", true);
 
             // === 3 TƯỜNG ĐÁ BẢO VỆ ===
             CreatePrimitive(house, PrimitiveType.Cube,
@@ -147,18 +169,18 @@ namespace HorrorGame.Survival
 
             // === MÁI GỖ DỐC ===
             GameObject roofL = CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(-1.35f, wallHeight + 0.55f, 0),
-                new Vector3(3.1f, 0.14f, wallWidth + 0.4f), roofMat, "Roof_L", true);
+                new Vector3(-1.45f, wallHeight + 0.65f, 0),
+                new Vector3(3.3f, 0.14f, wallWidth + 0.4f), roofMat, "Roof_L", true);
             roofL.transform.localRotation = Quaternion.Euler(0, 0, 18f);
 
             GameObject roofR = CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(1.35f, wallHeight + 0.55f, 0),
-                new Vector3(3.1f, 0.14f, wallWidth + 0.4f), roofMat, "Roof_R", true);
+                new Vector3(1.45f, wallHeight + 0.65f, 0),
+                new Vector3(3.3f, 0.14f, wallWidth + 0.4f), roofMat, "Roof_R", true);
             roofR.transform.localRotation = Quaternion.Euler(0, 0, -18f);
 
             // Bệ nghỉ ngơi bằng đá bên trong
             GameObject restBench = CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(-1.3f, 0.3f, -1.3f),
+                new Vector3(-1.4f, 0.3f, -1.4f),
                 new Vector3(1.6f, 0.45f, 1.8f), stoneDark, "StoneBed", true);
 
             ShelterRest rest = restBench.AddComponent<ShelterRest>();
@@ -179,8 +201,8 @@ namespace HorrorGame.Survival
             Color leafColor = new Color(0.20f, 0.52f, 0.14f);
             Color leafDark = new Color(0.14f, 0.40f, 0.08f);
 
-            float length = 3.2f;
-            float height = 2.1f;
+            float length = 3.4f;
+            float height = 2.5f;
 
             // Cọc nóc chính
             GameObject ridge = CreatePrimitive(shelter, PrimitiveType.Cylinder,
@@ -188,52 +210,52 @@ namespace HorrorGame.Survival
                 new Vector3(0.08f, length / 2f, 0.08f), woodMat, "Ridge", true);
             ridge.transform.localRotation = Quaternion.Euler(90, 0, 0);
 
-            // Khung cọc trước (mở rộng cửa đi vào)
+            // Khung cọc trước (TẮT collider để người chơi đi thẳng vào lều không bị kẹt)
             GameObject poleFL = CreatePrimitive(shelter, PrimitiveType.Cylinder,
-                new Vector3(-0.85f, height / 2f, length / 2f),
-                new Vector3(0.06f, height / 1.4f, 0.06f), woodMat, "FrontPole_L", true);
+                new Vector3(-1.05f, height / 2f, length / 2f),
+                new Vector3(0.06f, height / 1.3f, 0.06f), woodMat, "FrontPole_L", false);
             poleFL.transform.localRotation = Quaternion.Euler(0, 0, 32f);
 
             GameObject poleFR = CreatePrimitive(shelter, PrimitiveType.Cylinder,
-                new Vector3(0.85f, height / 2f, length / 2f),
-                new Vector3(0.06f, height / 1.4f, 0.06f), woodMat, "FrontPole_R", true);
+                new Vector3(1.05f, height / 2f, length / 2f),
+                new Vector3(0.06f, height / 1.3f, 0.06f), woodMat, "FrontPole_R", false);
             poleFR.transform.localRotation = Quaternion.Euler(0, 0, -32f);
 
             // Khung cọc sau
             GameObject poleBL = CreatePrimitive(shelter, PrimitiveType.Cylinder,
-                new Vector3(-0.85f, height / 2f, -length / 2f),
-                new Vector3(0.06f, height / 1.4f, 0.06f), woodMat, "BackPole_L", true);
+                new Vector3(-1.05f, height / 2f, -length / 2f),
+                new Vector3(0.06f, height / 1.3f, 0.06f), woodMat, "BackPole_L", true);
             poleBL.transform.localRotation = Quaternion.Euler(0, 0, 32f);
 
             GameObject poleBR = CreatePrimitive(shelter, PrimitiveType.Cylinder,
-                new Vector3(0.85f, height / 2f, -length / 2f),
-                new Vector3(0.06f, height / 1.4f, 0.06f), woodMat, "BackPole_R", true);
+                new Vector3(1.05f, height / 2f, -length / 2f),
+                new Vector3(0.06f, height / 1.3f, 0.06f), woodMat, "BackPole_R", true);
             poleBR.transform.localRotation = Quaternion.Euler(0, 0, -32f);
 
             // Mái lá trái dốc
             GameObject leafL = CreatePrimitive(shelter, PrimitiveType.Cube,
-                new Vector3(-0.95f, height * 0.58f, 0),
-                new Vector3(2.1f, 0.08f, length + 0.2f), null, "LeafRoof_L", true);
+                new Vector3(-1.1f, height * 0.55f, 0),
+                new Vector3(2.4f, 0.08f, length + 0.2f), null, "LeafRoof_L", true);
             SetColor(leafL, leafColor);
             leafL.transform.localRotation = Quaternion.Euler(0, 0, 42f);
 
             // Mái lá phải dốc
             GameObject leafR = CreatePrimitive(shelter, PrimitiveType.Cube,
-                new Vector3(0.95f, height * 0.58f, 0),
-                new Vector3(2.1f, 0.08f, length + 0.2f), null, "LeafRoof_R", true);
+                new Vector3(1.1f, height * 0.55f, 0),
+                new Vector3(2.4f, 0.08f, length + 0.2f), null, "LeafRoof_R", true);
             SetColor(leafR, leafColor);
             leafR.transform.localRotation = Quaternion.Euler(0, 0, -42f);
 
             // Tường lá phía sau che gió
             GameObject backWall = CreatePrimitive(shelter, PrimitiveType.Cube,
                 new Vector3(0, height * 0.45f, -length / 2f),
-                new Vector3(1.8f, height * 0.9f, 0.08f), null, "BackLeafWall", true);
+                new Vector3(2.1f, height * 0.9f, 0.08f), null, "BackLeafWall", true);
             SetColor(backWall, leafDark);
 
             // Đệm lá nằm ngủ bên trong
             GameObject leafBed = CreatePrimitive(shelter, PrimitiveType.Cube,
                 new Vector3(0, 0.1f, -0.2f),
-                new Vector3(1.2f, 0.15f, 1.8f), null, "LeafBed", true);
+                new Vector3(1.3f, 0.15f, 1.9f), null, "LeafBed", true);
             SetColor(leafBed, new Color(0.35f, 0.65f, 0.22f));
 
             ShelterRest rest = leafBed.AddComponent<ShelterRest>();

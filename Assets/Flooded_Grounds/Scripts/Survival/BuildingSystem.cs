@@ -24,6 +24,7 @@ namespace HorrorGame.Survival
         [Header("Âm thanh")]
         public AudioClip buildSound;
         public AudioClip cancelSound;
+        public AudioClip placeMaterialSound;
 
         // === State ===
         private bool isBuildMenuOpen = false;
@@ -36,6 +37,7 @@ namespace HorrorGame.Survival
         private bool canPlace = true;
         private Material ghostValidMat;
         private Material ghostInvalidMat;
+        private Material ghostBlueprintMat;
 
         // Built-in recipes (khi chưa có ScriptableObject)
         private List<BuiltInRecipe> builtInRecipes = new List<BuiltInRecipe>();
@@ -92,6 +94,15 @@ namespace HorrorGame.Survival
             audioSource = GetComponent<AudioSource>();
             if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
 
+            if (placeMaterialSound == null)
+            {
+#if UNITY_EDITOR
+                placeMaterialSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/sound axe chop tree/wings_of_freedom-chopping-wood-435769.mp3");
+                if (placeMaterialSound == null)
+                    placeMaterialSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/sound axe chop tree/litupsubway-ui-equip-sfx-513361.mp3");
+#endif
+            }
+
             // Tạo material cho ghost preview
             CreateGhostMaterials();
 
@@ -129,6 +140,18 @@ namespace HorrorGame.Survival
             ghostInvalidMat.EnableKeyword("_ALPHABLEND_ON");
             ghostInvalidMat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
             ghostInvalidMat.renderQueue = 3000;
+
+            // Material khung mờ The Forest (xanh cyan sáng bán trong suốt hiển thị khung định vị trong thế giới)
+            ghostBlueprintMat = new Material(Shader.Find("Standard"));
+            ghostBlueprintMat.color = new Color(0.35f, 0.75f, 1.0f, 0.38f);
+            ghostBlueprintMat.SetFloat("_Mode", 3);
+            ghostBlueprintMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            ghostBlueprintMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            ghostBlueprintMat.SetInt("_ZWrite", 0);
+            ghostBlueprintMat.DisableKeyword("_ALPHATEST_ON");
+            ghostBlueprintMat.EnableKeyword("_ALPHABLEND_ON");
+            ghostBlueprintMat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            ghostBlueprintMat.renderQueue = 3000;
         }
 
         void InitBuiltInRecipes()
@@ -297,15 +320,7 @@ namespace HorrorGame.Survival
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 
-            // Kiểm tra đủ nguyên liệu
-            if (!HasEnoughIngredients(index))
-            {
-                ShowNotice("❌ Không đủ nguyên liệu!");
-                selectedRecipeIndex = -1;
-                return;
-            }
-
-            // Vào build mode
+            // Vào build mode đặt khung mờ (chuẩn phong cách The Forest - không cần đủ nguyên liệu trước)
             isInBuildMode = true;
             ghostRotation = 0f;
             CreateGhostPreview(index);
@@ -314,7 +329,7 @@ namespace HorrorGame.Survival
             AxeController axe = FindObjectOfType<AxeController>();
             if (axe != null && axe.IsEquipped) axe.ForceUnequip();
 
-            ShowNotice("Nhấn Click trái để đặt | Click phải / ESC để hủy | Scroll để xoay");
+            ShowNotice("🖱️ Click trái: Đặt khung mờ  |  Click phải / ESC: Hủy  |  Q / E / Scroll: Xoay");
         }
 
         // =============================================
@@ -439,62 +454,99 @@ namespace HorrorGame.Survival
         }
 
         // =============================================
-        // ĐẶT CÔNG TRÌNH
+        // ĐẶT CÔNG TRÌNH (THE FOREST BLUEPRINT SYSTEM)
         // =============================================
         void PlaceBuilding()
         {
             if (ghostPreview == null || selectedRecipeIndex < 0) return;
 
-            // Trừ nguyên liệu
-            if (!ConsumeIngredients(selectedRecipeIndex))
-            {
-                ShowNotice("❌ Không đủ nguyên liệu!");
-                CancelBuildMode();
-                return;
-            }
-
             // Ghi nhớ vị trí và rotation
             Vector3 pos = ghostPreview.transform.position;
             Quaternion rot = ghostPreview.transform.rotation;
 
-            // Xóa ghost
-            Destroy(ghostPreview);
-            ghostPreview = null;
-
-            // Spawn công trình thật
-            GameObject building = null;
+            // Lấy thông tin recipe
+            string recipeName = "Công trình";
+            string[] ingNames = new string[] { "wood" };
+            string[] ingDisplays = new string[] { "Gỗ" };
+            int[] ingAmounts = new int[] { 20 };
+            System.Func<GameObject> createFunc = null;
+            GameObject resultPrefab = null;
 
             if (selectedRecipeIndex < builtInRecipes.Count)
             {
-                building = builtInRecipes[selectedRecipeIndex].createFunc();
+                BuiltInRecipe bir = builtInRecipes[selectedRecipeIndex];
+                recipeName = bir.name;
+                ingNames = bir.ingredientNames;
+                ingDisplays = bir.ingredientDisplayNames;
+                ingAmounts = bir.ingredientAmounts;
+                createFunc = bir.createFunc;
             }
             else if (recipes.Count > 0)
             {
                 int recipeIdx = selectedRecipeIndex - builtInRecipes.Count;
-                if (recipeIdx < recipes.Count && recipes[recipeIdx].resultPrefab != null)
+                if (recipeIdx < recipes.Count)
                 {
-                    building = Instantiate(recipes[recipeIdx].resultPrefab);
+                    BuildingRecipe r = recipes[recipeIdx];
+                    recipeName = r.recipeName;
+                    resultPrefab = r.resultPrefab;
+                    if (r.ingredients != null && r.ingredients.Length > 0)
+                    {
+                        ingNames = new string[r.ingredients.Length];
+                        ingDisplays = new string[r.ingredients.Length];
+                        ingAmounts = new int[r.ingredients.Length];
+                        for (int i = 0; i < r.ingredients.Length; i++)
+                        {
+                            ingNames[i] = r.ingredients[i].item != null ? r.ingredients[i].item.itemID : "wood";
+                            ingDisplays[i] = r.ingredients[i].item != null ? r.ingredients[i].item.itemName : "Gỗ";
+                            ingAmounts[i] = r.ingredients[i].amount;
+                        }
+                    }
                 }
             }
 
-            if (building != null)
+            // Xóa ghost preview tạm thời
+            Destroy(ghostPreview);
+            ghostPreview = null;
+
+            // Tạo GameObject Khung Mờ (Blueprint Ghost) đặt cố định trong thế giới
+            GameObject blueprintObj = null;
+            if (createFunc != null)
             {
-                building.transform.position = pos;
-                building.transform.rotation = rot;
-
-                // Bật lại TẤT CẢ collider con (tường, sàn, mái, rương...) để người chơi đi lại bình thường
-                Collider[] allCols = building.GetComponentsInChildren<Collider>();
-                foreach (Collider c in allCols) c.enabled = true;
-
-                string buildName = selectedRecipeIndex < builtInRecipes.Count
-                    ? builtInRecipes[selectedRecipeIndex].name
-                    : "Công trình";
-                ShowNotice("✅ Đã xây " + buildName + " thành công!");
-                Debug.Log(string.Format("[BuildingSystem] Đã đặt {0} tại {1}", buildName, pos));
+                blueprintObj = createFunc();
+            }
+            else if (resultPrefab != null)
+            {
+                blueprintObj = Instantiate(resultPrefab);
             }
 
-            // Phát âm thanh
-            if (buildSound != null) audioSource.PlayOneShot(buildSound);
+            if (blueprintObj != null)
+            {
+                blueprintObj.name = "Blueprint_" + recipeName;
+                blueprintObj.transform.position = pos;
+                blueprintObj.transform.rotation = rot;
+
+                // Gắn ConstructionBlueprint phong cách The Forest
+                ConstructionBlueprint bp = blueprintObj.AddComponent<ConstructionBlueprint>();
+                bp.Initialize(
+                    recipeName,
+                    ingNames,
+                    ingDisplays,
+                    ingAmounts,
+                    createFunc,
+                    resultPrefab,
+                    ghostBlueprintMat,
+                    placeMaterialSound,
+                    buildSound,
+                    cancelSound
+                );
+
+                ShowNotice(string.Format("🔨 Đã đặt khung mờ {0}! Chặt gỗ rồi đến gần bấm [E] để đóng từng thanh gỗ.", recipeName));
+                Debug.Log(string.Format("[BuildingSystem] Đã đặt khung mờ {0} tại {1}", recipeName, pos));
+            }
+
+            // Phát âm thanh đặt khung
+            AudioClip clickSnd = cancelSound != null ? cancelSound : buildSound;
+            if (clickSnd != null) audioSource.PlayOneShot(clickSnd);
 
             // Thoát build mode
             isInBuildMode = false;
@@ -523,15 +575,12 @@ namespace HorrorGame.Survival
         // =============================================
         bool HasEnoughIngredients(int index)
         {
-            var inv = Inventory.InventoryManager.Instance;
-            if (inv == null) return false;
-
             if (index < builtInRecipes.Count)
             {
                 var recipe = builtInRecipes[index];
                 for (int i = 0; i < recipe.ingredientNames.Length; i++)
                 {
-                    if (inv.GetItemCountByID(recipe.ingredientNames[i]) < recipe.ingredientAmounts[i])
+                    if (ConstructionBlueprint.GetMatchingItemCount(recipe.ingredientNames[i]) < recipe.ingredientAmounts[i])
                         return false;
                 }
                 return true;
@@ -547,9 +596,6 @@ namespace HorrorGame.Survival
 
         bool ConsumeIngredients(int index)
         {
-            var inv = Inventory.InventoryManager.Instance;
-            if (inv == null) return false;
-
             if (index < builtInRecipes.Count)
             {
                 var recipe = builtInRecipes[index];
@@ -557,14 +603,14 @@ namespace HorrorGame.Survival
                 // Kiểm tra đủ trước khi trừ
                 for (int i = 0; i < recipe.ingredientNames.Length; i++)
                 {
-                    if (inv.GetItemCountByID(recipe.ingredientNames[i]) < recipe.ingredientAmounts[i])
+                    if (ConstructionBlueprint.GetMatchingItemCount(recipe.ingredientNames[i]) < recipe.ingredientAmounts[i])
                         return false;
                 }
 
                 // Trừ nguyên liệu
                 for (int i = 0; i < recipe.ingredientNames.Length; i++)
                 {
-                    inv.RemoveItemByID(recipe.ingredientNames[i], recipe.ingredientAmounts[i]);
+                    ConstructionBlueprint.RemoveMatchingItem(recipe.ingredientNames[i], recipe.ingredientAmounts[i]);
                 }
                 return true;
             }
@@ -579,9 +625,7 @@ namespace HorrorGame.Survival
 
         int GetIngredientCount(string itemID)
         {
-            var inv = Inventory.InventoryManager.Instance;
-            if (inv == null) return 0;
-            return inv.GetItemCountByID(itemID);
+            return ConstructionBlueprint.GetMatchingItemCount(itemID);
         }
 
         // =============================================
@@ -634,6 +678,11 @@ namespace HorrorGame.Survival
         {
             noticeText = text;
             noticeTimer = 3f;
+        }
+
+        public void ShowExternalNotice(string text)
+        {
+            ShowNotice(text);
         }
 
         // =============================================
@@ -756,9 +805,9 @@ namespace HorrorGame.Survival
             // Hướng dẫn
             GUIStyle hintStyle = new GUIStyle(GUI.skin.label);
             hintStyle.fontSize = 12;
-            hintStyle.normal.textColor = new Color(0.6f, 0.6f, 0.6f);
+            hintStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
             hintStyle.alignment = TextAnchor.MiddleCenter;
-            GUI.Label(new Rect(menuX, menuY + 56, menuWidth, 20), "Chọn công trình để xây — Cần đủ nguyên liệu", hintStyle);
+            GUI.Label(new Rect(menuX, menuY + 56, menuWidth, 20), "Đặt khung mờ định sẵn — Chặt gỗ đóng từng thanh vào khung", hintStyle);
 
             // Danh sách công trình
             float listY = menuY + 82;
@@ -786,7 +835,7 @@ namespace HorrorGame.Survival
             bool hasEnough = HasEnoughIngredients(index);
 
             // Nền item
-            Color bgColor = hasEnough ? new Color(0.18f, 0.22f, 0.18f, 0.9f) : new Color(0.22f, 0.15f, 0.15f, 0.9f);
+            Color bgColor = hasEnough ? new Color(0.18f, 0.24f, 0.20f, 0.92f) : new Color(0.18f, 0.18f, 0.22f, 0.92f);
             GUI.color = bgColor;
             GUI.DrawTexture(new Rect(0, yPos, width, itemHeight), Texture2D.whiteTexture);
             GUI.color = Color.white;
@@ -795,8 +844,8 @@ namespace HorrorGame.Survival
             GUIStyle nameStyle = new GUIStyle();
             nameStyle.fontSize = 18;
             nameStyle.fontStyle = FontStyle.Bold;
-            nameStyle.normal.textColor = hasEnough ? Color.white : new Color(0.7f, 0.5f, 0.5f);
-            GUI.Label(new Rect(10, yPos + 5, width - 20, 28), recipe.name, nameStyle);
+            nameStyle.normal.textColor = new Color(1f, 0.9f, 0.45f);
+            GUI.Label(new Rect(10, yPos + 5, width - 115, 28), recipe.name, nameStyle);
 
             // Mô tả
             GUI.Label(new Rect(10, yPos + 28, width - 20, 20), recipe.description, descStyle);
@@ -814,32 +863,22 @@ namespace HorrorGame.Survival
                 if (have >= need)
                     ingredientText += string.Format("[✓ {0}: {1}/{2}]", displayName, have, need);
                 else
-                    ingredientText += string.Format("[✗ {0}: {1}/{2}]", displayName, have, need);
+                    ingredientText += string.Format("[{0}: {1}/{2}]", displayName, have, need);
             }
 
-            GUIStyle ingStyle = hasEnough ? ingredientStyle : insufficientStyle;
+            GUIStyle ingStyle = hasEnough ? ingredientStyle : new GUIStyle(ingredientStyle);
+            if (!hasEnough) ingStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
             GUI.Label(new Rect(10, yPos + 48, width - 20, 20), ingredientText, ingStyle);
 
-            // Nút chọn
-            if (hasEnough)
-            {
-                GUIStyle btnStyle = new GUIStyle(GUI.skin.button);
-                btnStyle.fontSize = 14;
-                btnStyle.fontStyle = FontStyle.Bold;
-                btnStyle.normal.textColor = Color.white;
+            // Nút chọn đặt khung (luôn cho phép đặt khung mờ phong cách The Forest!)
+            GUIStyle btnStyle = new GUIStyle(GUI.skin.button);
+            btnStyle.fontSize = 13;
+            btnStyle.fontStyle = FontStyle.Bold;
+            btnStyle.normal.textColor = Color.white;
 
-                if (GUI.Button(new Rect(width - 75, yPos + 5, 70, 30), "Xây ▶", btnStyle))
-                {
-                    SelectRecipe(index);
-                }
-            }
-            else
+            if (GUI.Button(new Rect(width - 105, yPos + 6, 100, 32), "Đặt Khung ▶", btnStyle))
             {
-                GUIStyle lblStyle = new GUIStyle(GUI.skin.label);
-                lblStyle.fontSize = 12;
-                lblStyle.normal.textColor = new Color(0.6f, 0.3f, 0.3f);
-                lblStyle.alignment = TextAnchor.MiddleRight;
-                GUI.Label(new Rect(width - 100, yPos + 5, 95, 30), "Thiếu NL", lblStyle);
+                SelectRecipe(index);
             }
         }
 
@@ -867,7 +906,7 @@ namespace HorrorGame.Survival
             guideShadow.normal.textColor = new Color(0, 0, 0, 0.9f);
 
             string guide = canPlace
-                ? "🖱️ Click trái: Đặt công trình  |  Click phải / ESC: Hủy  |  Q / E / Scroll: Xoay"
+                ? "🖱️ Click trái: Đặt khung mờ định sẵn  |  Click phải / ESC: Hủy  |  Q / E / Scroll: Xoay"
                 : "❌ " + (string.IsNullOrEmpty(invalidPlacementReason) ? "Không thể đặt tại đây!" : invalidPlacementReason) + "  |  Click phải / ESC: Hủy";
 
             float gy = Screen.height - 55f;
