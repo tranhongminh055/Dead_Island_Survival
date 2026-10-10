@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc743c008ca2f28498cceb8a6873f822, type: 3}
+  m_Name: raw_meat
+  m_EditorClassIdentifier: 
+  itemID: raw_meat
+  itemName: "Th\u1ECBt S\u1ED1ng"
+  description: "Th\u1ECBt t\u01B0\u01A1i s\u1ED1ng t\u1EEB th\xFA r\u1EEBng. C\xF3 th\u1EC3 n\u1EA5u tr\xEAn l\u1EEDa tr\u1EA1i ho\u1EB7c ch\u1EBF bi\u1EBFn th\xE0nh th\u1ECBt kh\xF4."
+  icon: {fileID: 21300000, guid: c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6, type: 3}
+  itemType: 0
+  isStackable: 1
+  maxStack: 20
+  itemPrefab: {fileID: 0}

@@ -26,31 +26,34 @@ public class AutoAddAirplaneColliders : MonoBehaviour
         
         foreach (MeshFilter mf in allMeshes)
         {
-            // Chỉ gắn cho các object thực sự nằm trong Scene (bỏ qua Prefab trong thư mục Project)
             if (mf.gameObject.scene.IsValid())
             {
-                if (mf.gameObject.GetComponent<Collider>() == null)
+                if (mf.gameObject.GetComponent<Collider>() == null && mf.sharedMesh != null)
                 {
-                    // Các vật thể bị lật ngược (Scale âm) sẽ gây ra lỗi đỏ "mesh to be marked as readable" 
-                    // khi bị ép gắn MeshCollider. Ta sẽ dùng BoxCollider thay thế cho chúng để vừa an toàn vừa nhẹ.
+                    // Kiểm tra Scale âm hoặc Mesh không Readable: Dùng BoxCollider để tránh lỗi console
                     Vector3 s = mf.transform.lossyScale;
-                    if (s.x < 0 || s.y < 0 || s.z < 0)
+                    bool hasNegativeScale = (s.x < 0 || s.y < 0 || s.z < 0);
+
+                    if (hasNegativeScale || !mf.sharedMesh.isReadable)
                     {
                         mf.gameObject.AddComponent<BoxCollider>();
-                        continue;
-                    }
-
-                    try
-                    {
-                        mf.gameObject.AddComponent<MeshCollider>();
                         addedCount++;
                     }
-                    catch (System.Exception)
+                    else
                     {
-                        // Bỏ qua lỗi Read/Write Enabled trên các mesh bị scale âm
+                        try
+                        {
+                            mf.gameObject.AddComponent<MeshCollider>();
+                            addedCount++;
+                        }
+                        catch (System.Exception)
+                        {
+                            mf.gameObject.AddComponent<BoxCollider>();
+                            addedCount++;
+                        }
                     }
-                    // Tránh giật màn hình: cứ thêm 20 cái collider thì cho Unity nghỉ 1 frame để vẽ hình
-                    // Lệnh yield không được đặt bên trong khối try-catch
+
+                    // Tránh giật màn hình: cứ thêm 20 cái collider thì cho Unity nghỉ 1 frame
                     if (addedCount > 0 && addedCount % 20 == 0) yield return null;
                 }
             }
@@ -62,25 +65,31 @@ public class AutoAddAirplaneColliders : MonoBehaviour
         {
             if (smr.gameObject.scene.IsValid())
             {
-                if (smr.gameObject.GetComponent<Collider>() == null)
+                if (smr.gameObject.GetComponent<Collider>() == null && smr.sharedMesh != null)
                 {
                     Vector3 s = smr.transform.lossyScale;
-                    if (s.x < 0 || s.y < 0 || s.z < 0)
+                    bool hasNegativeScale = (s.x < 0 || s.y < 0 || s.z < 0);
+
+                    if (hasNegativeScale || !smr.sharedMesh.isReadable)
                     {
                         smr.gameObject.AddComponent<BoxCollider>();
-                        continue;
-                    }
-
-                    try
-                    {
-                        MeshCollider mc = smr.gameObject.AddComponent<MeshCollider>();
-                        if (smr.sharedMesh != null) mc.sharedMesh = smr.sharedMesh;
                         addedCount++;
                     }
-                    catch (System.Exception)
+                    else
                     {
-                        // Bỏ qua lỗi
+                        try
+                        {
+                            MeshCollider mc = smr.gameObject.AddComponent<MeshCollider>();
+                            if (smr.sharedMesh != null) mc.sharedMesh = smr.sharedMesh;
+                            addedCount++;
+                        }
+                        catch (System.Exception)
+                        {
+                            smr.gameObject.AddComponent<BoxCollider>();
+                            addedCount++;
+                        }
                     }
+
                     if (addedCount > 0 && addedCount % 20 == 0) yield return null;
                 }
             }

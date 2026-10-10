@@ -36,6 +36,10 @@ namespace HorrorGame.Environment
         // Internal
         private float timeSpeed;
         private Light moonLight;
+        public Light MoonLight
+        {
+            get { return moonLight; }
+        }
         
         // Lưu thiết lập gốc
         private float originalSunIntensity;

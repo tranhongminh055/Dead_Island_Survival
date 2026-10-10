@@ -46,10 +46,36 @@ namespace HorrorGame.Player
             // Khóa con trỏ chuột vào giữa màn hình
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+
+            // Load độ nhạy chuột từ cài đặt
+            mouseSensitivity = PlayerPrefs.GetFloat("MouseSensitivity", mouseSensitivity);
+
+            if (playerCamera != null && !HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+            {
+                playerCamera.localPosition = new Vector3(0f, 0.65f, 0.15f);
+            }
+
+            // Tự động kích hoạt hệ thống xây dựng nếu chưa có
+            if (GetComponent<HorrorGame.Survival.BuildingSystem>() == null)
+            {
+                gameObject.AddComponent<HorrorGame.Survival.BuildingSystem>();
+            }
+        }
+
+        void OnEnable()
+        {
+            if (playerCamera != null && !HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+            {
+                playerCamera.localPosition = new Vector3(0f, 0.65f, 0.15f);
+            }
         }
 
         void Update()
         {
+            // Tạm dừng khi Pause Menu đang mở
+            if (HorrorGame.UI.GameMenuManager.IsPaused)
+                return;
+
             // Không nhận input điều khiển khi đang chạy Cutscene mở đầu
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
                 return;

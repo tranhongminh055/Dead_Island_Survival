@@ -77,8 +77,16 @@ namespace HorrorGame.Inventory
 
         private void Update()
         {
-            // Bấm phím I để mở/tắt túi đồ (giống The Forest)
-            if (Input.GetKeyDown(KeyCode.I))
+            if (HorrorGame.UI.GameMenuManager.IsPaused) return;
+
+            // Bấm phím I hoặc TAB để mở/tắt túi đồ
+            if (Input.GetKeyDown(KeyCode.I) || Input.GetKeyDown(KeyCode.Tab))
+            {
+                ToggleInventory();
+            }
+
+            // Nếu túi đồ đang mở mà bấm ESC thì đóng túi đồ
+            if (isInventoryOpen && Input.GetKeyDown(KeyCode.Escape))
             {
                 ToggleInventory();
             }
@@ -119,7 +127,12 @@ namespace HorrorGame.Inventory
             {
                 foreach (InventorySlot slot in slots)
                 {
-                    if (slot.item == item && slot.amount < item.maxStack)
+                    // So sánh bằng cả reference LẪN itemID để hỗ trợ runtime-created items
+                    bool sameItem = (slot.item == item) ||
+                                    (slot.item != null && !string.IsNullOrEmpty(slot.item.itemID) &&
+                                     !string.IsNullOrEmpty(item.itemID) && slot.item.itemID == item.itemID);
+
+                    if (sameItem && slot.amount < item.maxStack)
                     {
                         // Kiểm tra xem có vượt quá maxStack không
                         if (slot.amount + amount <= item.maxStack)
@@ -170,9 +183,17 @@ namespace HorrorGame.Inventory
         {
             foreach (InventorySlot slot in slots)
             {
-                if (slot.item == item && slot.amount > 0)
+                if (slot.item != null && slot.amount > 0)
                 {
-                    return true;
+                    // So sánh bằng itemID thay vì reference, vì runtime-created ItemData
+                    // sẽ có reference khác với instance trong inventory
+                    if (slot.item == item || 
+                        (!string.IsNullOrEmpty(slot.item.itemID) && 
+                         !string.IsNullOrEmpty(item.itemID) && 
+                         slot.item.itemID == item.itemID))
+                    {
+                        return true;
+                    }
                 }
             }
             return false;

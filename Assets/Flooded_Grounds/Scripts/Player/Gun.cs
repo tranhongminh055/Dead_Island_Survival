@@ -62,29 +62,46 @@ namespace HorrorGame.Player
 
             if (isReloading) return;
 
-            // Hết đạn hoặc bấm R -> Thay đạn
-            if (currentAmmo <= 0 || (Input.GetKeyDown(KeyCode.R) && currentAmmo < maxAmmo))
+            // Hết đạn trong băng -> Dừng tiếng súng nếu đang phát
+            if (currentAmmo <= 0)
             {
+                if (shootSound != null && shootSound.isPlaying) shootSound.Stop();
+            }
+
+            // Bấm R -> Thay đạn
+            if (Input.GetKeyDown(KeyCode.R) && currentAmmo < maxAmmo)
+            {
+                if (shootSound != null && shootSound.isPlaying) shootSound.Stop();
                 StartCoroutine(Reload());
                 return;
             }
 
             // Bấm chuột trái để bắn
-            // Dùng GetButton thay vì GetButtonDown để có thể sấy (bắn liên thanh)
-            if (Input.GetButton("Fire1") && Time.time >= nextTimeToFire)
+            if (Input.GetButton("Fire1"))
             {
-                nextTimeToFire = Time.time + 1f / fireRate;
-                Shoot();
+                if (currentAmmo <= 0)
+                {
+                    if (shootSound != null && shootSound.isPlaying) shootSound.Stop();
+                    return; // Hết đạn tuyệt đối không cho bắn
+                }
+                else if (Time.time >= nextTimeToFire)
+                {
+                    nextTimeToFire = Time.time + 1f / fireRate;
+                    Shoot();
+                }
+            }
+
+            if (Input.GetButtonUp("Fire1"))
+            {
+                if (shootSound != null && shootSound.isPlaying) shootSound.Stop();
             }
         }
 
         System.Collections.IEnumerator Reload()
         {
             isReloading = true;
+            if (shootSound != null && shootSound.isPlaying) shootSound.Stop();
             Debug.Log("Đang thay đạn (Reloading)...");
-
-            // Có thể thêm âm thanh thay đạn ở đây (reloadSound.Play())
-            // Có thể thêm Animation thay đạn ở đây (animator.SetTrigger("Reload"))
 
             yield return new WaitForSeconds(reloadTime);
 
@@ -95,6 +112,7 @@ namespace HorrorGame.Player
 
         void Shoot()
         {
+            if (currentAmmo <= 0) return;
             currentAmmo--;
 
             // 1. Phát tia lửa đầu nòng
@@ -117,9 +135,26 @@ namespace HorrorGame.Player
 
                 // Xử lý Zombie bị trúng đạn
                 HorrorGame.Enemy.EnemyAI enemy = hit.transform.GetComponent<HorrorGame.Enemy.EnemyAI>();
+                if (enemy == null) enemy = hit.transform.GetComponentInParent<HorrorGame.Enemy.EnemyAI>();
+                if (enemy == null) enemy = hit.transform.GetComponentInChildren<HorrorGame.Enemy.EnemyAI>();
                 if (enemy != null)
                 {
-                    enemy.TakeDamage(damage);
+                    float currentDamage = damage;
+                    if ((hit.point.y - enemy.transform.position.y) > 1.35f)
+                    {
+                        currentDamage *= 2f;
+                    }
+                    enemy.TakeDamage(currentDamage, hit.point);
+                    HorrorGame.Enemy.EnemyAI.SpawnBloodImpact(hit.point, hit.normal);
+                }
+
+                // Xử lý thú rừng bị bắn trúng (Săn bắt)
+                HorrorGame.Survival.AnimalAI animal = hit.transform.GetComponent<HorrorGame.Survival.AnimalAI>();
+                if (animal == null) animal = hit.transform.GetComponentInParent<HorrorGame.Survival.AnimalAI>();
+                if (animal != null)
+                {
+                    animal.TakeDamage(damage);
+                    Debug.Log("🎯 Bắn trúng " + animal.animalType + "! Damage: " + damage);
                 }
 
                 // Nếu bắn trúng vật lý (thùng phuy, xác chết) -> đẩy lùi nó

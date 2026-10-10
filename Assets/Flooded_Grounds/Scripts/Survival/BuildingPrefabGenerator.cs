@@ -1,318 +1,320 @@
 using UnityEngine;
+using HorrorGame.Environment;
 
 namespace HorrorGame.Survival
 {
     /// <summary>
-    /// Tạo các công trình bằng Primitive shapes (Cube, Cylinder, Sphere).
-    /// Khi có model 3D thật, chỉ cần thay prefab trong BuildingRecipe.
+    /// Tạo mô hình các công trình sinh tồn phong cách The Forest.
+    /// Thiết kế rỗng bên trong với cửa ra vào thực sự đi vào được (không bị tàng hình chặn cửa),
+    /// tích hợp Nơi Nghỉ Ngơi (ShelterRest), Bếp Nướng Thịt (CookingStation) và Rương Đồ (LootChest).
     /// </summary>
     public static class BuildingPrefabGenerator
     {
-        // =====================================================
-        // NHÀ GỖ (4 tường gỗ + sàn + mái dốc)
-        // =====================================================
+        // ═════════════════════════════════════════════════════
+        // 1. NHÀ GỖ (WOOD CABIN) - Cửa đi vào được, có giường ngủ
+        // ═════════════════════════════════════════════════════
         public static GameObject CreateWoodHouse()
         {
             GameObject house = new GameObject("WoodHouse");
 
-            Color woodColor = new Color(0.55f, 0.35f, 0.15f);       // Nâu gỗ
-            Color woodDark = new Color(0.4f, 0.25f, 0.1f);          // Nâu đậm
-            Color roofColor = new Color(0.35f, 0.22f, 0.08f);       // Nâu mái
+            Material woodMat = GetMaterial("BLD_Cabins", new Color(0.55f, 0.35f, 0.16f));
+            Material roofMat = GetMaterial("BLD_Cabins_Mossy", new Color(0.38f, 0.24f, 0.10f));
+            Material floorMat = GetMaterial("BLD_Cabins", new Color(0.42f, 0.26f, 0.12f));
 
-            float wallHeight = 2.5f;
-            float wallWidth = 4f;
-            float wallThick = 0.15f;
+            float wallHeight = 3.2f; // Tăng lên 3.2m để không gian trần nhà cao ráo
+            float wallWidth = 4.4f;  // Rộng 4.4m
+            float wallThick = 0.18f;
 
-            // === SÀN ===
-            CreatePrimitive(house, PrimitiveType.Cube, Vector3.zero,
-                new Vector3(wallWidth, 0.1f, wallWidth), woodDark, "Floor");
+            // === SÀN NHÀ ===
+            CreatePrimitive(house, PrimitiveType.Cube, new Vector3(0, 0.05f, 0),
+                new Vector3(wallWidth, 0.10f, wallWidth), floorMat, "Floor", true);
 
-            // === 4 TƯỜNG ===
-            // Tường trước (có lỗ cửa)
-            // Phần trái cửa
+            // DỐC BƯỚC VÀO CỬA (Ngưỡng cửa vát dốc giúp người chơi bước vào êm ái, không bị khựng)
+            GameObject doorRamp = CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(0, 0.02f, wallWidth / 2f + 0.35f),
+                new Vector3(2.0f, 0.04f, 0.7f), floorMat, "DoorRamp", true);
+            doorRamp.transform.localRotation = Quaternion.Euler(3f, 0, 0);
+
+            // === TƯỜNG TRƯỚC (CỬA RỘNG 2.0M, CAO 2.6M - NGƯỜI CHƠI ĐI QUA THOẢI MÁI) ===
+            float doorWidth = 2.0f;
+            float doorHeight = 2.6f;
+            float sideWallWidth = (wallWidth - doorWidth) / 2f; // 1.2m
+
+            // Mảng tường trái cửa
             CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(-1.3f, wallHeight / 2f, wallWidth / 2f),
-                new Vector3(1.4f, wallHeight, wallThick), woodColor, "FrontWall_L");
-            // Phần phải cửa
-            CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(1.3f, wallHeight / 2f, wallWidth / 2f),
-                new Vector3(1.4f, wallHeight, wallThick), woodColor, "FrontWall_R");
-            // Phần trên cửa
-            CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(0, wallHeight - 0.3f, wallWidth / 2f),
-                new Vector3(1.2f, 0.6f, wallThick), woodColor, "FrontWall_Top");
+                new Vector3(-1.6f, wallHeight / 2f, wallWidth / 2f),
+                new Vector3(sideWallWidth, wallHeight, wallThick), woodMat, "FrontWall_L", true);
 
-            // Tường sau
+            // Mảng tường phải cửa
+            CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(1.6f, wallHeight / 2f, wallWidth / 2f),
+                new Vector3(sideWallWidth, wallHeight, wallThick), woodMat, "FrontWall_R", true);
+
+            // Xà ngang trên cửa (đáy xà ở cao độ 2.6m, cách đỉnh đầu người chơi tới 60cm!)
+            float topWallHeight = wallHeight - doorHeight; // 0.6m
+            CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(0, doorHeight + topWallHeight / 2f, wallWidth / 2f),
+                new Vector3(doorWidth, topWallHeight, wallThick), woodMat, "FrontWall_Top", true);
+
+            // === TƯỜNG SAU ===
             CreatePrimitive(house, PrimitiveType.Cube,
                 new Vector3(0, wallHeight / 2f, -wallWidth / 2f),
-                new Vector3(wallWidth, wallHeight, wallThick), woodColor, "BackWall");
+                new Vector3(wallWidth, wallHeight, wallThick), woodMat, "BackWall", true);
 
-            // Tường trái
+            // === TƯỜNG TRÁI ===
             CreatePrimitive(house, PrimitiveType.Cube,
                 new Vector3(-wallWidth / 2f, wallHeight / 2f, 0),
-                new Vector3(wallThick, wallHeight, wallWidth), woodColor, "LeftWall");
+                new Vector3(wallThick, wallHeight, wallWidth), woodMat, "LeftWall", true);
 
-            // Tường phải (có cửa sổ)
-            // Phần dưới
+            // === TƯỜNG PHẢI (CÓ CỬA SỔ NHÌN RA NGOÀI) ===
             CreatePrimitive(house, PrimitiveType.Cube,
                 new Vector3(wallWidth / 2f, 0.5f, 0),
-                new Vector3(wallThick, 1f, wallWidth), woodColor, "RightWall_Bottom");
-            // Phần trên
+                new Vector3(wallThick, 1.0f, wallWidth), woodMat, "RightWall_Bottom", true);
+
             CreatePrimitive(house, PrimitiveType.Cube,
                 new Vector3(wallWidth / 2f, wallHeight - 0.3f, 0),
-                new Vector3(wallThick, 1.1f, wallWidth), woodColor, "RightWall_Top");
-            // Phần trái cửa sổ
-            CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(wallWidth / 2f, 1.3f, -1.3f),
-                new Vector3(wallThick, 1.1f, 1.4f), woodColor, "RightWall_WL");
-            // Phần phải cửa sổ
-            CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(wallWidth / 2f, 1.3f, 1.3f),
-                new Vector3(wallThick, 1.1f, 1.4f), woodColor, "RightWall_WR");
+                new Vector3(wallThick, 0.6f, wallWidth), woodMat, "RightWall_Top", true);
 
-            // === MÁI NHÀ (2 mặt dốc chữ A) ===
-            // Mái bên trái
+            CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(wallWidth / 2f, 1.8f, -1.4f),
+                new Vector3(wallThick, 1.6f, 1.6f), woodMat, "RightWall_BackPart", true);
+
+            CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(wallWidth / 2f, 1.8f, 1.4f),
+                new Vector3(wallThick, 1.6f, 1.6f), woodMat, "RightWall_FrontPart", true);
+
+            // === MÁI NHÀ CHỮ A ===
             GameObject roofL = CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(-1.2f, wallHeight + 0.6f, 0),
-                new Vector3(2.8f, 0.1f, wallWidth + 0.4f), roofColor, "Roof_L");
-            roofL.transform.localRotation = Quaternion.Euler(0, 0, 25f);
+                new Vector3(-1.35f, wallHeight + 0.7f, 0),
+                new Vector3(3.1f, 0.12f, wallWidth + 0.4f), roofMat, "Roof_L", true);
+            roofL.transform.localRotation = Quaternion.Euler(0, 0, 24f);
 
-            // Mái bên phải
             GameObject roofR = CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(1.2f, wallHeight + 0.6f, 0),
-                new Vector3(2.8f, 0.1f, wallWidth + 0.4f), roofColor, "Roof_R");
-            roofR.transform.localRotation = Quaternion.Euler(0, 0, -25f);
+                new Vector3(1.35f, wallHeight + 0.7f, 0),
+                new Vector3(3.1f, 0.12f, wallWidth + 0.4f), roofMat, "Roof_R", true);
+            roofR.transform.localRotation = Quaternion.Euler(0, 0, -24f);
 
-            // === THANH NÓC MÁI ===
-            CreatePrimitive(house, PrimitiveType.Cylinder,
-                new Vector3(0, wallHeight + 1.2f, 0),
-                new Vector3(0.08f, (wallWidth + 0.4f) / 2f, 0.08f), woodDark, "RoofRidge");
-            house.transform.Find("RoofRidge").localRotation = Quaternion.Euler(90, 0, 0);
+            // === GIƯỜNG NGỦ NGHỈ NGƠI TRONG GÓC NHÀ ===
+            GameObject bed = CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(-1.3f, 0.25f, -1.3f),
+                new Vector3(1.4f, 0.35f, 1.8f), woodMat, "Bed_Wood", true);
 
-            // Thêm collider bao ngoài
-            BoxCollider mainCol = house.AddComponent<BoxCollider>();
-            mainCol.center = new Vector3(0, wallHeight / 2f + 0.5f, 0);
-            mainCol.size = new Vector3(wallWidth + 0.2f, wallHeight + 1.5f, wallWidth + 0.2f);
+            CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(-1.3f, 0.45f, -1.3f),
+                new Vector3(1.2f, 0.15f, 1.6f), GetMaterial("NAT_CobbleRocks1", new Color(0.85f, 0.8f, 0.7f)), "Mattress", true);
+
+            // Gắn ShelterRest lên giường ngủ
+            ShelterRest rest = bed.AddComponent<ShelterRest>();
+            rest.shelterName = "Nhà Gỗ";
+            rest.healAmount = 25f;
 
             return house;
         }
 
-        // =====================================================
-        // NHÀ ĐÁ (4 tường đá xám + mái gỗ)
-        // =====================================================
+        // ═════════════════════════════════════════════════════
+        // 2. NHÀ ĐÁ KIÊN CỐ (STONE HOUSE)
+        // ═════════════════════════════════════════════════════
         public static GameObject CreateStoneHouse()
         {
             GameObject house = new GameObject("StoneHouse");
 
-            Color stoneColor = new Color(0.55f, 0.55f, 0.52f);     // Xám đá
-            Color stoneDark = new Color(0.4f, 0.4f, 0.38f);        // Xám đậm
-            Color woodColor = new Color(0.45f, 0.3f, 0.12f);       // Nâu gỗ mái
+            Material stoneMat = GetMaterial("NAT_CobbleRocks1", new Color(0.55f, 0.55f, 0.52f));
+            Material stoneDark = GetMaterial("NAT_Rocks1", new Color(0.38f, 0.38f, 0.36f));
+            Material roofMat = GetMaterial("BLD_Cabins_Mossy", new Color(0.42f, 0.28f, 0.12f));
 
-            float wallHeight = 2.8f;
-            float wallWidth = 4.5f;
+            float wallHeight = 3.4f; // Cao 3.4m kiên cố và rộng rãi
+            float wallWidth = 4.8f;  // Rộng 4.8m
             float wallThick = 0.25f;
 
             // === SÀN ĐÁ ===
-            CreatePrimitive(house, PrimitiveType.Cube, Vector3.zero,
-                new Vector3(wallWidth, 0.15f, wallWidth), stoneDark, "Floor");
+            CreatePrimitive(house, PrimitiveType.Cube, new Vector3(0, 0.05f, 0),
+                new Vector3(wallWidth, 0.10f, wallWidth), stoneDark, "Floor", true);
 
-            // === 4 TƯỜNG ĐÁ ===
-            // Tường trước (lỗ cửa)
-            CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(-1.5f, wallHeight / 2f, wallWidth / 2f),
-                new Vector3(1.5f, wallHeight, wallThick), stoneColor, "FrontWall_L");
-            CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(1.5f, wallHeight / 2f, wallWidth / 2f),
-                new Vector3(1.5f, wallHeight, wallThick), stoneColor, "FrontWall_R");
-            CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(0, wallHeight - 0.3f, wallWidth / 2f),
-                new Vector3(1.5f, 0.6f, wallThick), stoneColor, "FrontWall_Top");
+            // Dốc ngưỡng cửa đá
+            GameObject doorRamp = CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(0, 0.02f, wallWidth / 2f + 0.35f),
+                new Vector3(2.0f, 0.04f, 0.7f), stoneDark, "DoorRamp", true);
+            doorRamp.transform.localRotation = Quaternion.Euler(3f, 0, 0);
 
-            // Tường sau
+            // === TƯỜNG TRƯỚC (CÓ CỬA VÀO RỘNG 2.0M, CAO 2.7M) ===
+            float doorWidth = 2.0f;
+            float doorHeight = 2.7f;
+            float sideWallWidth = (wallWidth - doorWidth) / 2f; // 1.4m
+
+            CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(-1.7f, wallHeight / 2f, wallWidth / 2f),
+                new Vector3(sideWallWidth, wallHeight, wallThick), stoneMat, "FrontWall_L", true);
+
+            CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(1.7f, wallHeight / 2f, wallWidth / 2f),
+                new Vector3(sideWallWidth, wallHeight, wallThick), stoneMat, "FrontWall_R", true);
+
+            float topWallHeight = wallHeight - doorHeight; // 0.7m
+            CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(0, doorHeight + topWallHeight / 2f, wallWidth / 2f),
+                new Vector3(doorWidth, topWallHeight, wallThick), stoneMat, "FrontWall_Top", true);
+
+            // === 3 TƯỜNG ĐÁ BẢO VỆ ===
             CreatePrimitive(house, PrimitiveType.Cube,
                 new Vector3(0, wallHeight / 2f, -wallWidth / 2f),
-                new Vector3(wallWidth, wallHeight, wallThick), stoneColor, "BackWall");
+                new Vector3(wallWidth, wallHeight, wallThick), stoneMat, "BackWall", true);
 
-            // Tường trái
             CreatePrimitive(house, PrimitiveType.Cube,
                 new Vector3(-wallWidth / 2f, wallHeight / 2f, 0),
-                new Vector3(wallThick, wallHeight, wallWidth), stoneColor, "LeftWall");
+                new Vector3(wallThick, wallHeight, wallWidth), stoneMat, "LeftWall", true);
 
-            // Tường phải
             CreatePrimitive(house, PrimitiveType.Cube,
                 new Vector3(wallWidth / 2f, wallHeight / 2f, 0),
-                new Vector3(wallThick, wallHeight, wallWidth), stoneColor, "RightWall");
+                new Vector3(wallThick, wallHeight, wallWidth), stoneMat, "RightWall", true);
 
-            // === MÁI GỖ (phẳng hơi dốc) ===
+            // === MÁI GỖ DỐC ===
             GameObject roofL = CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(-1.3f, wallHeight + 0.5f, 0),
-                new Vector3(3f, 0.12f, wallWidth + 0.5f), woodColor, "Roof_L");
-            roofL.transform.localRotation = Quaternion.Euler(0, 0, 20f);
+                new Vector3(-1.45f, wallHeight + 0.65f, 0),
+                new Vector3(3.3f, 0.14f, wallWidth + 0.4f), roofMat, "Roof_L", true);
+            roofL.transform.localRotation = Quaternion.Euler(0, 0, 18f);
 
             GameObject roofR = CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(1.3f, wallHeight + 0.5f, 0),
-                new Vector3(3f, 0.12f, wallWidth + 0.5f), woodColor, "Roof_R");
-            roofR.transform.localRotation = Quaternion.Euler(0, 0, -20f);
+                new Vector3(1.45f, wallHeight + 0.65f, 0),
+                new Vector3(3.3f, 0.14f, wallWidth + 0.4f), roofMat, "Roof_R", true);
+            roofR.transform.localRotation = Quaternion.Euler(0, 0, -18f);
 
-            // Viền đá trang trí quanh chân tường
-            CreatePrimitive(house, PrimitiveType.Cube,
-                new Vector3(0, 0.15f, 0),
-                new Vector3(wallWidth + 0.3f, 0.3f, wallWidth + 0.3f), stoneDark, "Foundation");
+            // Bệ nghỉ ngơi bằng đá bên trong
+            GameObject restBench = CreatePrimitive(house, PrimitiveType.Cube,
+                new Vector3(-1.4f, 0.3f, -1.4f),
+                new Vector3(1.6f, 0.45f, 1.8f), stoneDark, "StoneBed", true);
 
-            BoxCollider mainCol = house.AddComponent<BoxCollider>();
-            mainCol.center = new Vector3(0, wallHeight / 2f + 0.5f, 0);
-            mainCol.size = new Vector3(wallWidth + 0.3f, wallHeight + 1.5f, wallWidth + 0.3f);
+            ShelterRest rest = restBench.AddComponent<ShelterRest>();
+            rest.shelterName = "Nhà Đá Kiên Cố";
+            rest.healAmount = 35f;
 
             return house;
         }
 
-        // =====================================================
-        // LỀU LÁ KIỂU THE FOREST (khung chữ A + lá phủ)
-        // =====================================================
+        // ═════════════════════════════════════════════════════
+        // 3. LỀU LÁ SINH TỒN (LEAF SHELTER - THE FOREST)
+        // ═════════════════════════════════════════════════════
         public static GameObject CreateLeafShelter()
         {
             GameObject shelter = new GameObject("LeafShelter");
 
-            Color woodColor = new Color(0.5f, 0.32f, 0.13f);    // Cọc gỗ
-            Color leafColor = new Color(0.2f, 0.5f, 0.12f);     // Xanh lá
-            Color leafDark = new Color(0.15f, 0.4f, 0.08f);     // Xanh lá đậm
+            Material woodMat = GetMaterial("BLD_Cabins", new Color(0.48f, 0.32f, 0.14f));
+            Color leafColor = new Color(0.20f, 0.52f, 0.14f);
+            Color leafDark = new Color(0.14f, 0.40f, 0.08f);
 
-            float length = 3f;
-            float height = 2f;
+            float length = 3.4f;
+            float height = 2.5f;
 
-            // === KHUNG GỖ CHỮ A ===
-            // Thanh nóc chính (ngang dọc theo chiều dài)
-            CreatePrimitive(shelter, PrimitiveType.Cylinder,
+            // Cọc nóc chính
+            GameObject ridge = CreatePrimitive(shelter, PrimitiveType.Cylinder,
                 new Vector3(0, height, 0),
-                new Vector3(0.06f, length / 2f, 0.06f), woodColor, "Ridge");
-            shelter.transform.Find("Ridge").localRotation = Quaternion.Euler(90, 0, 0);
+                new Vector3(0.08f, length / 2f, 0.08f), woodMat, "Ridge", true);
+            ridge.transform.localRotation = Quaternion.Euler(90, 0, 0);
 
-            // Cọc chữ A - phía trước (2 cọc chéo)
-            GameObject frontL = CreatePrimitive(shelter, PrimitiveType.Cylinder,
-                new Vector3(-0.6f, height / 2f, length / 2f),
-                new Vector3(0.05f, height / 1.4f, 0.05f), woodColor, "FrontPole_L");
-            frontL.transform.localRotation = Quaternion.Euler(0, 0, 25f);
+            // Khung cọc trước (TẮT collider để người chơi đi thẳng vào lều không bị kẹt)
+            GameObject poleFL = CreatePrimitive(shelter, PrimitiveType.Cylinder,
+                new Vector3(-1.05f, height / 2f, length / 2f),
+                new Vector3(0.06f, height / 1.3f, 0.06f), woodMat, "FrontPole_L", false);
+            poleFL.transform.localRotation = Quaternion.Euler(0, 0, 32f);
 
-            GameObject frontR = CreatePrimitive(shelter, PrimitiveType.Cylinder,
-                new Vector3(0.6f, height / 2f, length / 2f),
-                new Vector3(0.05f, height / 1.4f, 0.05f), woodColor, "FrontPole_R");
-            frontR.transform.localRotation = Quaternion.Euler(0, 0, -25f);
+            GameObject poleFR = CreatePrimitive(shelter, PrimitiveType.Cylinder,
+                new Vector3(1.05f, height / 2f, length / 2f),
+                new Vector3(0.06f, height / 1.3f, 0.06f), woodMat, "FrontPole_R", false);
+            poleFR.transform.localRotation = Quaternion.Euler(0, 0, -32f);
 
-            // Cọc chữ A - phía sau (2 cọc chéo)
-            GameObject backL = CreatePrimitive(shelter, PrimitiveType.Cylinder,
-                new Vector3(-0.6f, height / 2f, -length / 2f),
-                new Vector3(0.05f, height / 1.4f, 0.05f), woodColor, "BackPole_L");
-            backL.transform.localRotation = Quaternion.Euler(0, 0, 25f);
+            // Khung cọc sau
+            GameObject poleBL = CreatePrimitive(shelter, PrimitiveType.Cylinder,
+                new Vector3(-1.05f, height / 2f, -length / 2f),
+                new Vector3(0.06f, height / 1.3f, 0.06f), woodMat, "BackPole_L", true);
+            poleBL.transform.localRotation = Quaternion.Euler(0, 0, 32f);
 
-            GameObject backR = CreatePrimitive(shelter, PrimitiveType.Cylinder,
-                new Vector3(0.6f, height / 2f, -length / 2f),
-                new Vector3(0.05f, height / 1.4f, 0.05f), woodColor, "BackPole_R");
-            backR.transform.localRotation = Quaternion.Euler(0, 0, -25f);
+            GameObject poleBR = CreatePrimitive(shelter, PrimitiveType.Cylinder,
+                new Vector3(1.05f, height / 2f, -length / 2f),
+                new Vector3(0.06f, height / 1.3f, 0.06f), woodMat, "BackPole_R", true);
+            poleBR.transform.localRotation = Quaternion.Euler(0, 0, -32f);
 
-            // Thanh ngang phụ (giữ lá)
-            CreatePrimitive(shelter, PrimitiveType.Cylinder,
-                new Vector3(-0.8f, height * 0.4f, 0),
-                new Vector3(0.04f, length / 2f, 0.04f), woodColor, "SideBar_L");
-            shelter.transform.Find("SideBar_L").localRotation = Quaternion.Euler(90, 0, 0);
-
-            CreatePrimitive(shelter, PrimitiveType.Cylinder,
-                new Vector3(0.8f, height * 0.4f, 0),
-                new Vector3(0.04f, length / 2f, 0.04f), woodColor, "SideBar_R");
-            shelter.transform.Find("SideBar_R").localRotation = Quaternion.Euler(90, 0, 0);
-
-            // === LỚP LÁ PHỦ ===
-            // Mái lá bên trái (dốc)
+            // Mái lá trái dốc
             GameObject leafL = CreatePrimitive(shelter, PrimitiveType.Cube,
-                new Vector3(-0.75f, height * 0.65f, 0),
-                new Vector3(1.8f, 0.08f, length + 0.2f), leafColor, "LeafRoof_L");
-            leafL.transform.localRotation = Quaternion.Euler(0, 0, 40f);
+                new Vector3(-1.1f, height * 0.55f, 0),
+                new Vector3(2.4f, 0.08f, length + 0.2f), null, "LeafRoof_L", true);
+            SetColor(leafL, leafColor);
+            leafL.transform.localRotation = Quaternion.Euler(0, 0, 42f);
 
-            // Mái lá bên phải (dốc)
+            // Mái lá phải dốc
             GameObject leafR = CreatePrimitive(shelter, PrimitiveType.Cube,
-                new Vector3(0.75f, height * 0.65f, 0),
-                new Vector3(1.8f, 0.08f, length + 0.2f), leafColor, "LeafRoof_R");
-            leafR.transform.localRotation = Quaternion.Euler(0, 0, -40f);
+                new Vector3(1.1f, height * 0.55f, 0),
+                new Vector3(2.4f, 0.08f, length + 0.2f), null, "LeafRoof_R", true);
+            SetColor(leafR, leafColor);
+            leafR.transform.localRotation = Quaternion.Euler(0, 0, -42f);
 
-            // Lớp lá thêm (tạo độ dày, xịn hơn)
-            GameObject leafL2 = CreatePrimitive(shelter, PrimitiveType.Cube,
-                new Vector3(-0.7f, height * 0.6f, 0),
-                new Vector3(1.6f, 0.06f, length - 0.2f), leafDark, "LeafLayer2_L");
-            leafL2.transform.localRotation = Quaternion.Euler(0, 0, 40f);
+            // Tường lá phía sau che gió
+            GameObject backWall = CreatePrimitive(shelter, PrimitiveType.Cube,
+                new Vector3(0, height * 0.45f, -length / 2f),
+                new Vector3(2.1f, height * 0.9f, 0.08f), null, "BackLeafWall", true);
+            SetColor(backWall, leafDark);
 
-            GameObject leafR2 = CreatePrimitive(shelter, PrimitiveType.Cube,
-                new Vector3(0.7f, height * 0.6f, 0),
-                new Vector3(1.6f, 0.06f, length - 0.2f), leafDark, "LeafLayer2_R");
-            leafR2.transform.localRotation = Quaternion.Euler(0, 0, -40f);
+            // Đệm lá nằm ngủ bên trong
+            GameObject leafBed = CreatePrimitive(shelter, PrimitiveType.Cube,
+                new Vector3(0, 0.1f, -0.2f),
+                new Vector3(1.3f, 0.15f, 1.9f), null, "LeafBed", true);
+            SetColor(leafBed, new Color(0.35f, 0.65f, 0.22f));
 
-            // Tường sau bằng lá (chắn gió)
-            CreatePrimitive(shelter, PrimitiveType.Cube,
-                new Vector3(0, height * 0.45f, -length / 2f - 0.05f),
-                new Vector3(1.6f, height * 0.9f, 0.06f), leafDark, "BackLeafWall");
-
-            BoxCollider mainCol = shelter.AddComponent<BoxCollider>();
-            mainCol.center = new Vector3(0, height / 2f, 0);
-            mainCol.size = new Vector3(2f, height, length);
+            ShelterRest rest = leafBed.AddComponent<ShelterRest>();
+            rest.shelterName = "Lều Lá";
+            rest.healAmount = 20f;
 
             return shelter;
         }
 
-        // =====================================================
-        // HÀNG RÀO GỖ (3 cọc + 2 thanh ngang)
-        // =====================================================
+        // ═════════════════════════════════════════════════════
+        // 4. HÀNG RÀO PHÒNG THỦ (WOOD FENCE)
+        // ═════════════════════════════════════════════════════
         public static GameObject CreateWoodFence()
         {
             GameObject fence = new GameObject("WoodFence");
+            Material woodMat = GetMaterial("BLD_Cabins", new Color(0.48f, 0.32f, 0.14f));
 
-            Color woodColor = new Color(0.5f, 0.33f, 0.14f);
-            Color woodDark = new Color(0.38f, 0.24f, 0.1f);
-
-            float fenceHeight = 1.5f;
-            float fenceWidth = 3f;
+            float fenceHeight = 1.6f;
+            float fenceWidth = 3.2f;
 
             // 3 cọc đứng
             for (int i = 0; i < 3; i++)
             {
-                float xPos = -fenceWidth / 2f + (fenceWidth / 2f) * i;
+                float x = -fenceWidth / 2f + (fenceWidth / 2f) * i;
                 CreatePrimitive(fence, PrimitiveType.Cylinder,
-                    new Vector3(xPos, fenceHeight / 2f, 0),
-                    new Vector3(0.08f, fenceHeight / 2f, 0.08f), woodColor, "Post_" + i);
-
-                // Đầu nhọn cọc
-                CreatePrimitive(fence, PrimitiveType.Cube,
-                    new Vector3(xPos, fenceHeight + 0.05f, 0),
-                    new Vector3(0.1f, 0.1f, 0.1f), woodDark, "PostTop_" + i);
+                    new Vector3(x, fenceHeight / 2f, 0),
+                    new Vector3(0.1f, fenceHeight / 2f, 0.1f), woodMat, "Post_" + i, true);
             }
 
-            // 2 thanh ngang
+            // 2 thanh giằng ngang
             CreatePrimitive(fence, PrimitiveType.Cube,
-                new Vector3(0, fenceHeight * 0.7f, 0),
-                new Vector3(fenceWidth, 0.08f, 0.06f), woodDark, "Rail_Top");
+                new Vector3(0, fenceHeight * 0.72f, 0),
+                new Vector3(fenceWidth, 0.09f, 0.08f), woodMat, "Rail_Top", true);
 
             CreatePrimitive(fence, PrimitiveType.Cube,
-                new Vector3(0, fenceHeight * 0.3f, 0),
-                new Vector3(fenceWidth, 0.08f, 0.06f), woodDark, "Rail_Bottom");
+                new Vector3(0, fenceHeight * 0.28f, 0),
+                new Vector3(fenceWidth, 0.09f, 0.08f), woodMat, "Rail_Bottom", true);
 
+            // Collider cản đường người chơi & zombie
             BoxCollider col = fence.AddComponent<BoxCollider>();
             col.center = new Vector3(0, fenceHeight / 2f, 0);
-            col.size = new Vector3(fenceWidth, fenceHeight, 0.3f);
+            col.size = new Vector3(fenceWidth, fenceHeight, 0.35f);
 
             return fence;
         }
 
-        // =====================================================
-        // LỬA TRẠI (vòng đá + thanh gỗ chéo + ánh lửa)
-        // =====================================================
+        // ═════════════════════════════════════════════════════
+        // 5. LỬA TRẠI NẤU ĂN (CAMPFIRE + COOKING STATION)
+        // ═════════════════════════════════════════════════════
         public static GameObject CreateCampfire()
         {
             GameObject campfire = new GameObject("Campfire");
 
-            Color stoneColor = new Color(0.45f, 0.45f, 0.42f);
-            Color woodColor = new Color(0.45f, 0.28f, 0.1f);
-            Color ashColor = new Color(0.25f, 0.22f, 0.2f);
+            Material stoneMat = GetMaterial("NAT_CobbleRocks1", new Color(0.45f, 0.45f, 0.42f));
+            Material woodMat = GetMaterial("BLD_Cabins", new Color(0.40f, 0.25f, 0.10f));
 
-            // Vòng đá (8 viên đá xếp vòng tròn)
+            // Vòng 8 viên đá
             int stoneCount = 8;
-            float ringRadius = 0.5f;
+            float ringRadius = 0.55f;
             for (int i = 0; i < stoneCount; i++)
             {
                 float angle = (360f / stoneCount) * i * Mathf.Deg2Rad;
@@ -320,74 +322,146 @@ namespace HorrorGame.Survival
                 float z = Mathf.Sin(angle) * ringRadius;
 
                 GameObject stone = CreatePrimitive(campfire, PrimitiveType.Sphere,
-                    new Vector3(x, 0.08f, z),
-                    new Vector3(0.2f, 0.15f, 0.2f), stoneColor, "Stone_" + i);
+                    new Vector3(x, 0.10f, z),
+                    new Vector3(0.24f, 0.18f, 0.24f), stoneMat, "Stone_" + i, false);
                 stone.transform.localRotation = Random.rotation;
             }
 
-            // Nền tro
-            CreatePrimitive(campfire, PrimitiveType.Cylinder,
-                new Vector3(0, 0.02f, 0),
-                new Vector3(0.8f, 0.02f, 0.8f), ashColor, "AshBase");
+            // Tro than đen
+            GameObject ash = CreatePrimitive(campfire, PrimitiveType.Cylinder,
+                new Vector3(0, 0.03f, 0),
+                new Vector3(0.85f, 0.03f, 0.85f), null, "AshBase", false);
+            SetColor(ash, new Color(0.18f, 0.16f, 0.15f));
 
-            // Thanh gỗ chéo (kiểu chữ X)
+            // 3 khúc củi chéo
             GameObject log1 = CreatePrimitive(campfire, PrimitiveType.Cylinder,
-                new Vector3(0, 0.15f, 0),
-                new Vector3(0.06f, 0.4f, 0.06f), woodColor, "Log1");
-            log1.transform.localRotation = Quaternion.Euler(60, 0, 0);
+                new Vector3(0, 0.16f, 0), new Vector3(0.08f, 0.42f, 0.08f), woodMat, "Log1", false);
+            log1.transform.localRotation = Quaternion.Euler(55, 0, 0);
 
             GameObject log2 = CreatePrimitive(campfire, PrimitiveType.Cylinder,
-                new Vector3(0, 0.15f, 0),
-                new Vector3(0.06f, 0.4f, 0.06f), woodColor, "Log2");
-            log2.transform.localRotation = Quaternion.Euler(60, 90, 0);
+                new Vector3(0, 0.16f, 0), new Vector3(0.08f, 0.42f, 0.08f), woodMat, "Log2", false);
+            log2.transform.localRotation = Quaternion.Euler(55, 90, 0);
 
             GameObject log3 = CreatePrimitive(campfire, PrimitiveType.Cylinder,
-                new Vector3(0, 0.15f, 0),
-                new Vector3(0.05f, 0.35f, 0.05f), woodColor, "Log3");
-            log3.transform.localRotation = Quaternion.Euler(60, 45, 0);
+                new Vector3(0, 0.16f, 0), new Vector3(0.07f, 0.38f, 0.07f), woodMat, "Log3", false);
+            log3.transform.localRotation = Quaternion.Euler(55, 45, 0);
 
-            // Ánh lửa (Point Light)
+            // Ánh lửa bập bùng
             GameObject lightObj = new GameObject("FireLight");
             lightObj.transform.SetParent(campfire.transform);
-            lightObj.transform.localPosition = new Vector3(0, 0.5f, 0);
+            lightObj.transform.localPosition = new Vector3(0, 0.55f, 0);
             Light fireLight = lightObj.AddComponent<Light>();
             fireLight.type = LightType.Point;
-            fireLight.color = new Color(1f, 0.6f, 0.15f);
-            fireLight.range = 10f;
-            fireLight.intensity = 2f;
+            fireLight.color = new Color(1f, 0.65f, 0.2f);
+            fireLight.range = 12f;
+            fireLight.intensity = 2.2f;
 
+            // BoxCollider tương tác
             BoxCollider col = campfire.AddComponent<BoxCollider>();
-            col.center = new Vector3(0, 0.2f, 0);
-            col.size = new Vector3(1.2f, 0.5f, 1.2f);
+            col.center = new Vector3(0, 0.3f, 0);
+            col.size = new Vector3(1.3f, 0.6f, 1.3f);
+
+            // Gắn CookingStation để nướng thịt sống thành thịt chín!
+            CookingStation cooker = campfire.AddComponent<CookingStation>();
+            cooker.cookTime = 12f;
+            cooker.burnTime = 28f;
+            cooker.fireLight = fireLight;
 
             return campfire;
         }
 
-        // =====================================================
-        // HELPER: Tạo Primitive có vị trí, scale, màu sắc
-        // =====================================================
+        // ═════════════════════════════════════════════════════
+        // 6. RƯƠNG ĐỒ CHỨA VẬT PHẨM (STORAGE CHEST)
+        // ═════════════════════════════════════════════════════
+        public static GameObject CreateWoodChest()
+        {
+            GameObject chestObj = new GameObject("WoodChest");
+            Material woodMat = GetMaterial("BLD_Cabins", new Color(0.48f, 0.32f, 0.14f));
+            Material metalMat = GetMaterial("NAT_Rocks1", new Color(0.25f, 0.25f, 0.28f));
+
+            // Thùng gỗ chính
+            CreatePrimitive(chestObj, PrimitiveType.Cube,
+                new Vector3(0, 0.32f, 0),
+                new Vector3(1.1f, 0.62f, 0.75f), woodMat, "ChestBody", true);
+
+            // Nắp thùng
+            CreatePrimitive(chestObj, PrimitiveType.Cube,
+                new Vector3(0, 0.66f, 0),
+                new Vector3(1.14f, 0.10f, 0.79f), woodMat, "ChestLid", true);
+
+            // Khóa sắt
+            CreatePrimitive(chestObj, PrimitiveType.Cube,
+                new Vector3(0, 0.50f, 0.39f),
+                new Vector3(0.12f, 0.16f, 0.05f), metalMat, "MetalLock", false);
+
+            BoxCollider col = chestObj.AddComponent<BoxCollider>();
+            col.center = new Vector3(0, 0.35f, 0);
+            col.size = new Vector3(1.15f, 0.72f, 0.8f);
+
+            // Gắn LootChest làm rương chứa đồ
+            LootChest chest = chestObj.AddComponent<LootChest>();
+            chest.promptText = "[E] Mở Rương Chứa Đồ";
+            chest.gunAmount = 0;
+            chest.ammoAmount = 0;
+
+            return chestObj;
+        }
+
+        // ═════════════════════════════════════════════════════
+        // HELPER FUNCTIONS
+        // ═════════════════════════════════════════════════════
         private static GameObject CreatePrimitive(GameObject parent, PrimitiveType type,
-            Vector3 localPos, Vector3 localScale, Color color, string name)
+            Vector3 localPos, Vector3 localScale, Material mat, string name, bool enableCollider = true)
         {
             GameObject obj = GameObject.CreatePrimitive(type);
             obj.name = name;
-            obj.transform.SetParent(parent.transform);
+            obj.transform.SetParent(parent.transform, false);
             obj.transform.localPosition = localPos;
             obj.transform.localScale = localScale;
 
-            // Đặt màu sắc
-            Renderer renderer = obj.GetComponent<Renderer>();
-            if (renderer != null)
+            Renderer r = obj.GetComponent<Renderer>();
+            if (r != null && mat != null)
             {
-                renderer.material = new Material(Shader.Find("Standard"));
-                renderer.material.color = color;
+                r.sharedMaterial = mat;
             }
 
-            // Tắt Collider con (để không va chạm nội bộ)
             Collider col = obj.GetComponent<Collider>();
-            if (col != null) col.enabled = false;
+            if (col != null)
+            {
+                col.enabled = enableCollider;
+            }
 
             return obj;
+        }
+
+        private static void SetColor(GameObject obj, Color color)
+        {
+            Renderer r = obj.GetComponent<Renderer>();
+            if (r != null)
+            {
+                Shader s = Shader.Find("Standard");
+                if (s == null) s = Shader.Find("Diffuse");
+                Material m = new Material(s);
+                m.color = color;
+                r.material = m;
+            }
+        }
+
+        private static Material GetMaterial(string matName, Color fallbackColor)
+        {
+            Material mat = null;
+#if UNITY_EDITOR
+            mat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Flooded_Grounds/Content/Materials/" + matName + ".mat");
+#endif
+            if (mat == null)
+            {
+                Shader s = Shader.Find("Standard");
+                if (s == null) s = Shader.Find("Mobile/Diffuse");
+                if (s == null) s = Shader.Find("Diffuse");
+                mat = new Material(s);
+                mat.color = fallbackColor;
+            }
+            return mat;
         }
     }
 }
