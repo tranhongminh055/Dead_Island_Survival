@@ -103,11 +103,15 @@ namespace HorrorGame.Enemy
                 return;
             }
 
-            // Chỉ tính khoảng cách trên mặt phẳng (bỏ qua độ cao Y) để tránh lỗi lệch tâm (pivot)
+            // Tính khoảng cách theo phương ngang và chênh lệch độ cao Y
             Vector3 targetPos = new Vector3(player.position.x, transform.position.y, player.position.z);
-            float distanceToPlayer = Vector3.Distance(transform.position, targetPos);
+            float horizontalDistance = Vector3.Distance(transform.position, targetPos);
+            float heightDiff = Mathf.Abs(player.position.y - transform.position.y);
 
-            if (distanceToPlayer <= attackRange)
+            // Zombie chỉ có thể với tới cào trúng khi áp sát ngang (<= attackRange) VÀ chênh lệch độ cao <= 2.2m
+            bool canReachPlayer = (horizontalDistance <= attackRange) && (heightDiff <= 2.2f);
+
+            if (canReachPlayer)
             {
                 // Áp sát -> Dừng lại và Tấn công
                 agent.speed = 0f;
@@ -138,7 +142,17 @@ namespace HorrorGame.Enemy
                     }
                 }
             }
-            else if (distanceToPlayer <= chaseRange)
+            else if (horizontalDistance <= attackRange && heightDiff > 2.2f)
+            {
+                // Người chơi đang đứng trên cao ngoài tầm với (trên nóc nhà, tảng đá, cánh máy bay...):
+                // Zombie dừng lại dưới chân, hướng mặt nhìn lên người chơi nhưng KHÔNG THỂ cào trúng gây mất máu
+                agent.speed = 0f;
+                agent.SetDestination(transform.position);
+                animator.SetFloat("Speed", 0f);
+                isInvestigatingSound = false;
+                transform.LookAt(new Vector3(player.position.x, transform.position.y, player.position.z));
+            }
+            else if (horizontalDistance <= chaseRange)
             {
                 // Nằm trong tầm nhìn -> Chạy rượt đuổi
                 agent.speed = runSpeed;

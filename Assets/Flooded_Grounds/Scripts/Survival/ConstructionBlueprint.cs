@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using HorrorGame.Inventory;
+using HorrorGame.Environment;
 
 namespace HorrorGame.Survival
 {
@@ -107,7 +108,7 @@ namespace HorrorGame.Survival
         /// </summary>
         public void Initialize(string name, string[] ids, string[] displayNames, int[] required,
             System.Func<GameObject> createFunc, GameObject prefab, Material ghostMat,
-            AudioClip placeSnd, AudioClip compSnd, AudioClip cancSnd)
+            AudioClip placeSnd, AudioClip compSnd, AudioClip cancSnd, Transform camTransform = null)
         {
             structureName = name;
             ingredientIDs = ids;
@@ -119,9 +120,22 @@ namespace HorrorGame.Survival
             resultPrefab = prefab;
             ghostBlueprintMat = ghostMat;
 
+            if (camTransform != null) playerCamera = camTransform;
+
             if (placeSnd != null) placeMaterialSound = placeSnd;
             if (compSnd != null) completeSound = compSnd;
             if (cancSnd != null) cancelSound = cancSnd;
+
+            // Vô hiệu hóa các component tương tác (ShelterRest, CookingStation, LootChest) trên khung mờ:
+            // Chỉ khi công trình hoàn thành thật sự mới cho phép ngủ / nấu nướng / mở rương!
+            ShelterRest[] rests = GetComponentsInChildren<ShelterRest>();
+            for (int i = 0; i < rests.Length; i++) Destroy(rests[i]);
+
+            CookingStation[] cooks = GetComponentsInChildren<CookingStation>();
+            for (int i = 0; i < cooks.Length; i++) Destroy(cooks[i]);
+
+            LootChest[] chests = GetComponentsInChildren<LootChest>();
+            for (int i = 0; i < chests.Length; i++) Destroy(chests[i]);
 
             // Thu thập toàn bộ Renderers và lưu lại material gốc
             childRenderers.Clear();
@@ -165,6 +179,14 @@ namespace HorrorGame.Survival
 
             CalculateBounds();
 
+            // Thêm Trigger BoxCollider bao trọn công trình lên root blueprint:
+            // Giúp tia nhìn (Raycast) và tương tác người chơi luôn bắt trúng khung mờ mượt mà
+            BoxCollider rootTrigger = GetComponent<BoxCollider>();
+            if (rootTrigger == null) rootTrigger = gameObject.AddComponent<BoxCollider>();
+            rootTrigger.isTrigger = true;
+            rootTrigger.size = buildingBounds.size + new Vector3(0.5f, 0.5f, 0.5f);
+            rootTrigger.center = transform.InverseTransformPoint(buildingBounds.center);
+
             // Cập nhật hiển thị tiến độ ban đầu (0%)
             UpdateProgressVisuals();
 
@@ -195,19 +217,62 @@ namespace HorrorGame.Survival
             if (playerCamera == null)
             {
                 Camera cam = Camera.main;
-                if (cam != null) playerCamera = cam.transform;
+                if (cam == null)
+                {
+                    Camera[] cams = Camera.allCameras;
+                    if (cams != null && cams.Length > 0)
+                    {
+                        for (int i = 0; i < cams.Length; i++)
+                        {
+                            if (cams[i] != null && cams[i].enabled && cams[i].gameObject.activeInHierarchy)
+                            {
+                                cam = cams[i];
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (cam == null) cam = FindObjectOfType<Camera>();
+
+                if (cam != null)
+                {
+                    playerCamera = cam.transform;
+                    try
+                    {
+                        if (!cam.CompareTag("MainCamera"))
+                        {
+                            cam.tag = "MainCamera";
+                        }
+                    }
+                    catch {}
+                }
             }
 
             if (playerTransform == null)
             {
-                GameObject p = GameObject.FindGameObjectWithTag("Player");
-                if (p != null) playerTransform = p.transform;
-                else if (playerCamera != null) playerTransform = playerCamera.root;
+                var pc = FindObjectOfType<Player.PlayerController>();
+                if (pc != null)
+                {
+                    playerTransform = pc.transform;
+                    if (playerCamera == null && pc.playerCamera != null)
+                    {
+                        playerCamera = pc.playerCamera;
+                    }
+                }
+                else
+                {
+                    GameObject p = GameObject.FindGameObjectWithTag("Player");
+                    if (p != null) playerTransform = p.transform;
+                    else if (playerCamera != null) playerTransform = playerCamera.root;
+                }
             }
         }
 
         void Update()
         {
+            if (HorrorGame.UI.GameMenuManager.IsPaused) return;
+            if (InventoryManager.Instance != null && InventoryManager.Instance.isInventoryOpen) return;
+
             FindPlayer();
             if (playerCamera == null) return;
 
@@ -217,19 +282,20 @@ namespace HorrorGame.Survival
 
             if (isPlayerLooking)
             {
-                // 1. Bấm nhấp [E] (nhát đầu tiên đóng ngay lập tức)
+                // 1. Bấm nhấp [E] (Đóng 1 hoặc đóng toàn bộ nếu giữ Shift)
                 if (Input.GetKeyDown(KeyCode.E))
                 {
-                    TryDepositMaterial();
+                    bool shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                    TryDepositMaterial(shiftHeld);
                     holdDepositTimer = 0f;
                 }
-                // 2. Hoặc Giữ [E] (tự động đóng liên tục sau 0.25s giữ phím)
+                // 2. Hoặc Giữ [E] (tự động đóng liên tục sau 0.22s giữ phím)
                 else if (Input.GetKey(KeyCode.E))
                 {
                     holdDepositTimer += Time.deltaTime;
-                    if (holdDepositTimer >= 0.25f && Time.time - lastDepositTime >= RAPID_DEPOSIT_INTERVAL)
+                    if (holdDepositTimer >= 0.22f && Time.time - lastDepositTime >= RAPID_DEPOSIT_INTERVAL)
                     {
-                        TryDepositMaterial();
+                        TryDepositMaterial(false);
                     }
                 }
                 else
@@ -268,38 +334,38 @@ namespace HorrorGame.Survival
 
             if (!boundsCalculated) CalculateBounds();
 
-            // Khoảng cách từ camera người chơi đến mép gần nhất của công trình (Bounds)
-            float distToBounds = Mathf.Sqrt(buildingBounds.SqrDistance(playerCamera.position));
-
-            // Quá xa so với công trình (> 10m) thì bỏ qua
-            if (distToBounds > 10.0f) return;
-
-            // 1. Raycast từ camera hướng về phía trước (QueryTriggerInteraction.Collide để bắt trúng collider trigger của khung)
-            Ray ray = new Ray(playerCamera.position, playerCamera.forward);
-            RaycastHit hit;
-            if (Physics.Raycast(ray, out hit, interactionRayDistance, ~0, QueryTriggerInteraction.Collide))
+            // 1. Raycast từ camera hướng về phía trước (bắt đầu cách camera 0.35m để vượt qua collider của camera/player)
+            Ray ray = new Ray(playerCamera.position + playerCamera.forward * 0.35f, playerCamera.forward);
+            RaycastHit[] hits = Physics.RaycastAll(ray, interactionRayDistance, ~0, QueryTriggerInteraction.Collide);
+            for (int i = 0; i < hits.Length; i++)
             {
-                if (hit.transform == transform || hit.transform.IsChildOf(transform) || transform.IsChildOf(hit.transform))
+                Transform hitT = hits[i].transform;
+                if (hitT == transform || hitT.IsChildOf(transform) || transform.IsChildOf(hitT))
                 {
                     isPlayerLooking = true;
                     return;
                 }
             }
 
-            // 2. Nếu người chơi đang đứng bên trong hoặc ngay mép công trình (< 4.5m)
-            if (distToBounds <= proximityDistance)
+            // 2. Kiểm tra khoảng cách đứng gần công trình (Proximity)
+            float distToCenter = Vector3.Distance(transform.position, playerCamera.position);
+            float distToBounds = boundsCalculated ? Mathf.Sqrt(buildingBounds.SqrDistance(playerCamera.position)) : distToCenter;
+
+            // Nếu người chơi đứng trong phạm vi gần (<= 6.5m từ mép hoặc <= 8.5m từ tâm)
+            if (distToBounds <= proximityDistance || distToCenter <= 8.5f)
             {
                 // Nếu người chơi đứng bên trong công trình: luôn luôn nhận diện!
-                if (buildingBounds.Contains(playerCamera.position))
+                if (boundsCalculated && buildingBounds.Contains(playerCamera.position))
                 {
                     isPlayerLooking = true;
                     return;
                 }
 
-                // Nếu đứng bên ngoài mép công trình: nhìn tương đối về phía công trình (góc > 0.25 ~ 75 độ)
-                Vector3 dirToCenter = (buildingBounds.center - playerCamera.position).normalized;
-                float dot = Vector3.Dot(playerCamera.forward, dirToCenter);
-                if (dot > 0.25f)
+                // Nếu đứng bên ngoài mép công trình: nhìn tương đối về phía công trình
+                Vector3 targetPos = boundsCalculated ? buildingBounds.center : (transform.position + Vector3.up * 1.5f);
+                Vector3 dirToTarget = (targetPos - playerCamera.position).normalized;
+                float dot = Vector3.Dot(playerCamera.forward, dirToTarget);
+                if (dot > 0.15f)
                 {
                     isPlayerLooking = true;
                     return;
@@ -423,80 +489,119 @@ namespace HorrorGame.Survival
         }
 
         /// <summary>
-        /// Thử đóng 1 thanh gỗ / nguyên liệu vào khung
+        /// Thử đóng nguyên liệu vào khung (đóng 1 thanh hoặc đóng toàn bộ khi giữ Shift)
         /// </summary>
-        private void TryDepositMaterial()
+        private void TryDepositMaterial(bool depositAll = false)
         {
-            // Tìm nguyên liệu còn thiếu mà người chơi đang có trong túi
-            int foundIndex = -1;
-            for (int i = 0; i < ingredientIDs.Length; i++)
+            bool depositedAny = false;
+            int depositCount = 0;
+
+            while (true)
             {
-                if (ingredientCurrent[i] < ingredientRequired[i])
+                // 1. Tìm nguyên liệu còn thiếu mà người chơi đang có trong túi
+                int foundIndex = -1;
+                for (int i = 0; i < ingredientIDs.Length; i++)
                 {
-                    if (GetMatchingItemCount(ingredientIDs[i]) > 0)
+                    if (ingredientCurrent[i] < ingredientRequired[i])
                     {
-                        foundIndex = i;
-                        break;
+                        if (GetMatchingItemCount(ingredientIDs[i]) > 0)
+                        {
+                            foundIndex = i;
+                            break;
+                        }
                     }
                 }
-            }
 
-            // 1. Nếu có trong túi đồ: Trừ 1 và tăng tiến độ
-            if (foundIndex >= 0)
-            {
-                string id = ingredientIDs[foundIndex];
-                bool success = RemoveMatchingItem(id, 1);
-                if (success)
+                if (foundIndex >= 0)
                 {
-                    ingredientCurrent[foundIndex]++;
-
-                    PlaySound(placeMaterialSound);
-                    ShowFeedback(string.Format("+1 {0} vào khung! ({1}/{2})", ingredientDisplayNames[foundIndex], ingredientCurrent[foundIndex], ingredientRequired[foundIndex]));
-
-                    lastDepositTime = Time.time;
-                    UpdateProgressVisuals();
-                    CheckIfCompleted();
-                    return;
-                }
-            }
-
-            // 2. Nếu trong túi không có gỗ: Tìm khúc gỗ WoodLog trên mặt đất gần đó (< 6.0m)
-            for (int i = 0; i < ingredientIDs.Length; i++)
-            {
-                string target = ingredientIDs[i].ToLower();
-                if (target == "wood" && ingredientCurrent[i] < ingredientRequired[i])
-                {
-                    Collider[] groundObjects = Physics.OverlapSphere(transform.position + Vector3.up * 1f, 6.0f);
-                    for (int k = 0; k < groundObjects.Length; k++)
+                    string id = ingredientIDs[foundIndex];
+                    bool success = RemoveMatchingItem(id, 1);
+                    if (success)
                     {
-                        Collider gCol = groundObjects[k];
-                        if (gCol == null) continue;
+                        ingredientCurrent[foundIndex]++;
+                        depositedAny = true;
+                        depositCount++;
+                        lastDepositTime = Time.time;
 
-                        PickupItem pickup = gCol.GetComponentInParent<PickupItem>();
-                        if (pickup != null && pickup.itemData != null && IsItemMatch(pickup.itemData, "wood"))
+                        if (!depositAll)
                         {
-                            // Hút khúc gỗ từ mặt đất vào công trình!
-                            GameObject logObj = pickup.gameObject;
-                            Destroy(logObj);
-
-                            ingredientCurrent[i]++;
                             PlaySound(placeMaterialSound);
-                            ShowFeedback(string.Format("+1 Gỗ từ mặt đất! ({0}/{1})", ingredientCurrent[i], ingredientRequired[i]));
-
-                            lastDepositTime = Time.time;
+                            ShowFeedback(string.Format("+1 {0} vào khung! ({1}/{2})", ingredientDisplayNames[foundIndex], ingredientCurrent[foundIndex], ingredientRequired[foundIndex]));
                             UpdateProgressVisuals();
                             CheckIfCompleted();
                             return;
                         }
+
+                        // Kiểm tra nếu đã hoàn thành toàn bộ công trình
+                        bool allDone = true;
+                        for (int c = 0; c < ingredientRequired.Length; c++)
+                        {
+                            if (ingredientCurrent[c] < ingredientRequired[c]) { allDone = false; break; }
+                        }
+                        if (allDone) break;
+
+                        continue;
                     }
                 }
+
+                // 2. Nếu trong túi không có gỗ: Tìm khúc gỗ WoodLog trên mặt đất gần đó (< 7.0m)
+                bool groundFound = false;
+                for (int i = 0; i < ingredientIDs.Length; i++)
+                {
+                    string target = ingredientIDs[i].ToLower();
+                    if (target == "wood" && ingredientCurrent[i] < ingredientRequired[i])
+                    {
+                        Vector3 searchPos = playerCamera != null ? playerCamera.position : transform.position;
+                        Collider[] groundObjects = Physics.OverlapSphere(searchPos, 7.0f);
+                        for (int k = 0; k < groundObjects.Length; k++)
+                        {
+                            Collider gCol = groundObjects[k];
+                            if (gCol == null) continue;
+
+                            PickupItem pickup = gCol.GetComponentInParent<PickupItem>();
+                            if (pickup != null && pickup.itemData != null && IsItemMatch(pickup.itemData, "wood"))
+                            {
+                                Destroy(pickup.gameObject);
+                                ingredientCurrent[i]++;
+                                depositedAny = true;
+                                depositCount++;
+                                groundFound = true;
+                                lastDepositTime = Time.time;
+
+                                if (!depositAll)
+                                {
+                                    PlaySound(placeMaterialSound);
+                                    ShowFeedback(string.Format("+1 Gỗ từ mặt đất! ({0}/{1})", ingredientCurrent[i], ingredientRequired[i]));
+                                    UpdateProgressVisuals();
+                                    CheckIfCompleted();
+                                    return;
+                                }
+                                break;
+                            }
+                        }
+                        if (groundFound && !depositAll) break;
+                    }
+                }
+
+                if (groundFound && depositAll) continue;
+
+                break;
             }
 
-            // 3. Nếu hoàn toàn không có nguyên liệu
-            if (Time.time - lastDepositTime >= 1.0f)
+            if (depositedAny)
             {
-                ShowFeedback("❌ Bạn không có khúc gỗ nào! Hãy dùng rìu chặt cây để lấy gỗ.");
-                lastDepositTime = Time.time;
+                PlaySound(placeMaterialSound);
+                ShowFeedback(string.Format("Đã đóng {0} nguyên liệu vào khung!", depositCount));
+                UpdateProgressVisuals();
+                CheckIfCompleted();
+            }
+            else
+            {
+                if (Time.time - lastDepositTime >= 0.8f)
+                {
+                    ShowFeedback("❌ Bạn không có nguyên liệu phù hợp trong túi đồ!");
+                    lastDepositTime = Time.time;
+                }
             }
         }
 
@@ -857,7 +962,7 @@ namespace HorrorGame.Survival
             if (hasAnyInBag)
             {
                 promptStyle.normal.textColor = new Color(0.35f, 1f, 0.45f);
-                GUI.Label(new Rect(barX, curY, barW, 22), "👉 Bấm [E] hoặc Giữ [E]: Đóng gỗ/nguyên liệu vào khung", promptStyle);
+                GUI.Label(new Rect(barX, curY, barW, 22), "👉 [E]: Đóng 1  |  [Shift + E]: Đóng tất cả  |  Giữ [E]: Đóng liên tục", promptStyle);
             }
             else
             {

@@ -110,11 +110,11 @@ namespace HorrorGame.Environment
             PlayerStats stats = player.GetComponent<PlayerStats>();
             if (stats != null)
             {
-                stats.currentHealth = PlayerPrefs.GetFloat("Player_Health", stats.maxHealth);
-                stats.currentStamina = PlayerPrefs.GetFloat("Player_Stamina", stats.maxStamina);
-                stats.currentHunger = PlayerPrefs.GetFloat("Player_Hunger", stats.maxHunger);
-                stats.currentThirst = PlayerPrefs.GetFloat("Player_Thirst", stats.maxThirst);
-                stats.currentSanity = PlayerPrefs.GetFloat("Player_Sanity", stats.maxSanity);
+                stats.currentHealth = Mathf.Max(50f, PlayerPrefs.GetFloat("Player_Health", stats.maxHealth));
+                stats.currentStamina = Mathf.Max(50f, PlayerPrefs.GetFloat("Player_Stamina", stats.maxStamina));
+                stats.currentHunger = Mathf.Max(50f, PlayerPrefs.GetFloat("Player_Hunger", stats.maxHunger));
+                stats.currentThirst = Mathf.Max(50f, PlayerPrefs.GetFloat("Player_Thirst", stats.maxThirst));
+                stats.currentSanity = Mathf.Max(50f, PlayerPrefs.GetFloat("Player_Sanity", stats.maxSanity));
             }
         }
 

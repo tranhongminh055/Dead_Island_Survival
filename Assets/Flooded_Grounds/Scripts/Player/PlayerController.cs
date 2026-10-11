@@ -25,9 +25,9 @@ namespace HorrorGame.Player
         public float crouchHeight = 1f;
 
         // Trạng thái (States)
-        private bool isSprinting = false;
-        private bool isCrouching = false;
-        private bool isGrounded = false;
+        public bool isSprinting = false;
+        public bool isCrouching = false;
+        public bool isGrounded = false;
         
         // Component References
         private CharacterController controller;
@@ -40,6 +40,10 @@ namespace HorrorGame.Player
         void Start()
         {
             controller = GetComponent<CharacterController>();
+            if (controller != null && !HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+            {
+                controller.enabled = true;
+            }
             stats = GetComponent<PlayerStats>();
             animator = GetComponentInChildren<Animator>();
 
@@ -55,6 +59,18 @@ namespace HorrorGame.Player
                 playerCamera.localPosition = new Vector3(0f, 0.65f, 0.15f);
             }
 
+            if (playerCamera != null)
+            {
+                try
+                {
+                    if (!playerCamera.CompareTag("MainCamera"))
+                    {
+                        playerCamera.tag = "MainCamera";
+                    }
+                }
+                catch {}
+            }
+
             // Tự động kích hoạt hệ thống xây dựng nếu chưa có
             if (GetComponent<HorrorGame.Survival.BuildingSystem>() == null)
             {
@@ -64,6 +80,12 @@ namespace HorrorGame.Player
 
         void OnEnable()
         {
+            if (controller == null) controller = GetComponent<CharacterController>();
+            if (controller != null && !HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+            {
+                controller.enabled = true;
+            }
+
             if (playerCamera != null && !HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
             {
                 playerCamera.localPosition = new Vector3(0f, 0.65f, 0.15f);

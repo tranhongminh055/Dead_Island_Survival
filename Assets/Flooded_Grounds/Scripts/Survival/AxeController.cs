@@ -577,6 +577,11 @@ namespace HorrorGame.Survival
             isSwinging = true;
             swingTimer = 0f;
 
+            // Tiêu hao calo và nước khi vung rìu chặt cây (chuẩn The Forest & Green Hell)
+            var playerStats = GetComponentInParent<HorrorGame.Player.PlayerStats>();
+            if (playerStats == null) playerStats = FindObjectOfType<HorrorGame.Player.PlayerStats>();
+            if (playerStats != null) playerStats.OnExertion(1.0f);
+
             // Phát âm thanh chặt
             if (chopSound != null) audioSource.PlayOneShot(chopSound);
 

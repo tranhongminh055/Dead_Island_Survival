@@ -60,43 +60,47 @@ namespace HorrorGame.Survival
             switch (itemID)
             {
                 case "raw_meat":
-                    playerStats.Eat(10f);
+                    playerStats.Eat(12f);
                     playerStats.TakeDamage(5f);
-                    playerStats.DrainSanity(10f);
-                    message = "🥩 Ăn thịt sống... (+10 No, -5 HP, -10 Tinh thần)";
+                    playerStats.DrainSanity(15f);
+                    message = "🥩 Ăn thịt sống tanh tưởi... (+12 No, -5 HP, -15 Tinh thần)";
                     consumed = true;
                     break;
 
                 case "cooked_meat":
-                    playerStats.Eat(30f);
-                    playerStats.Heal(10f);
-                    message = "🍖 Ăn thịt chín! (+30 No, +10 HP)";
+                    playerStats.Eat(35f);
+                    playerStats.Heal(15f);
+                    playerStats.RestoreSanity(10f);
+                    message = "🍖 Ăn thịt nướng thơm ngon! (+35 No, +15 HP, +10 Tinh thần)";
                     consumed = true;
                     break;
 
                 case "burnt_meat":
                     playerStats.Eat(10f);
                     playerStats.TakeDamage(5f);
-                    message = "💀 Ăn thịt cháy... (+10 No, -5 HP)";
+                    playerStats.DrainSanity(5f);
+                    message = "💀 Ăn thịt cháy khét... (+10 No, -5 HP, -5 Tinh thần)";
                     consumed = true;
                     break;
 
                 case "dried_meat":
-                    playerStats.Eat(40f);
-                    message = "🍖 Ăn thịt khô! (+40 No)";
+                    playerStats.Eat(45f);
+                    playerStats.Heal(10f);
+                    playerStats.RestoreSanity(15f);
+                    message = "🍖 Ăn thịt khô dinh dưỡng! (+45 No, +10 HP, +15 Tinh thần)";
                     consumed = true;
                     break;
 
                 case "bandage":
-                    playerStats.Heal(25f);
-                    message = "💊 Dùng băng gạc! (+25 HP)";
+                    playerStats.Heal(30f);
+                    message = "💊 Dùng băng gạc băng bó vết thương! (+30 HP)";
                     consumed = true;
                     break;
 
                 case "herbal_medicine":
                     playerStats.Heal(50f);
-                    playerStats.RestoreSanity(20f);
-                    message = "🧴 Dùng thuốc thảo dược! (+50 HP, +20 Tinh thần)";
+                    playerStats.RestoreSanity(25f);
+                    message = "🧴 Dùng thuốc thảo dược quý! (+50 HP, +25 Tinh thần)";
                     consumed = true;
                     break;
 

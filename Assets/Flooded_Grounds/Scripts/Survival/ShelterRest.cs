@@ -98,10 +98,11 @@ namespace HorrorGame.Survival
             if (stats != null)
             {
                 stats.Heal(healAmount);
+                stats.maxStamina = 100f; // Xóa tan mệt mỏi Fatigue, khôi phục 100% trần thể lực!
                 stats.currentStamina = stats.maxStamina;
-                stats.currentSanity = Mathf.Min(stats.maxSanity, stats.currentSanity + sanityAmount);
-                ShowNotice(string.Format("✨ Bạn đã nghỉ ngơi an toàn trong {0}! (+{1} Máu, Đầy Thể Lực)", shelterName, healAmount));
-                Debug.Log(string.Format("⛺ [ShelterRest] Người chơi nghỉ ngơi trong {0}. Máu: {1}/{2}", shelterName, stats.currentHealth, stats.maxHealth));
+                stats.RestoreSanity(sanityAmount);
+                ShowNotice(string.Format("✨ Bạn đã nghỉ ngơi an toàn trong {0}! (+{1} Máu, +{2} Tinh thần, Hồi phục hoàn toàn)", shelterName, healAmount, sanityAmount));
+                Debug.Log(string.Format("⛺ [ShelterRest] Người chơi nghỉ ngơi trong {0}. Máu: {1}/{2}, Sanity: {3}", shelterName, stats.currentHealth, stats.maxHealth, stats.currentSanity));
             }
         }
 

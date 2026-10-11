@@ -20,9 +20,9 @@ namespace HorrorGame.Environment.Weather
 
         [Header("── Tốc Độ ──")]
         [Tooltip("Tốc độ bị ướt khi đứng dầm mưa (% mỗi giây)")]
-        public float wetRate = 4.5f;
+        public float wetRate = 2.0f;
         [Tooltip("Tốc độ tự khô ráo trong thời tiết nắng ráo (% mỗi giây)")]
-        public float dryRate = 2.0f;
+        public float dryRate = 2.5f;
         [Tooltip("Tốc độ khô nhanh khi đứng cạnh đống lửa (% mỗi giây)")]
         public float campfireDryRate = 8.0f;
 
@@ -30,7 +30,7 @@ namespace HorrorGame.Environment.Weather
         [Tooltip("Mức độ ướt bắt đầu bị nhiễm lạnh (mặc định 60%)")]
         public float coldThreshold = 60f;
         [Tooltip("Tốc độ hao tổn Tinh thần khi dầm mưa bão lạnh")]
-        public float wetSanityDrainRate = 0.5f;
+        public float wetSanityDrainRate = 0.05f;
 
         private PlayerStats playerStats;
         private bool isNearFire = false;
@@ -81,27 +81,17 @@ namespace HorrorGame.Environment.Weather
 
         private void ApplySurvivalPenalties()
         {
-            if (playerStats == null || playerStats.isDead) return;
+            if (playerStats == null || playerStats.isDead || playerStats.isNearFire) return;
 
             // Khi người bị ướt sũng (> 60%)
             if (wetness >= coldThreshold)
             {
                 float coldSeverity = (wetness - coldThreshold) / (100f - coldThreshold);
 
-                // 1. Tụt Tinh Thần (Sanity) do rét run
-                if (WeatherSystem.Instance != null && WeatherSystem.Instance.IsThunderstorm)
-                {
-                    playerStats.DrainSanity(wetSanityDrainRate * coldSeverity * 1.5f * Time.deltaTime);
-                }
-                else
-                {
-                    playerStats.DrainSanity(wetSanityDrainRate * coldSeverity * Time.deltaTime);
-                }
-
-                // 2. Thể lực giảm sút do lạnh cóng
+                // Thể lực giảm sút do cơ thể rét run (Sanity được tính toán tập trung đồng bộ trong PlayerStats)
                 if (playerStats.currentStamina > 0)
                 {
-                    playerStats.currentStamina -= (2f * coldSeverity) * Time.deltaTime;
+                    playerStats.currentStamina -= (1.5f * coldSeverity) * Time.deltaTime;
                 }
             }
         }

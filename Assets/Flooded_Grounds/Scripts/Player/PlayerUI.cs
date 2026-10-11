@@ -54,12 +54,12 @@ namespace HorrorGame.Player
                 else return;
             }
 
-            // Cập nhật độ dài của các thanh UI liên tục theo thời gian thực
-            if (healthSlider != null) healthSlider.value = playerStats.currentHealth;
-            if (staminaSlider != null) staminaSlider.value = playerStats.currentStamina;
-            if (hungerSlider != null) hungerSlider.value = playerStats.currentHunger;
-            if (thirstSlider != null) thirstSlider.value = playerStats.currentThirst;
-            if (sanitySlider != null) sanitySlider.value = playerStats.currentSanity;
+            // Cập nhật độ dài và trần tối đa của các thanh UI liên tục theo thời gian thực (hiển thị Fatigue)
+            if (healthSlider != null) { healthSlider.maxValue = playerStats.maxHealth; healthSlider.value = playerStats.currentHealth; }
+            if (staminaSlider != null) { staminaSlider.maxValue = playerStats.maxStamina; staminaSlider.value = playerStats.currentStamina; }
+            if (hungerSlider != null) { hungerSlider.maxValue = playerStats.maxHunger; hungerSlider.value = playerStats.currentHunger; }
+            if (thirstSlider != null) { thirstSlider.maxValue = playerStats.maxThirst; thirstSlider.value = playerStats.currentThirst; }
+            if (sanitySlider != null) { sanitySlider.maxValue = playerStats.maxSanity; sanitySlider.value = playerStats.currentSanity; }
 
             // Cập nhật cho dạng Hình ảnh (Dạ dày đầy/vơi) - Tính theo tỷ lệ 0 đến 1
             if (hungerImage != null) hungerImage.fillAmount = playerStats.currentHunger / playerStats.maxHunger;
