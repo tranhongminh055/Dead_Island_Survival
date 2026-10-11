@@ -28,7 +28,7 @@ namespace HorrorGame.Player
         [Header("Sanity (Tinh thần - Green Hell & The Forest)")]
         public float maxSanity = 100f;
         public float currentSanity;
-        public float campfireSanityRegenRate = 0.42f; // Hơi ấm lửa trại hồi phục tinh thần (+0.42/s)
+        public float campfireSanityRegenRate = 2.5f; // Hơi ấm lửa trại hồi phục tinh thần nhanh (+2.5/s)
 
         [Header("Health Regeneration (Hồi Máu Tự Nhiên)")]
         public float naturalHealRate = 0.25f; // Tự hồi máu khi no đủ (>70%) và tinh thần ổn định
@@ -48,6 +48,9 @@ namespace HorrorGame.Player
         // References
         private Environment.Weather.PlayerWetness playerWetness;
 
+        // Singleton Instance duy nhất cho toàn bộ hệ thống
+        public static PlayerStats Instance;
+
         // HUD thông báo trạng thái
         private string statusNoticeText = "";
         private float statusNoticeTimer = 0f;
@@ -60,8 +63,28 @@ namespace HorrorGame.Player
         private GUIStyle statusStyle;
         private GUIStyle statusShadowStyle;
 
+        private void Awake()
+        {
+            if (Instance == null)
+            {
+                Instance = this;
+            }
+            else if (Instance != this)
+            {
+                Debug.LogWarning("[PlayerStats] ⚠️ Phát hiện component PlayerStats thứ 2 bị trùng lặp trên Player! Đang tự động gỡ bỏ component thừa...");
+                DestroyImmediate(this);
+                return;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+        }
+
         private void Start()
         {
+            if (Instance != null && Instance != this) return;
             // Luôn đảm bảo thời gian chạy mượt mà ở tốc độ bình thường
             Time.timeScale = 1.0f;
             isDead = false;
@@ -80,6 +103,12 @@ namespace HorrorGame.Player
             if (GetComponent<Effects.SanityEffects>() == null)
             {
                 gameObject.AddComponent<Effects.SanityEffects>();
+            }
+
+            // Đảm bảo có ZombieParasiteSystem để xử lý ký sinh trùng chuẩn Green Hell
+            if (GetComponent<ZombieParasiteSystem>() == null)
+            {
+                gameObject.AddComponent<ZombieParasiteSystem>();
             }
         }
 
@@ -129,6 +158,15 @@ namespace HorrorGame.Player
             // Chạy nước rút đổ nhiều mồ hôi nên mất nước nhanh gấp 2.8 lần
             float thirstExertion = (pc != null && pc.isSprinting) ? 2.8f : exertionMultiplier;
             float currentThirstDrain = baseThirstDrainRate * thirstExertion;
+
+            // KÝ SINH TRÙNG (PARASITES): Hút kiệt dinh dưỡng trong dạ dày và ruột
+            ZombieParasiteSystem parasiteSys = GetComponent<ZombieParasiteSystem>();
+            if (parasiteSys != null && parasiteSys.parasiteCount > 0)
+            {
+                float parasiteFactor = 1f + (parasiteSys.parasiteCount * parasiteSys.hungerDrainMultiplierPerParasite);
+                currentHungerDrain *= parasiteFactor;
+                currentThirstDrain *= parasiteFactor;
+            }
 
             if (currentHunger > 0) currentHunger -= currentHungerDrain * Time.deltaTime;
             if (currentThirst > 0) currentThirst -= currentThirstDrain * Time.deltaTime;
@@ -182,11 +220,11 @@ namespace HorrorGame.Player
             CheckNearbyCampfire();
 
             if (playerWetness == null) playerWetness = GetComponent<Environment.Weather.PlayerWetness>();
-            if (playerWetness != null && playerWetness.wetness > 60f && !isNearFire)
+            if (playerWetness != null && playerWetness.wetness > 85f && !isNearFire)
             {
-                // Bị ướt sũng dầm mưa rét buốt mà không có lửa sưởi
-                DrainSanity(0.14f * Time.deltaTime);
-                if (Time.time - lastColdNoticeTime >= 15f)
+                // Bị ướt sũng dầm mưa rét buốt chỉ tụt nhẹ để không gây ức chế
+                DrainSanity(0.04f * Time.deltaTime);
+                if (Time.time - lastColdNoticeTime >= 25f)
                 {
                     ShowStatusNotice("🥶 Cơ thể ướt sũng rét run... Cần tìm lửa sưởi ấm (-Tinh thần)");
                     lastColdNoticeTime = Time.time;
@@ -222,18 +260,25 @@ namespace HorrorGame.Player
             // ═══════════════════════════════════════════════════════════════
             if (isNearFire)
             {
-                // 🔥 ĐỨNG GẦN LỬA TRẠI: Hơi ấm xoa dịu tinh thần, hồi phục Sanity liên tục!
+                // 🔥 ĐỨNG GẦN LỬA TRẠI: Hơi ấm xoa dịu tinh thần, hồi phục Sanity nhanh (+2.5/s)!
                 RestoreSanity(campfireSanityRegenRate * Time.deltaTime);
-                if (Time.time - lastFireNoticeTime >= 12f)
+
+                // Đồng thời hơi ấm lửa trại sưởi ấm và hồi phục sinh lực nhẹ (+0.5 HP/s)
+                if (currentHealth < maxHealth)
                 {
-                    ShowStatusNotice("🔥 Hơi ấm lửa trại đang xoa dịu tâm trí (+Tinh thần)");
+                    Heal(0.5f * Time.deltaTime);
+                }
+
+                if (Time.time - lastFireNoticeTime >= 10f)
+                {
+                    ShowStatusNotice("🔥 Hơi ấm lửa trại đang xoa dịu tâm trí (+Tinh thần, +Sưởi ấm)");
                     lastFireNoticeTime = Time.time;
                 }
             }
-            else if (currentHunger >= 50f && currentThirst >= 50f && currentHealth >= 70f && currentSanity < 100f)
+            else if (currentHunger >= 50f && currentThirst >= 50f && currentHealth >= 60f && currentSanity < 100f)
             {
-                // Khi không đói, không khát, không lạnh, máu đầy đủ: Tinh thần tự bình yên ổn định
-                RestoreSanity(0.04f * Time.deltaTime);
+                // Khi không đói, không khát, máu ổn định: Tinh thần tự bình yên (+0.25/s)
+                RestoreSanity(0.25f * Time.deltaTime);
             }
 
             // Trạng thái phát điên (Insanity) khi Sanity = 0
@@ -242,17 +287,20 @@ namespace HorrorGame.Player
 
             // ═══════════════════════════════════════════════════════════════
             // 6. HỒI MÁU TỰ NHIÊN KHI CƠ THỂ NO ĐỦ (NATURAL HEALTH REGEN)
-            // Chuẩn The Forest & Green Hell: No bụng (>70%), Đủ nước (>70%), Tinh thần ổn (>50%) -> Tự hồi máu!
+            // Chuẩn The Forest & Green Hell: No bụng (>60%), Đủ nước (>60%) -> Tự hồi máu & Tinh thần ổn định!
             // ═══════════════════════════════════════════════════════════════
-            bool canNaturallyHeal = (currentHunger >= 70f && currentThirst >= 70f && currentSanity >= 50f && currentHealth < maxHealth);
+            bool canNaturallyHeal = (currentHunger >= 60f && currentThirst >= 60f && currentHealth < maxHealth);
             isHealingNaturally = canNaturallyHeal;
 
             if (canNaturallyHeal)
             {
                 Heal(naturalHealRate * Time.deltaTime);
-                if (Time.time - lastHealNoticeTime >= 18f && currentHealth < maxHealth - 5f)
+                // Cơ thể hồi phục cũng giúp tinh thần dần phấn chấn trở lại
+                RestoreSanity(0.45f * Time.deltaTime);
+
+                if (Time.time - lastHealNoticeTime >= 15f && currentHealth < maxHealth - 2f)
                 {
-                    ShowStatusNotice("💚 Cơ thể no đủ đang tự hồi phục sinh lực (+Máu)");
+                    ShowStatusNotice("💚 Cơ thể no đủ đang tự hồi phục sinh lực (+Máu, +Tinh thần)");
                     lastHealNoticeTime = Time.time;
                 }
             }
@@ -277,20 +325,38 @@ namespace HorrorGame.Player
         }
 
         /// <summary>
-        /// Quét các đống lửa trại xung quanh trong bán kính 5.5m
+        /// Quét các đống lửa trại xung quanh trong bán kính 8.5m
         /// </summary>
         private void CheckNearbyCampfire()
         {
-            Collider[] colliders = Physics.OverlapSphere(transform.position, 5.5f);
             isNearFire = false;
+
+            // 1. Quét trực tiếp các trạm nấu nướng / lửa trại (CookingStation) trong Scene
+            var cookers = FindObjectsOfType<Survival.CookingStation>();
+            if (cookers != null)
+            {
+                for (int i = 0; i < cookers.Length; i++)
+                {
+                    if (cookers[i] != null && Vector3.Distance(transform.position, cookers[i].transform.position) <= 8.5f)
+                    {
+                        isNearFire = true;
+                        return;
+                    }
+                }
+            }
+
+            // 2. Quét các Collider lân cận (bán kính 8.5m)
+            Collider[] colliders = Physics.OverlapSphere(transform.position, 8.5f, ~0, QueryTriggerInteraction.Collide);
             for (int i = 0; i < colliders.Length; i++)
             {
                 if (colliders[i] == null) continue;
                 string colName = colliders[i].name.ToLower();
-                if (colName.Contains("fire") || colName.Contains("camp") || colliders[i].GetComponentInParent<Survival.CookingStation>() != null)
+                if (colName.Contains("fire") || colName.Contains("camp") || colName.Contains("lửa") ||
+                    colliders[i].GetComponentInParent<Survival.CookingStation>() != null ||
+                    colliders[i].GetComponentInChildren<Survival.CookingStation>() != null)
                 {
                     isNearFire = true;
-                    break;
+                    return;
                 }
             }
         }
@@ -383,16 +449,28 @@ namespace HorrorGame.Player
             if (currentHealth > maxHealth) currentHealth = maxHealth;
         }
 
-        public void Eat(float amount)
+        public void Eat(float amount, float sanityBonus = 0f)
         {
             currentHunger += amount;
             if (currentHunger > maxHunger) currentHunger = maxHunger;
+
+            // Ăn uống giúp dạ dày ấm no, lập tức xoa dịu tinh thần chuẩn The Forest & Green Hell!
+            float sanityGain = sanityBonus > 0f ? sanityBonus : Mathf.Clamp(amount * 0.35f, 6f, 20f);
+            if (isNearFire) sanityGain *= 1.4f; // Đứng ăn cạnh bếp lửa tăng tinh thần x1.4 lần
+            RestoreSanity(sanityGain);
+
+            ShowStatusNotice(string.Format("🍖 No bụng: +{0:F0} Đói | +{1:F0} Tinh thần!", amount, sanityGain));
         }
 
-        public void Drink(float amount)
+        public void Drink(float amount, float sanityBonus = 0f)
         {
             currentThirst += amount;
             if (currentThirst > maxThirst) currentThirst = maxThirst;
+
+            float sanityGain = sanityBonus > 0f ? sanityBonus : Mathf.Clamp(amount * 0.25f, 4f, 15f);
+            RestoreSanity(sanityGain);
+
+            ShowStatusNotice(string.Format("💧 Uống nước: +{0:F0} Nước | +{1:F0} Tinh thần!", amount, sanityGain));
         }
 
         private void Die()

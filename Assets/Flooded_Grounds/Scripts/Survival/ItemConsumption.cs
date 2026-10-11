@@ -57,13 +57,16 @@ namespace HorrorGame.Survival
             bool consumed = false;
             string message = "";
 
+            ZombieParasiteSystem parasiteSys = playerStats.GetComponent<ZombieParasiteSystem>();
+
             switch (itemID)
             {
                 case "raw_meat":
                     playerStats.Eat(12f);
                     playerStats.TakeDamage(5f);
                     playerStats.DrainSanity(15f);
-                    message = "🥩 Ăn thịt sống tanh tưởi... (+12 No, -5 HP, -15 Tinh thần)";
+                    if (parasiteSys != null) parasiteSys.TryInfect(0.40f, "Ăn thịt sống nhiễm khuẩn");
+                    message = "🥩 Ăn thịt sống tanh tưởi... (+12 No, -5 HP, -15 Tinh thần, nguy cơ nhiễm sán!)";
                     consumed = true;
                     break;
 
@@ -92,15 +95,59 @@ namespace HorrorGame.Survival
                     break;
 
                 case "bandage":
+                case "bandaid_01":
                     playerStats.Heal(30f);
-                    message = "💊 Dùng băng gạc băng bó vết thương! (+30 HP)";
+                    if (parasiteSys != null) parasiteSys.RemoveParasites(1);
+                    message = "💊 Dùng băng gạc băng bó vết thương & loại bỏ ký sinh trùng! (+30 HP)";
+                    consumed = true;
+                    break;
+
+                case "medkit":
+                case "medkit_01":
+                case "firstaid":
+                    playerStats.Heal(50f);
+                    playerStats.RestoreSanity(15f);
+                    if (parasiteSys != null) parasiteSys.RemoveParasites(2);
+                    message = "🧰 Dùng hộp sơ cứu khẩn cấp! (+50 HP, +15 Tinh thần, diệt ký sinh trùng)";
+                    consumed = true;
+                    break;
+
+                case "food_ration_01":
+                    playerStats.Eat(40f);
+                    playerStats.RestoreSanity(12f);
+                    if (playerStats.currentStamina < playerStats.maxStamina) playerStats.currentStamina += 25f;
+                    message = "🥫 Ăn hộp lương thực dự trữ! (+40 No, +25 Thể lực, +12 Tinh thần)";
                     consumed = true;
                     break;
 
                 case "herbal_medicine":
                     playerStats.Heal(50f);
                     playerStats.RestoreSanity(25f);
-                    message = "🧴 Dùng thuốc thảo dược quý! (+50 HP, +25 Tinh thần)";
+                    if (parasiteSys != null) parasiteSys.CureAll();
+                    message = "🧴 Uống thuốc thảo dược quý! Diệt sạch 100% Ký sinh trùng (+50 HP, +25 Tinh thần)";
+                    consumed = true;
+                    break;
+
+                case "bottle_water":
+                case "soda":
+                    playerStats.Drink(35f);
+                    playerStats.RestoreSanity(10f);
+                    message = "🥤 Uống nước ngọt cứu nạn! (+35 Nước, +10 Tinh thần)";
+                    consumed = true;
+                    break;
+
+                case "chocolate":
+                case "snack":
+                    playerStats.Eat(25f);
+                    playerStats.RestoreSanity(15f);
+                    message = "🍫 Ăn thanh socola ngọt ngào! (+25 No, +15 Tinh thần)";
+                    consumed = true;
+                    break;
+
+                case "canned_food":
+                    playerStats.Eat(45f);
+                    playerStats.RestoreSanity(10f);
+                    message = "🥫 Ăn đồ hộp khẩn cấp! (+45 No, +10 Tinh thần)";
                     consumed = true;
                     break;
 

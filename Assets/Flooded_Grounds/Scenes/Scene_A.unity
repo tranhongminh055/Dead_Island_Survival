@@ -28929,6 +28929,10 @@ MonoBehaviour:
   sunLight: {fileID: 1194554256}
   moonColor: {r: 0.7704368, g: 0.7952169, b: 0.9191176, a: 1}
   moonIntensity: 0.158
+  nightWolfHowlClip: {fileID: 8300000, guid: a242a0530053f2f44aaa82a2d0ad957f, type: 3}
+  nightWolfVolume: 1
+  minWolfHowlInterval: 50
+  maxWolfHowlInterval: 100
   currentHour: 0
   currentDay: 1
 --- !u!1001 &219930887
@@ -65163,15 +65167,18 @@ MonoBehaviour:
   staminaRegenRate: 10
   maxHunger: 100
   currentHunger: 0
-  hungerDrainRate: 0.1
+  baseHungerDrainRate: 0.035
   maxThirst: 100
   currentThirst: 0
-  thirstDrainRate: 0.2
+  baseThirstDrainRate: 0.055
   maxSanity: 100
   currentSanity: 0
-  baseSanityDrainRate: 0.3
-  penaltySanityDrainRate: 2
+  campfireSanityRegenRate: 0.42
+  naturalHealRate: 0.25
   fatigueDrainRate: 0.2
+  isNearFire: 0
+  isHealingNaturally: 0
+  isInsane: 0
   isDead: 0
   isInvincible: 0
 --- !u!114 &510439841
@@ -65194,6 +65201,9 @@ MonoBehaviour:
   mouseSensitivity: 2
   normalHeight: 2
   crouchHeight: 1
+  isSprinting: 0
+  isCrouching: 0
+  isGrounded: 0
 --- !u!143 &510439842
 CharacterController:
   m_ObjectHideFlags: 0
@@ -65230,15 +65240,18 @@ MonoBehaviour:
   staminaRegenRate: 10
   maxHunger: 100
   currentHunger: 0
-  hungerDrainRate: 0.1
+  baseHungerDrainRate: 0.035
   maxThirst: 100
   currentThirst: 0
-  thirstDrainRate: 0.2
+  baseThirstDrainRate: 0.055
   maxSanity: 100
   currentSanity: 0
-  baseSanityDrainRate: 0.3
-  penaltySanityDrainRate: 2
+  campfireSanityRegenRate: 0.42
+  naturalHealRate: 0.25
   fatigueDrainRate: 0.2
+  isNearFire: 0
+  isHealingNaturally: 0
+  isInsane: 0
   isDead: 0
   isInvincible: 0
 --- !u!23 &510439844
@@ -65417,6 +65430,7 @@ MonoBehaviour:
   recipes: []
   buildSound: {fileID: 0}
   cancelSound: {fileID: 0}
+  placeMaterialSound: {fileID: 0}
 --- !u!114 &510439852
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -143014,6 +143028,9 @@ MonoBehaviour:
   currentWeather: 0
   targetWeather: 0
   transitionDuration: 12
+  startStormAfterTrailer: 1
+  introStormDuration: 180
+  firstLightningStrikeImmediate: 1
   autoChangeWeather: 1
   weatherTimer: 300
   rainEffect: {fileID: 1789838687}
@@ -159540,12 +159557,14 @@ MonoBehaviour:
   range: 100
   fireRate: 8
   maxAmmo: 30
+  reserveAmmo: 60
   reloadTime: 2
   weaponItemData: {fileID: 11400000, guid: 3c00fd637fb843b4f9c76bea70b05a95, type: 2}
   toggleKey: 49
   shootSound: {fileID: 8300000, guid: 1a3cbe56fc87d9e428ef833fd40fbf63, type: 3}
   reloadSound: {fileID: 8300000, guid: 624fc311be1129e4c9a94e8a540956dc, type: 3}
   equipSound: {fileID: 8300000, guid: 99110dc4efc2abe4582c763117b653a2, type: 3}
+  emptyClickSound: {fileID: 0}
   muzzleFlash: {fileID: 0}
   recoilKickback: -0.1
   recoilRotation: -15

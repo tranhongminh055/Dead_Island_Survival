@@ -25,6 +25,21 @@ namespace HorrorGame.Environment
         [Range(0f, 1f)]
         public float moonIntensity = 0.15f;
 
+        [Header("── Âm Thanh Ban Đêm (Sói Hú) ──")]
+        [Tooltip("File âm thanh tiếng sói hú ban đêm")]
+        public AudioClip nightWolfHowlClip;
+        [Tooltip("Âm lượng tiếng sói hú (0.5 = vừa đủ nghe, rùng rợn êm tai)")]
+        [Range(0f, 1f)]
+        public float nightWolfVolume = 0.5f;
+        [Tooltip("Khoảng cách tối thiểu giữa 2 lần sói hú trong đêm (giây)")]
+        public float minWolfHowlInterval = 50f;
+        [Tooltip("Khoảng cách tối đa giữa 2 lần sói hú trong đêm (giây)")]
+        public float maxWolfHowlInterval = 100f;
+
+        private AudioSource nightAudioSource;
+        private bool wasNight = false;
+        private float nextWolfHowlTimer = 0f;
+
         // Thời gian hiện tại trong game (0 -> 24)
         [HideInInspector]
         public float currentHour;
@@ -122,6 +137,16 @@ namespace HorrorGame.Environment
 
             // === TẠO MẶT TRĂNG TỰ ĐỘNG ===
             CreateMoonLight();
+
+            // === THIẾT LẬP ÂM THANH BAN ĐÊM (SÓI HÚ) ===
+            SetupNightAudio();
+
+            // === ĐẢM BẢO BẦY THỔ DÂN HOẠT ĐỘNG ===
+            if (FindObjectOfType<HorrorGame.Enemy.CannibalSpawner>() == null)
+            {
+                GameObject csObj = new GameObject("[CannibalSpawner]");
+                csObj.AddComponent<HorrorGame.Enemy.CannibalSpawner>();
+            }
         }
 
         private void CreateMoonLight()
@@ -155,6 +180,7 @@ namespace HorrorGame.Environment
             UpdateMoon();
             UpdateAmbient();
             UpdateFog();
+            UpdateNightAudio();
         }
 
         // =====================================================
@@ -386,6 +412,121 @@ namespace HorrorGame.Environment
             int hours = Mathf.FloorToInt(currentHour);
             int minutes = Mathf.FloorToInt((currentHour - hours) * 60f);
             return string.Format("Ngay {0} - {1:00}:{2:00}", currentDay, hours, minutes);
+        }
+
+        // =====================================================
+        // ÂM THANH BAN ĐÊM (TIẾNG SÓI HÚ)
+        // =====================================================
+        private void SetupNightAudio()
+        {
+            if (nightAudioSource == null)
+            {
+                nightAudioSource = GetComponent<AudioSource>();
+                if (nightAudioSource == null)
+                {
+                    nightAudioSource = gameObject.AddComponent<AudioSource>();
+                }
+                nightAudioSource.playOnAwake = false;
+                nightAudioSource.loop = false;
+                nightAudioSource.spatialBlend = 0.15f; // Lan tỏa vang dội khắp không gian đảo
+                nightAudioSource.volume = nightWolfVolume;
+            }
+
+#if UNITY_EDITOR
+            if (nightWolfHowlClip == null)
+            {
+                nightWolfHowlClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/tiếng sói hú/ribhavagrawal-wolf-howling-type-04-293317.mp3");
+            }
+#endif
+            if (nightWolfHowlClip == null)
+            {
+                nightWolfHowlClip = Resources.Load<AudioClip>("Sounds/WolfHowl");
+            }
+
+            wasNight = IsNight();
+            // Nếu vừa vào game đã là ban đêm, hẹn giờ sói hú lần đầu sau 4-8 giây
+            if (wasNight)
+            {
+                nextWolfHowlTimer = Random.Range(4f, 8f);
+            }
+        }
+
+        private void UpdateNightAudio()
+        {
+            // Trong Cutscene máy bay: Không hú át âm thanh cutscene
+            if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+            {
+                if (nightAudioSource != null && nightAudioSource.isPlaying)
+                {
+                    nightAudioSource.Stop();
+                }
+                return;
+            }
+
+            bool isCurrentlyNight = IsNight();
+
+            // 1. Khoảnh khắc vừa chuyển từ BAN NGÀY sang BAN ĐÊM (Màn đêm vừa buông xuống)
+            if (!wasNight && isCurrentlyNight)
+            {
+                wasNight = true;
+                Debug.Log("[DayNight] 🌙 Màn đêm buông xuống! Sói bắt đầu cất tiếng hú...");
+                PlayWolfHowl();
+                nextWolfHowlTimer = Random.Range(minWolfHowlInterval, maxWolfHowlInterval);
+
+                // Thông báo khí quyển rùng rợn cho người chơi
+                var stats = FindObjectOfType<HorrorGame.Player.PlayerStats>();
+                if (stats != null)
+                {
+                    stats.ShowStatusNotice("🌙 Màn đêm buông xuống... Tiếng sói hú rợn người vọng lại trong rừng thẳm!");
+                }
+            }
+            // 2. Khoảnh khắc vừa chuyển từ BAN ĐÊM sang BAN NGÀY (Bình minh ló rạng)
+            else if (wasNight && !isCurrentlyNight)
+            {
+                wasNight = false;
+                Debug.Log("[DayNight] ☀️ Bình minh ló rạng! Dừng toàn bộ âm thanh sói hú ban đêm.");
+                if (nightAudioSource != null && nightAudioSource.isPlaying)
+                {
+                    nightAudioSource.Stop();
+                }
+            }
+
+            // 3. Trong suốt thời gian BAN ĐÊM (Cứ cách một khoảng thời gian lại hú vang)
+            if (isCurrentlyNight)
+            {
+                nextWolfHowlTimer -= Time.deltaTime;
+                if (nextWolfHowlTimer <= 0f)
+                {
+                    nextWolfHowlTimer = Random.Range(minWolfHowlInterval, maxWolfHowlInterval);
+                    PlayWolfHowl();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Phát tiếng sói hú vang vọng khắp hòn đảo trong màn đêm
+        /// </summary>
+        public void PlayWolfHowl()
+        {
+            if (nightWolfHowlClip == null)
+            {
+#if UNITY_EDITOR
+                nightWolfHowlClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/tiếng sói hú/ribhavagrawal-wolf-howling-type-04-293317.mp3");
+#endif
+                if (nightWolfHowlClip == null) nightWolfHowlClip = Resources.Load<AudioClip>("Sounds/WolfHowl");
+            }
+
+            if (nightWolfHowlClip != null && nightAudioSource != null)
+            {
+                nightAudioSource.volume = 1f;
+                nightAudioSource.pitch = Random.Range(0.94f, 1.04f);
+                nightAudioSource.PlayOneShot(nightWolfHowlClip, nightWolfVolume);
+                Debug.Log("[DayNight] 🐺 [Tiếng sói hú]: " + nightWolfHowlClip.name + " vang rền trong màn đêm (Âm lượng: " + nightWolfVolume + ")!");
+            }
+            else
+            {
+                Debug.LogWarning("[DayNight] Không tìm thấy file âm thanh tiếng sói hú ban đêm!");
+            }
         }
 
         private void OnDestroy()

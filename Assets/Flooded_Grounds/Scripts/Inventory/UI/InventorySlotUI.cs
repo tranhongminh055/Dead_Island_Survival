@@ -21,30 +21,41 @@ namespace HorrorGame.Inventory.UI
         {
             currentSlot = slot;
 
-            if (slot == null || slot.IsEmpty())
+            if (iconImage == null)
             {
-                iconImage.sprite = null;
-                iconImage.color = new Color(1, 1, 1, 0);
+                iconImage = GetComponentInChildren<Image>();
+            }
+
+            if (slot == null || slot.IsEmpty() || slot.item == null)
+            {
+                if (iconImage != null)
+                {
+                    iconImage.sprite = null;
+                    iconImage.color = new Color(1, 1, 1, 0);
+                    iconImage.raycastTarget = false;
+                }
                 if (amountText != null) 
                 {
                     amountText.text = "";
                     amountText.raycastTarget = false;
                 }
-                iconImage.raycastTarget = false; // Ô trống không cần nhận Raycast từ chuột (ngoại trừ ô nền)
             }
             else
             {   
-                if (slot.item.icon != null)
+                if (iconImage != null)
                 {
-                    iconImage.sprite = slot.item.icon;
+                    if (slot.item.icon != null)
+                    {
+                        iconImage.sprite = slot.item.icon;
+                    }
+                    else
+                    {
+                        // Tạo sprite placeholder khi không có icon (ví dụ: Gỗ, Lá runtime)
+                        iconImage.sprite = GeneratePlaceholderSprite(slot.item);
+                    }
+                    iconImage.color = new Color(1, 1, 1, 1);
+                    iconImage.raycastTarget = true; // Để có thể click/kéo
                 }
-                else
-                {
-                    // Tạo sprite placeholder khi không có icon (ví dụ: Gỗ, Lá runtime)
-                    iconImage.sprite = GeneratePlaceholderSprite(slot.item);
-                }
-                iconImage.color = new Color(1, 1, 1, 1);
-                iconImage.raycastTarget = true; // Để có thể click/kéo
 
                 if (amountText != null)
                 {
@@ -226,8 +237,9 @@ namespace HorrorGame.Inventory.UI
 
             Debug.Log(string.Format("<color=yellow>[USE ITEM]</color> Click sử dụng: {0} (ID: {1}, Type: {2})", item.itemName, item.itemID, type));
 
-            // Tìm PlayerStats trên Player
-            var stats = FindObjectOfType<Player.PlayerStats>();
+            // Tìm PlayerStats trên Player (Ưu tiên Singleton Instance)
+            var stats = Player.PlayerStats.Instance;
+            if (stats == null) stats = FindObjectOfType<Player.PlayerStats>();
             if (stats == null)
             {
                 var playerObj = GameObject.FindGameObjectWithTag("Player");
@@ -245,27 +257,38 @@ namespace HorrorGame.Inventory.UI
             bool itemUsed = false;
             string feedbackMsg = "";
 
-            // 1. HỒI MÁU (Băng cứu thương / Medkit)
-            if (id.Contains("medkit") || id.Contains("bandaid") || id.Contains("bandage") || name.Contains("băng") || name.Contains("cứu thương") || name.Contains("thuốc"))
+            // 1. HỒI MÁU (Băng cứu thương / Medkit / Hộp sơ cứu)
+            if (id.Contains("medkit") || id.Contains("bandaid") || id.Contains("bandage") || id.Contains("firstaid") || id.Contains("cure") || id.Contains("thuốc") || name.Contains("băng") || name.Contains("cứu thương") || name.Contains("sơ cứu") || name.Contains("thuốc") || name.Contains("medkit"))
             {
                 if (stats != null)
                 {
-                    stats.Heal(40f);
+                    float healAmount = 50f;
+                    stats.Heal(healAmount);
+                    stats.RestoreSanity(15f); // Băng bó vết thương giảm đau giúp hồi phục Sanity
+
+                    var parasiteSys = stats.GetComponent<Player.ZombieParasiteSystem>();
+                    if (parasiteSys != null) parasiteSys.RemoveParasites(2);
+
                     itemUsed = true;
-                    feedbackMsg = string.Format("💚 Đã dùng Băng cứu thương: Hồi +40 Máu! ({0:F0}/{1} HP)", stats.currentHealth, stats.maxHealth);
+                    feedbackMsg = string.Format("💚 Đã dùng Túi Cứu Thương: Hồi +{0:F0} Máu, +15 Tinh thần! ({1:F0}/{2:F0} HP)", healAmount, stats.currentHealth, stats.maxHealth);
+                    stats.ShowStatusNotice(feedbackMsg);
+                }
+                else
+                {
+                    Debug.LogError("[InventorySlotUI] Không tìm thấy PlayerStats khi dùng Túi cứu thương!");
                 }
             }
             // 2. LƯƠNG THỰC / ĐỒ HỘP (Hộp lương thực dự trữ / Food)
-            else if (id.Contains("food") || id.Contains("ration") || id.Contains("canned") || name.Contains("lương thực") || name.Contains("thịt") || name.Contains("ăn"))
+            else if (id.Contains("food") || id.Contains("ration") || id.Contains("canned") || id.Contains("meat") || name.Contains("lương thực") || name.Contains("thịt") || name.Contains("đồ hộp") || name.Contains("ăn"))
             {
                 if (stats != null)
                 {
-                    stats.Eat(45f);
+                    stats.Eat(45f, 18f); // Hồi 45 đói và 18 Tinh thần!
                     stats.Heal(15f); // Thức ăn dinh dưỡng hồi thêm 15 HP!
                     stats.currentStamina = Mathf.Min(stats.maxStamina, stats.currentStamina + 35f);
-                    stats.RestoreSanity(20f);
                     itemUsed = true;
-                    feedbackMsg = string.Format("🍖 Đã ăn Hộp lương thực: +45 Đói, +15 Máu, +35 Thể lực!");
+                    feedbackMsg = string.Format("🍖 Đã ăn: +45 Đói, +15 Máu, +18 Tinh thần!");
+                    stats.ShowStatusNotice(feedbackMsg);
                 }
             }
             // 3. ĐẠN DƯỢC (Hộp đạn dã chiến / Ammo)
@@ -328,6 +351,9 @@ namespace HorrorGame.Inventory.UI
                 {
                     InventoryManager.Instance.onInventoryChangedEvent();
                 }
+
+                var invUI = FindObjectOfType<HorrorGame.Inventory.UI.InventoryUI>();
+                if (invUI != null) invUI.UpdateUI();
             }
 
             // Hiển thị thông báo và in Log rõ ràng

@@ -107,6 +107,8 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\DisableRenderer.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\CinematicCamera.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\CinematicPostProcessing.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\Enemy\CannibalAI.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\Enemy\CannibalSpawner.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\Enemy\EnemyAI.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\Enemy\ZombieSpawner.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\FlyCam.cs" />
@@ -114,9 +116,11 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\AirplaneCrashSite.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\AirplaneCrashSmoker.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\AutoSaveSystem.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\CrashPassengerSpawner.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\DayNightCycle.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\ItemSpawner.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\LootChest.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\PassengerCorpse.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\Weather\LightningSystem.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\Weather\PlayerWetness.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\Weather\RainEffect.cs" />
@@ -141,6 +145,7 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\PlayerStats.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\PlayerUI.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Player\WeaponManager.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Player\ZombieParasiteSystem.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\AnimalAI.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\AnimalSpawner.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\AxeController.cs" />

@@ -25,12 +25,12 @@ namespace HorrorGame.Enemy
 
         [Header("Zombie Health Settings")]
         public float maxHealth = 100f; // Máu tối đa của Zombie
-        private float currentHealth;
+        protected float currentHealth;
 
-        private NavMeshAgent agent;
-        private Animator animator;
-        private bool isDead = false;
-        private float lastAttackTime = 0f;
+        protected NavMeshAgent agent;
+        protected Animator animator;
+        protected bool isDead = false;
+        protected float lastAttackTime = 0f;
         private Coroutine flashRoutine;
 
         public bool IsDead { get { return isDead; } }
@@ -54,7 +54,7 @@ namespace HorrorGame.Enemy
             col.isTrigger = false;
         }
 
-        void Start()
+        protected virtual void Start()
         {
             EnsureCollider();
             agent = GetComponent<NavMeshAgent>();
@@ -83,7 +83,7 @@ namespace HorrorGame.Enemy
             }
         }
 
-        void Update()
+        protected virtual void Update()
         {
             if (isDead) return;
 
@@ -135,6 +135,11 @@ namespace HorrorGame.Enemy
                     if (stats != null)
                     {
                         stats.TakeDamage(damage);
+
+                        // Có 20% nguy cơ nhiễm ký sinh trùng Zombie khi bị cào cắn trúng
+                        var parasiteSys = player.GetComponentInParent<HorrorGame.Player.ZombieParasiteSystem>();
+                        if (parasiteSys == null) parasiteSys = player.GetComponentInChildren<HorrorGame.Player.ZombieParasiteSystem>();
+                        if (parasiteSys != null) parasiteSys.TryInfect(0.20f, "Vết cào độc hại của Zombie");
                     }
                     else
                     {
@@ -231,12 +236,12 @@ namespace HorrorGame.Enemy
         }
 
         // Gọi hàm này khi Zombie bị người chơi bắn/chém trúng
-        public void TakeDamage(float amount)
+        public virtual void TakeDamage(float amount)
         {
             TakeDamage(amount, Vector3.zero);
         }
 
-        public void TakeDamage(float amount, Vector3 hitPoint)
+        public virtual void TakeDamage(float amount, Vector3 hitPoint)
         {
             if (isDead) return;
 
@@ -297,7 +302,7 @@ namespace HorrorGame.Enemy
             flashRoutine = null;
         }
 
-        private void Die()
+        protected virtual void Die()
         {
             if (isDead) return;
             isDead = true;

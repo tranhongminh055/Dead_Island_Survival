@@ -57,6 +57,14 @@ namespace HorrorGame.Enemy
 
             // Dọn sạch Zombie quá sát xác máy bay (< 20m) đưa ra mép rừng
             ClearZombiesNearCrashSite();
+
+            // Đảm bảo bầy Thổ Dân Ăn Thịt Người (CannibalSpawner) luôn hoạt động đồng hành
+            if (FindObjectOfType<CannibalSpawner>() == null)
+            {
+                GameObject csObj = new GameObject("[CannibalSpawner]");
+                csObj.AddComponent<CannibalSpawner>();
+                Debug.Log("🏹 [ZombieSpawner] Đã khởi tạo [CannibalSpawner] trong Scene!");
+            }
         }
 
         private Transform FindPlayer()

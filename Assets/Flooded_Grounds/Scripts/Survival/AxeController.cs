@@ -704,7 +704,8 @@ namespace HorrorGame.Survival
                 {
                     enemy.TakeDamage(chopDamage, hit.point);
                     HorrorGame.Enemy.EnemyAI.SpawnBloodImpact(hit.point, hit.normal);
-                    displayText = "Chém trúng Zombie! (-" + chopDamage + " HP)";
+                    bool isCannibal = (enemy is HorrorGame.Enemy.CannibalAI);
+                    displayText = (isCannibal ? "Chém trúng Thổ dân! (-" : "Chém trúng Zombie! (-") + chopDamage + " HP)";
                     displayTimer = 1.8f;
                 }
                 else

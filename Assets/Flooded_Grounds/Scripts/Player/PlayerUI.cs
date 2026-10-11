@@ -19,10 +19,22 @@ namespace HorrorGame.Player
         public Image thirstImage;     // Hình giọt nước
         public Image sanityImage;     // Hình bộ não (nếu có)
 
+        private void Awake()
+        {
+            if (PlayerStats.Instance != null)
+            {
+                playerStats = PlayerStats.Instance;
+            }
+        }
+
         private void Start()
         {
-            // Tự động tìm PlayerStats nếu quên kéo thả
-            if (playerStats == null)
+            // Tự động gắn kết với PlayerStats.Instance duy nhất của nhân vật
+            if (PlayerStats.Instance != null)
+            {
+                playerStats = PlayerStats.Instance;
+            }
+            else if (playerStats == null)
             {
                 playerStats = FindObjectOfType<PlayerStats>();
             }
@@ -40,9 +52,14 @@ namespace HorrorGame.Player
 
         private void Update()
         {
-            if (playerStats == null)
+            // Đảm bảo luôn trỏ đúng vào Instance duy nhất của PlayerStats
+            if (PlayerStats.Instance != null && playerStats != PlayerStats.Instance)
             {
-                playerStats = FindObjectOfType<PlayerStats>();
+                playerStats = PlayerStats.Instance;
+            }
+            else if (playerStats == null)
+            {
+                playerStats = PlayerStats.Instance != null ? PlayerStats.Instance : FindObjectOfType<PlayerStats>();
                 if (playerStats != null)
                 {
                     if (healthSlider != null) healthSlider.maxValue = playerStats.maxHealth;
