@@ -19,6 +19,10 @@ namespace HorrorGame.Player
         public Image thirstImage;     // Hình giọt nước
         public Image sanityImage;     // Hình bộ não (nếu có)
 
+        [Header("UI Fracture Icon (Biểu tượng Gãy Xương Green Hell)")]
+        public GameObject fractureIconObject; // GameObject chứa icon gãy xương trong Canvas
+        public Image fractureIconImage;       // Image icon gãy xương (nếu có)
+
         private void Awake()
         {
             if (PlayerStats.Instance != null)
@@ -82,6 +86,18 @@ namespace HorrorGame.Player
             if (hungerImage != null) hungerImage.fillAmount = playerStats.currentHunger / playerStats.maxHunger;
             if (thirstImage != null) thirstImage.fillAmount = playerStats.currentThirst / playerStats.maxThirst;
             if (sanityImage != null) sanityImage.fillAmount = playerStats.currentSanity / playerStats.maxSanity;
+
+            // Cập nhật trạng thái hiển thị Icon Gãy Xương trong Canvas
+            PlayerFractureSystem fractureSys = PlayerFractureSystem.Instance != null ? PlayerFractureSystem.Instance : (playerStats != null ? playerStats.GetComponent<PlayerFractureSystem>() : null);
+            bool isFractured = (fractureSys != null && fractureSys.isFractured);
+            if (fractureIconObject != null && fractureIconObject.activeSelf != isFractured)
+            {
+                fractureIconObject.SetActive(isFractured);
+            }
+            if (fractureIconImage != null && fractureIconImage.enabled != isFractured)
+            {
+                fractureIconImage.enabled = isFractured;
+            }
         }
     }
 }

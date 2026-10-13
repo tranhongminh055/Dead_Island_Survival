@@ -101,6 +101,15 @@ namespace HorrorGame.Survival
                 stats.maxStamina = 100f; // Xóa tan mệt mỏi Fatigue, khôi phục 100% trần thể lực!
                 stats.currentStamina = stats.maxStamina;
                 stats.RestoreSanity(sanityAmount);
+
+                // Giúp hồi phục vết gãy xương nhanh chóng khi nghỉ ngơi
+                PlayerFractureSystem fracture = playerTransform.GetComponent<PlayerFractureSystem>();
+                if (fracture == null) fracture = PlayerFractureSystem.Instance;
+                if (fracture != null && fracture.isFractured)
+                {
+                    fracture.TreatInShelter(90f); // Giảm 90 giây thời gian gãy xương
+                }
+
                 ShowNotice(string.Format("✨ Bạn đã nghỉ ngơi an toàn trong {0}! (+{1} Máu, +{2} Tinh thần, Hồi phục hoàn toàn)", shelterName, healAmount, sanityAmount));
                 Debug.Log(string.Format("⛺ [ShelterRest] Người chơi nghỉ ngơi trong {0}. Máu: {1}/{2}, Sanity: {3}", shelterName, stats.currentHealth, stats.maxHealth, stats.currentSanity));
             }

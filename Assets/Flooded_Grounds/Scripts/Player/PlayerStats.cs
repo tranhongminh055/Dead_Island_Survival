@@ -110,6 +110,12 @@ namespace HorrorGame.Player
             {
                 gameObject.AddComponent<ZombieParasiteSystem>();
             }
+
+            // Đảm bảo có PlayerFractureSystem để xử lý gãy xương chuẩn Green Hell
+            if (GetComponent<PlayerFractureSystem>() == null)
+            {
+                gameObject.AddComponent<PlayerFractureSystem>();
+            }
         }
 
         private void Update()

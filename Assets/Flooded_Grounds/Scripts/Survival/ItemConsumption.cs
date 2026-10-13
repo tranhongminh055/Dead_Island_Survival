@@ -58,6 +58,8 @@ namespace HorrorGame.Survival
             string message = "";
 
             ZombieParasiteSystem parasiteSys = playerStats.GetComponent<ZombieParasiteSystem>();
+            PlayerFractureSystem fractureSys = playerStats.GetComponent<PlayerFractureSystem>();
+            if (fractureSys == null) fractureSys = PlayerFractureSystem.Instance;
 
             switch (itemID)
             {
@@ -98,7 +100,15 @@ namespace HorrorGame.Survival
                 case "bandaid_01":
                     playerStats.Heal(30f);
                     if (parasiteSys != null) parasiteSys.RemoveParasites(1);
-                    message = "💊 Dùng băng gạc băng bó vết thương & loại bỏ ký sinh trùng! (+30 HP)";
+                    if (fractureSys != null && fractureSys.isFractured)
+                    {
+                        fractureSys.CureFracture();
+                        message = "🩹 Dùng băng gạc nẹp cố định xương gãy! Chân đã lành lặn, chạy bình thường! (+30 HP)";
+                    }
+                    else
+                    {
+                        message = "💊 Dùng băng gạc băng bó vết thương & loại bỏ ký sinh trùng! (+30 HP)";
+                    }
                     consumed = true;
                     break;
 
@@ -108,7 +118,15 @@ namespace HorrorGame.Survival
                     playerStats.Heal(50f);
                     playerStats.RestoreSanity(15f);
                     if (parasiteSys != null) parasiteSys.RemoveParasites(2);
-                    message = "🧰 Dùng hộp sơ cứu khẩn cấp! (+50 HP, +15 Tinh thần, diệt ký sinh trùng)";
+                    if (fractureSys != null && fractureSys.isFractured)
+                    {
+                        fractureSys.CureFracture();
+                        message = "🧰 Dùng hộp sơ cứu điều trị gãy xương toàn diện! Chân đã bình phục! (+50 HP, +15 Tinh thần)";
+                    }
+                    else
+                    {
+                        message = "🧰 Dùng hộp sơ cứu khẩn cấp! (+50 HP, +15 Tinh thần, diệt ký sinh trùng)";
+                    }
                     consumed = true;
                     break;
 
@@ -124,7 +142,15 @@ namespace HorrorGame.Survival
                     playerStats.Heal(50f);
                     playerStats.RestoreSanity(25f);
                     if (parasiteSys != null) parasiteSys.CureAll();
-                    message = "🧴 Uống thuốc thảo dược quý! Diệt sạch 100% Ký sinh trùng (+50 HP, +25 Tinh thần)";
+                    if (fractureSys != null && fractureSys.isFractured)
+                    {
+                        fractureSys.TreatInShelter(120f); // Giảm mạnh 2 phút gãy xương
+                        message = "🧴 Uống thuốc thảo dược quý! Giảm đau nhức gãy xương & diệt sạch Ký sinh trùng (+50 HP, +25 Tinh thần)";
+                    }
+                    else
+                    {
+                        message = "🧴 Uống thuốc thảo dược quý! Diệt sạch 100% Ký sinh trùng (+50 HP, +25 Tinh thần)";
+                    }
                     consumed = true;
                     break;
 
