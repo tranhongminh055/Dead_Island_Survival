@@ -25,6 +25,7 @@ Properties {
 SubShader { 
 	Tags { "RenderType"="Opaque" "Queue"="Geometry" }
 	LOD 200
+	Cull Off
 	
 	CGPROGRAM
 	#include "UnityPBSLighting.cginc"

@@ -103,6 +103,7 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplanePassengerSeatPose.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\C400TroopSeating.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\CameraShake.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\CinematicTrailerDirector.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\IntroCutsceneManager.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\DisableRenderer.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\CinematicCamera.cs" />
@@ -113,6 +114,7 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\Enemy\ZombieSpawner.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\FlyCam.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\SanityEffects.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Effects\UnderwaterVisualManager.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\AirplaneCrashSite.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\AirplaneCrashSmoker.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Environment\AutoSaveSystem.cs" />
@@ -173,6 +175,7 @@
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\MotionBlur.cginc" />
      <None Include="Assets\Flooded_Grounds\Resources\WavingGrass.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\Fog.shader" />
+     <None Include="Assets\Flooded_Grounds\Content\Shaders\UnderwaterBlurEffect.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Editor Resources\Monitors\ParadeRender.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Resources\Shaders\LutGen.shader" />
      <None Include="Assets\Flooded_Grounds\PostProcessing\Editor Resources\Monitors\HistogramRender.shader" />

@@ -397,6 +397,9 @@ namespace HorrorGame.UI
 
         void OnGUI()
         {
+            // Tuyệt đối không vẽ đè menu lên màn hình khi đang quay Trailer điện ảnh!
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
+
             // Chỉ vẽ khi: ở Main Menu Scene HOẶC đang trong trạng thái Pause In-Game
             if (!isMainMenuScene && !IsPaused) return;
 

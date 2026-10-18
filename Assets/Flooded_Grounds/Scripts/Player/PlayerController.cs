@@ -102,6 +102,16 @@ namespace HorrorGame.Player
             {
                 gameObject.AddComponent<HorrorGame.Survival.BuildingSystem>();
             }
+
+            // Tự động kích hoạt hiệu ứng mờ mắt quang học và âm thanh biển sâu khi lặn dưới nước
+            if (playerCamera != null)
+            {
+                Camera camComp = playerCamera.GetComponent<Camera>();
+                if (camComp != null && camComp.GetComponent<HorrorGame.Effects.UnderwaterVisualManager>() == null)
+                {
+                    camComp.gameObject.AddComponent<HorrorGame.Effects.UnderwaterVisualManager>();
+                }
+            }
         }
 
         void OnEnable()

@@ -447,7 +447,7 @@ namespace HorrorGame.Survival
             }
         }
 
-        private static Material GetMaterial(string matName, Color fallbackColor)
+        public static Material GetMaterial(string matName, Color fallbackColor)
         {
             Material mat = null;
 #if UNITY_EDITOR
