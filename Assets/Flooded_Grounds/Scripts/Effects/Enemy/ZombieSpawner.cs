@@ -108,6 +108,9 @@ namespace HorrorGame.Enemy
             // Trong suốt cutscene mở đầu: Không đẻ thêm zombie
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
 
+            // Khi người chơi đang ở trong hang động: Không đẻ zombie mặt đất quanh người chơi
+            if (HorrorGame.Cave.CaveManager.IsPlayerInCave) return;
+
             FindPlayer();
 
             // Sinh đợt Zombie hùng hậu ban đầu (30 con) ngay khi cutscene kết thúc để chỗ nào cũng có Zombie

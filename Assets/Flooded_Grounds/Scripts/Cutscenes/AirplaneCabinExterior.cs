@@ -420,7 +420,6 @@ namespace HorrorGame.Cutscenes
             rainParticleSystem.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
             var main = rainParticleSystem.main;
-            main.duration = 30f;
             main.loop = true;
             main.startLifetime = 0.4f;
             main.startSpeed = 60f;
@@ -473,7 +472,6 @@ namespace HorrorGame.Cutscenes
             engineFireTrailPS.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
             var main = engineFireTrailPS.main;
-            main.duration = 30f;
             main.loop = true;
             main.startLifetime = new ParticleSystem.MinMaxCurve(0.3f, 0.8f);
             main.startSpeed = new ParticleSystem.MinMaxCurve(15f, 30f);
@@ -539,7 +537,6 @@ namespace HorrorGame.Cutscenes
             engineSparksPS.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
             var sMain = engineSparksPS.main;
-            sMain.duration = 30f;
             sMain.loop = true;
             sMain.startLifetime = new ParticleSystem.MinMaxCurve(0.2f, 0.6f);
             sMain.startSpeed = new ParticleSystem.MinMaxCurve(8f, 20f);

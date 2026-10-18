@@ -396,7 +396,6 @@ namespace HorrorGame.Enemy
 
             ParticleSystem ps = fx.AddComponent<ParticleSystem>();
             ParticleSystem.MainModule main = ps.main;
-            main.duration = 0.2f;
             main.loop = false;
             main.startLifetime = 0.35f;
             main.startSpeed = 3f;

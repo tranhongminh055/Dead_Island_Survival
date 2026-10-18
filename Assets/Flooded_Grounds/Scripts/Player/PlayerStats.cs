@@ -262,6 +262,17 @@ namespace HorrorGame.Player
             }
 
             // ═══════════════════════════════════════════════════════════════
+            // 4.1 TỤT SANITY KHI Ở TRONG HANG TỐI & HANG SÂU (THE FOREST STYLE)
+            // ═══════════════════════════════════════════════════════════════
+            if (HorrorGame.Cave.CaveManager.IsPlayerInCave)
+            {
+                PlayerFlashlight fl = GetComponentInChildren<PlayerFlashlight>();
+                bool inTotalDarkness = (fl == null || !fl.isOn);
+                float caveDrainRate = inTotalDarkness ? 0.35f : 0.06f;
+                DrainSanity(caveDrainRate * Time.deltaTime);
+            }
+
+            // ═══════════════════════════════════════════════════════════════
             // 5. HỒI PHỤC SANITY (LỬA TRẠI & CƠ THỂ KHỎE MẠNH AN TOÀN)
             // ═══════════════════════════════════════════════════════════════
             if (isNearFire)

@@ -29,6 +29,10 @@ namespace HorrorGame.Player
         public bool isCrouching = false;
         public bool isGrounded = false;
         
+        [Header("Hang Động (Cave System)")]
+        public float caveSpeedModifier = 1.0f;
+        public bool IsInCave { get { return HorrorGame.Cave.CaveManager.IsPlayerInCave; } }
+        
         // Component References
         private CharacterController controller;
         private PlayerStats stats;
@@ -236,6 +240,12 @@ namespace HorrorGame.Player
                 stats.RegenStamina(); // Hồi thể lực khi đi bộ hoặc đứng yên
             }
 
+            // Điều chỉnh tốc độ nếu đang ở trong hang động (địa hình ẩm ướt / bùn lầy)
+            if (HorrorGame.Cave.CaveManager.IsPlayerInCave)
+            {
+                currentSpeed *= caveSpeedModifier;
+            }
+
             // Di chuyển nhân vật theo phương ngang
             controller.Move(move * currentSpeed * Time.deltaTime);
 
@@ -358,13 +368,9 @@ namespace HorrorGame.Player
             RaycastHit hit;
             if (Physics.Raycast(transform.position + Vector3.up * 0.5f, Vector3.down, out hit, 2.5f, ~0, QueryTriggerInteraction.Collide))
             {
-                if (hit.collider != null)
+                if (IsWaterCollider(hit.collider))
                 {
-                    string colName = hit.collider.name.ToLower();
-                    if (hit.collider.CompareTag("Water") || colName.Contains("water") || colName.Contains("river") || colName.Contains("sea") || colName.Contains("ocean") || colName.Contains("nước"))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
 
@@ -372,15 +378,21 @@ namespace HorrorGame.Player
             Collider[] hits = Physics.OverlapSphere(transform.position, 1.2f, ~0, QueryTriggerInteraction.Collide);
             for (int i = 0; i < hits.Length; i++)
             {
-                if (hits[i] == null) continue;
-                string hName = hits[i].name.ToLower();
-                if (hits[i].CompareTag("Water") || hName.Contains("water") || hName.Contains("river") || hName.Contains("sea") || hName.Contains("nước"))
+                if (IsWaterCollider(hits[i]))
                 {
                     return true;
                 }
             }
 
             return false;
+        }
+
+        private static bool IsWaterCollider(Collider col)
+        {
+            if (col == null) return false;
+            if (col.gameObject.layer == 4) return true;
+            string name = col.name.ToLower();
+            return name.Contains("water") || name.Contains("river") || name.Contains("sea") || name.Contains("ocean") || name.Contains("nước");
         }
 
         /// <summary>

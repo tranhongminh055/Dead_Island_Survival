@@ -85,31 +85,49 @@ namespace HorrorGame.Enemy
             // Trong Cutscene máy bay: Không sinh thổ dân
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
 
+            // Khi người chơi đang ở trong hang động: Không sinh thổ dân mặt đất
+            if (HorrorGame.Cave.CaveManager.IsPlayerInCave) return;
+
             FindPlayer();
             ResolvePrefab();
 
-            // Sinh đợt thổ dân tuần tra ban đầu (4 con) ngay sau khi vào game hoặc cutscene kết thúc
+            // Kiểm tra ban ngày / ban đêm để điều chỉnh số lượng & tốc độ spawn
+            bool isNightTime = true;
+            if (HorrorGame.Environment.DayNightCycle.Instance != null)
+            {
+                isNightTime = HorrorGame.Environment.DayNightCycle.Instance.IsNight();
+            }
+
+            // Ban ngày: Giảm mạnh số lượng thổ dân (tối đa 3, spawn chậm hơn)
+            // Ban đêm: Bầy đàn đông đúc hung hãn (tối đa 10, spawn nhanh)
+            int effectiveMax = isNightTime ? maxCannibals : Mathf.Min(3, maxCannibals);
+            float effectiveInterval = isNightTime ? spawnInterval : 25f;
+
+            // Sinh đợt thổ dân tuần tra ban đầu ngay sau khi vào game hoặc cutscene kết thúc
             if (!initialSpawnDone)
             {
                 initialSpawnDone = true;
-                for (int i = 0; i < 4; i++)
+                int initialCount = isNightTime ? 4 : 2;
+                for (int i = 0; i < initialCount; i++)
                 {
                     SpawnCannibal();
                 }
-                Debug.Log("🏹 [CannibalSpawner] Đã sinh bầy Thổ Dân ban đầu (4 tên) rình rập quanh người chơi!");
+                Debug.Log(string.Format("🏹 [CannibalSpawner] Đã sinh bầy Thổ Dân ban đầu ({0} tên) rình rập quanh người chơi! ({1})",
+                    initialCount, isNightTime ? "Ban Đêm" : "Ban Ngày"));
             }
 
             // Dọn dẹp danh sách những thổ dân đã chết hoặc bị hủy
             activeCannibals.RemoveAll(c => c == null || (c.GetComponent<CannibalAI>() != null && c.GetComponent<CannibalAI>().IsDead));
 
-            if (activeCannibals.Count >= maxCannibals) return;
+            if (activeCannibals.Count >= effectiveMax) return;
 
             timer += Time.deltaTime;
-            if (timer >= spawnInterval)
+            if (timer >= effectiveInterval)
             {
                 timer = 0f;
                 SpawnCannibal();
-                if (Random.value < 0.4f) SpawnCannibal();
+                // Ban đêm có 40% cơ hội sinh thêm 1 tên cùng lúc; ban ngày không
+                if (isNightTime && Random.value < 0.4f) SpawnCannibal();
             }
         }
 

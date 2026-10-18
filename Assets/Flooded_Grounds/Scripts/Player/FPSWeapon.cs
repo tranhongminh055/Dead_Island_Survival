@@ -357,7 +357,6 @@ public class FPSWeapon : MonoBehaviour
 
             ParticleSystem ps = psObj.AddComponent<ParticleSystem>();
             ParticleSystem.MainModule main = ps.main;
-            main.duration = 0.1f;
             main.loop = false;
             main.playOnAwake = false;
             main.startLifetime = new ParticleSystem.MinMaxCurve(0.04f, 0.08f);

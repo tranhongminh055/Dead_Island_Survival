@@ -28924,11 +28924,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f8d7da6bb6c1ce4bb269962431e7877, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dayDurationInMinutes: 10
-  startHour: 7.8
+  dayDurationInMinutes: 12
+  startHour: 5.25
   sunLight: {fileID: 1194554256}
   moonColor: {r: 0.7704368, g: 0.7952169, b: 0.9191176, a: 1}
-  moonIntensity: 0.158
+  moonIntensity: 0.22
   nightWolfHowlClip: {fileID: 8300000, guid: a242a0530053f2f44aaa82a2d0ad957f, type: 3}
   nightWolfVolume: 1
   minWolfHowlInterval: 50

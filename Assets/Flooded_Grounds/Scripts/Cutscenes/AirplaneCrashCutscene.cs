@@ -1758,7 +1758,6 @@ namespace HorrorGame.Cutscenes
                 ParticleSystem ps = smokeObj.AddComponent<ParticleSystem>();
                 ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
                 var main = ps.main;
-                main.duration = 5f;
                 main.loop = true;
                 main.startLifetime = 10f;
                 main.startSpeed = 8f;
@@ -1784,7 +1783,6 @@ namespace HorrorGame.Cutscenes
                 ParticleSystem pFire = fireObj.AddComponent<ParticleSystem>();
                 pFire.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
                 var fMain = pFire.main;
-                fMain.duration = 5f;
                 fMain.loop = true;
                 fMain.startLifetime = 2.5f;
                 fMain.startSpeed = 10f;
@@ -2463,7 +2461,6 @@ namespace HorrorGame.Cutscenes
             ParticleSystem ps = dustObj.AddComponent<ParticleSystem>();
             ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             var main = ps.main;
-            main.duration = 10f;
             main.loop = true;
             main.startLifetime = new ParticleSystem.MinMaxCurve(1f, 3f);
             main.startSpeed = new ParticleSystem.MinMaxCurve(0.1f, 0.5f);

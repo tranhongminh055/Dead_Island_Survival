@@ -189,7 +189,14 @@ namespace HorrorGame.Enemy
             }
 
             // 3. TIẾNG HÚ CHIẾN TRẬN KHI PHÁT HIỆN NGƯỜI CHƠI (WARCHANT ROAR)
-            if (player != null && warCryCooldown <= 0f)
+            // Chỉ hú vào ban đêm (19:15 - 05:15). Ban ngày thổ dân vẫn tấn công nhưng không hú.
+            bool isNightTime = true;
+            if (HorrorGame.Environment.DayNightCycle.Instance != null)
+            {
+                isNightTime = HorrorGame.Environment.DayNightCycle.Instance.IsNight();
+            }
+
+            if (isNightTime && player != null && warCryCooldown <= 0f)
             {
                 float dist = Vector3.Distance(transform.position, player.position);
                 if (dist <= warCryRange)

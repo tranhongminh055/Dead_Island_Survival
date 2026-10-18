@@ -25,8 +25,8 @@ namespace HorrorGame.Environment.Weather
         [Header("── Bão Mở Đầu Sau Trailer (Intro Storm) ──")]
         [Tooltip("Tự động kích hoạt trận bão sấm sét ngay sau khi trailer kết thúc")]
         public bool startStormAfterTrailer = true;
-        [Tooltip("Thời lượng trận bão sấm sét mở đầu (giây). Mặc định 180s = 3 phút")]
-        public float introStormDuration = 180f;
+        [Tooltip("Thời lượng trận bão sấm sét mở đầu (giây). Mặc định 60s = 1 phút → ~2h in-game")]
+        public float introStormDuration = 60f;
         [Tooltip("Sét đánh ngay giây đầu tiên sau khi trailer kết thúc")]
         public bool firstLightningStrikeImmediate = true;
 
@@ -132,10 +132,11 @@ namespace HorrorGame.Environment.Weather
             if (RenderSettings.skybox != null && RenderSettings.skybox.HasProperty("_Exposure"))
             {
                 originalSkyboxExposure = RenderSettings.skybox.GetFloat("_Exposure");
+                if (originalSkyboxExposure <= 0.1f) originalSkyboxExposure = 0.8f;
             }
             else
             {
-                originalSkyboxExposure = 1f;
+                originalSkyboxExposure = 0.8f;
             }
 
             cachedAirplaneCutscene = FindObjectOfType<HorrorGame.Cutscenes.AirplaneCrashCutscene>();
@@ -353,8 +354,8 @@ namespace HorrorGame.Environment.Weather
             // Làm tối màu môi trường xung quanh (dựa trên cường độ gốc)
             RenderSettings.ambientIntensity = originalAmbientIntensity * CurrentAmbientMultiplier;
 
-            // Giảm độ phơi sáng của Skybox khi trời bão (dựa trên độ phơi sáng gốc)
-            if (RenderSettings.skybox != null && RenderSettings.skybox.HasProperty("_Exposure"))
+            // Giảm độ phơi sáng của Skybox khi trời bão (nếu không có DayNightCycle quản lý)
+            if (DayNightCycle.Instance == null && RenderSettings.skybox != null && RenderSettings.skybox.HasProperty("_Exposure"))
             {
                 RenderSettings.skybox.SetFloat("_Exposure", originalSkyboxExposure * CurrentSkyboxMultiplier);
             }
@@ -528,9 +529,39 @@ namespace HorrorGame.Environment.Weather
             ScheduleNextWeatherDuration();
         }
 
+        private bool introStormJustEnded = false;
+
         private void PickNextRandomWeather()
         {
-            WeatherType next = GetNextWeatherInCycle(currentWeather);
+            // Sau trận bão mở đầu (Intro Storm) → bắt buộc chuyển sang Trời Nắng Ráo
+            // để người chơi thấy nắng sau cơn giông bão kịch tính
+            if (hasTriggeredIntroStorm && currentWeather == WeatherType.Thunderstorm && !introStormJustEnded)
+            {
+                introStormJustEnded = true;
+                Debug.Log("☀️ [WeatherSystem] Trận bão mở đầu đã kết thúc! Trời quang mây tạnh, nắng ló dạng!");
+                SetWeather(WeatherType.Clear, Random.Range(8f, 12f));
+                return;
+            }
+
+            // Nếu đang ban ngày (7h - 17h) → tăng xác suất trời nắng
+            bool isDaytime = false;
+            if (HorrorGame.Environment.DayNightCycle.Instance != null)
+            {
+                float hour = HorrorGame.Environment.DayNightCycle.Instance.currentHour;
+                isDaytime = (hour >= 7f && hour < 17f);
+            }
+
+            WeatherType next;
+            if (isDaytime && currentWeather != WeatherType.Clear && Random.value < 0.45f)
+            {
+                // Ban ngày: 45% cơ hội bổ sung để chuyển về trời nắng
+                next = WeatherType.Clear;
+            }
+            else
+            {
+                next = GetNextWeatherInCycle(currentWeather);
+            }
+
             float transitionTime = Random.Range(14f, 22f); // Chuyển đổi mềm mại tự nhiên
             SetWeather(next, transitionTime);
         }
