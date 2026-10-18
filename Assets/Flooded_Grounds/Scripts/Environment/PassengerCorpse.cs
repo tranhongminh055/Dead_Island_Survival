@@ -56,6 +56,10 @@ namespace HorrorGame.Environment
                 if (playerTransform == null) return;
             }
 
+            // Không tương tác khi đang chạy Cutscene hoặc Cinematic Trailer
+            if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
+
             float dist = Vector3.Distance(transform.position, playerTransform.position);
             isPlayerNearby = (dist <= interactDistance);
 
@@ -268,6 +272,10 @@ namespace HorrorGame.Environment
         void OnGUI()
         {
             if (!isPlayerNearby || playerStats == null || playerStats.isDead) return;
+
+            // Không hiển thị prompt khi đang chạy Cutscene hoặc Cinematic Trailer
+            if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
 
             if (promptStyle == null)
             {

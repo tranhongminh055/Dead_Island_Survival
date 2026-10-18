@@ -2404,6 +2404,9 @@ namespace HorrorGame.Cutscenes
 
         private void SetSubtitle(string content)
         {
+            // Không hiển thị subtitle của cutscene khi Cinematic Trailer đang chiếu
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
+
             if (subtitleText != null)
             {
                 Transform uiParent = subtitleText.transform.parent != null && subtitleText.transform.parent.name == "Cutscene_Subtitle_UI" ? subtitleText.transform.parent : subtitleText.transform;

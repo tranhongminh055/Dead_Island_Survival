@@ -240,6 +240,9 @@ namespace HorrorGame.Survival
             // Không nhận input khi Cutscene
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
 
+            // Không nhận input khi Cinematic Trailer đang chiếu
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
+
             // Không nhận input khi mở inventory
             if (Inventory.InventoryManager.Instance != null && Inventory.InventoryManager.Instance.isInventoryOpen) return;
 

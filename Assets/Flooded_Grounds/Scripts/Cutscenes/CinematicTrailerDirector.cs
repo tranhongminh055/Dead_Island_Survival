@@ -101,6 +101,11 @@ namespace HorrorGame.Cutscenes
         private List<MonoBehaviour> disabledHudScripts = new List<MonoBehaviour>();
         private List<GameObject> hiddenObstacles = new List<GameObject>();
 
+        // Lưu trữ toàn bộ script trên Player đã bị vô hiệu hóa trong trailer (để khôi phục chính xác)
+        private List<MonoBehaviour> disabledPlayerScripts = new List<MonoBehaviour>();
+        private List<Collider> disabledPlayerColliders = new List<Collider>();
+        private Rigidbody playerRigidbody;
+
         // Thiết lập ánh sáng ban đêm
         private float origDayHour = 12f;
         private Color origAmbientLight;
@@ -309,12 +314,8 @@ namespace HorrorGame.Cutscenes
 
             RestoreOriginalAtmosphere();
 
-            if (player != null)
-            {
-                player.enabled = true;
-                CharacterController cc = player.GetComponent<CharacterController>();
-                if (cc != null) cc.enabled = true;
-            }
+            // ═══ KHÔI PHỤC TOÀN BỘ TƯƠNG TÁC PLAYER SAU TRAILER ═══
+            RestoreAllPlayerInteraction();
 
             if (mainCamera != null)
             {
@@ -365,8 +366,26 @@ namespace HorrorGame.Cutscenes
                 }
             }
 
+            // Ẩn và xóa sạch subtitle UI của Cutscene mở đầu (tránh hiện text cũ trong trailer)
             GameObject subUI = GameObject.Find("Cutscene_Subtitle_UI");
-            if (subUI != null) subUI.SetActive(false);
+            if (subUI != null)
+            {
+                UnityEngine.UI.Text[] subTexts = subUI.GetComponentsInChildren<UnityEngine.UI.Text>(true);
+                foreach (var txt in subTexts)
+                {
+                    if (txt != null) txt.text = "";
+                }
+                subUI.SetActive(false);
+            }
+            // Tìm thêm bất kỳ Text nào có nội dung subtitle cũ còn sót
+            UnityEngine.UI.Text[] allTexts = FindObjectsOfType<UnityEngine.UI.Text>();
+            foreach (var txt in allTexts)
+            {
+                if (txt != null && txt.text.Contains("Máy bay"))
+                {
+                    txt.text = "";
+                }
+            }
 
             if (HorrorGame.UI.GameMenuManager.Instance != null)
             {
@@ -473,12 +492,8 @@ namespace HorrorGame.Cutscenes
 
             SetupCinematicNightAtmosphere();
 
-            if (player != null)
-            {
-                player.enabled = false;
-                CharacterController cc = player.GetComponent<CharacterController>();
-                if (cc != null) cc.enabled = false;
-            }
+            // ═══ VÔ HIỆU HÓA TRIỆT ĐỂ TOÀN BỘ TƯƠNG TÁC PLAYER TRONG TRAILER ═══
+            DisableAllPlayerInteraction();
 
             if (autoExportMp4)
             {
@@ -2570,6 +2585,124 @@ namespace HorrorGame.Cutscenes
             }
             hiddenObstacles.Clear();
         }
+        /// <summary>
+        /// 🔒 VÔ HIỆU HÓA TRIỆT ĐỂ TOÀN BỘ TƯƠNG TÁC CỦA PLAYER TRONG TRAILER
+        /// Tắt mọi MonoBehaviour, CharacterController, Rigidbody, NavMeshAgent trên Player.
+        /// Player sẽ KHÔNG THỂ di chuyển, xoay chuột, bắn súng, rút vũ khí, xây dựng, nhặt đồ...
+        /// </summary>
+        private void DisableAllPlayerInteraction()
+        {
+            if (player == null)
+            {
+                FindSceneReferences();
+                if (player == null) return;
+            }
+
+            disabledPlayerScripts.Clear();
+            disabledPlayerColliders.Clear();
+
+            // 1. Tắt TẤT CẢ MonoBehaviour trên Player và con cháu (trừ Animator để giữ pose)
+            MonoBehaviour[] allScripts = player.GetComponentsInChildren<MonoBehaviour>(true);
+            foreach (var script in allScripts)
+            {
+                if (script == null || !script.enabled) continue;
+                // Giữ Animator để player vẫn có thể được đặt pose trong trailer
+                if (script is Animator) continue;
+                // Không tự tắt chính CinematicTrailerDirector
+                if (script is CinematicTrailerDirector) continue;
+
+                script.enabled = false;
+                disabledPlayerScripts.Add(script);
+            }
+
+            // 2. Tắt CharacterController (ngăn di chuyển hoàn toàn)
+            CharacterController cc = player.GetComponent<CharacterController>();
+            if (cc != null) cc.enabled = false;
+
+            // 3. Tắt Rigidbody (ngăn vật lý)
+            playerRigidbody = player.GetComponent<Rigidbody>();
+            if (playerRigidbody != null)
+            {
+                playerRigidbody.isKinematic = true;
+                playerRigidbody.velocity = Vector3.zero;
+                playerRigidbody.angularVelocity = Vector3.zero;
+            }
+
+            // 4. Tắt NavMeshAgent nếu có
+            NavMeshAgent agent = player.GetComponent<NavMeshAgent>();
+            if (agent != null) agent.enabled = false;
+
+            // 5. Tắt tất cả Collider trên player (ngăn va chạm, trigger, nhặt đồ)
+            Collider[] allColliders = player.GetComponentsInChildren<Collider>(true);
+            foreach (var col in allColliders)
+            {
+                if (col != null && col.enabled)
+                {
+                    col.enabled = false;
+                    disabledPlayerColliders.Add(col);
+                }
+            }
+
+            // 6. Ẩn model player (để trailer camera không thấy player đứng lung tung)
+            Renderer[] renderers = player.GetComponentsInChildren<Renderer>(true);
+            foreach (var rend in renderers)
+            {
+                if (rend != null) rend.enabled = false;
+            }
+
+            // 7. Khóa cursor (trailer không cần cursor)
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+
+            Debug.Log("🎬 [CinematicTrailerDirector] ĐÃ VÔ HIỆU HÓA " + disabledPlayerScripts.Count + " scripts + " + disabledPlayerColliders.Count + " colliders trên Player!");
+        }
+
+        /// <summary>
+        /// 🔓 KHÔI PHỤC TOÀN BỘ TƯƠNG TÁC CỦA PLAYER SAU KHI TRAILER KẾT THÚC
+        /// Bật lại mọi MonoBehaviour, CharacterController, Rigidbody, Collider đã bị tắt.
+        /// </summary>
+        private void RestoreAllPlayerInteraction()
+        {
+            if (player == null) return;
+
+            // 1. Bật lại tất cả MonoBehaviour đã bị tắt
+            foreach (var script in disabledPlayerScripts)
+            {
+                if (script != null) script.enabled = true;
+            }
+            disabledPlayerScripts.Clear();
+
+            // 2. Bật lại CharacterController
+            CharacterController cc = player.GetComponent<CharacterController>();
+            if (cc != null) cc.enabled = true;
+
+            // 3. Bật lại Rigidbody
+            if (playerRigidbody != null)
+            {
+                playerRigidbody.isKinematic = false;
+            }
+
+            // 4. Bật lại NavMeshAgent
+            NavMeshAgent agent = player.GetComponent<NavMeshAgent>();
+            if (agent != null) agent.enabled = true;
+
+            // 5. Bật lại tất cả Collider
+            foreach (var col in disabledPlayerColliders)
+            {
+                if (col != null) col.enabled = true;
+            }
+            disabledPlayerColliders.Clear();
+
+            // 6. Hiện lại model player
+            Renderer[] renderers = player.GetComponentsInChildren<Renderer>(true);
+            foreach (var rend in renderers)
+            {
+                if (rend != null) rend.enabled = true;
+            }
+
+            Debug.Log("🎬 [CinematicTrailerDirector] ĐÃ KHÔI PHỤC toàn bộ tương tác Player!");
+        }
+
         /// <summary>
         /// 🚫 ẨN TOÀN BỘ THANH CHỈ SỐ UI/HUD GAMEPLAY TRONG SUỐT TRAILER CINEMATIC
         /// Tắt tất cả Canvas (thanh máu, thanh đói, thanh khát, thanh thể lực, thanh tinh thần...)

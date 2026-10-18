@@ -40,6 +40,9 @@ namespace HorrorGame.Inventory
             // Trong suốt phân cảnh Cutscene mở đầu: Không kiểm tra nhặt đồ và không hiển thị
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
 
+            // Không nhặt đồ khi Cinematic Trailer đang chiếu
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
+
             // Hiệu ứng xoay tròn và nhấp nhô nhẹ để người chơi dễ phát hiện trong bụi cỏ
             if (autoRotate)
             {
@@ -121,6 +124,9 @@ namespace HorrorGame.Inventory
         {
             // Không hiển thị phím nhắc [E] khi đang trong Cutscene
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
+
+            // Không hiển thị khi Cinematic Trailer đang chiếu
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
 
             // Chỉ hiển thị phím nhắc [E] khi người chơi lại gần
             if (!isPlayerInRange || itemData == null) return;

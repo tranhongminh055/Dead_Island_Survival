@@ -90,6 +90,9 @@ namespace HorrorGame.Survival
             // Trong Cutscene thì bỏ qua
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
 
+            // Không tương tác khi Cinematic Trailer đang chiếu
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
+
             // Tìm Player
             if (playerTransform == null)
             {
@@ -160,6 +163,7 @@ namespace HorrorGame.Survival
         void OnGUI()
         {
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
             if (!isPlayerInRange || isCollected || stoneItemData == null) return;
 
             if (promptStyle == null)

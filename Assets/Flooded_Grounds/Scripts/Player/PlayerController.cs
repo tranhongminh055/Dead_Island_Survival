@@ -116,6 +116,9 @@ namespace HorrorGame.Player
 
         void OnEnable()
         {
+            // Không kích hoạt lại controller khi Cinematic Trailer đang chạy
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
+
             if (controller == null) controller = GetComponent<CharacterController>();
             if (controller != null && !HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
             {
@@ -137,6 +140,10 @@ namespace HorrorGame.Player
 
             // Không nhận input điều khiển khi đang chạy Cutscene mở đầu
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+                return;
+
+            // Không nhận input điều khiển khi đang chạy Cinematic Trailer
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning)
                 return;
 
             // Kiểm tra xem túi đồ có đang mở không (nếu có thì không cho xoay chuột/di chuyển)

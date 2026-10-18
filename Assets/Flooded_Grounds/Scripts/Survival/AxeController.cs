@@ -461,6 +461,14 @@ namespace HorrorGame.Survival
                 return;
             }
 
+            // Không nhận input khi Cinematic Trailer đang chiếu
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning)
+            {
+                if (axeInstance != null && axeInstance.activeSelf) axeInstance.SetActive(false);
+                isEquipped = false;
+                return;
+            }
+
             // Nếu chưa tạo được rìu (Camera.main chưa sẵn sàng ở Start), thử lại
             if (!axeVisualCreated)
             {

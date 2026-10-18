@@ -577,6 +577,17 @@ public class FPSWeapon : MonoBehaviour
             return;
         }
 
+        // Khi Cinematic Trailer đang chiếu, tuyệt đối không cho phép tương tác vũ khí
+        if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning)
+        {
+            if (gunInstance != null && gunInstance.activeSelf)
+            {
+                gunInstance.SetActive(false);
+            }
+            isEquipped = false;
+            return;
+        }
+
         // Nếu có WeaponManager đang hoạt động, nhường quyền xử lý phím cho WeaponManager
         // để tránh xung đột 2 script cùng bắt phím 1
 
@@ -986,6 +997,7 @@ public class FPSWeapon : MonoBehaviour
     void OnGUI()
     {
         if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
+        if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
         if (!isEquipped) return;
 
         // === TÂM NGẮM (Crosshair) ===
