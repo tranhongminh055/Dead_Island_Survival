@@ -58,7 +58,7 @@ namespace HorrorGame.Player
                 {
                     campfireHeatTimer = 0f;
                     RemoveParasites(1);
-                    ShowAlert("🔥 Hơi nóng lửa trại đã hun chết và làm rụng 1 Ký sinh trùng!");
+                    ShowAlert(" Hơi nóng lửa trại đã hun chết và làm rụng 1 Ký sinh trùng!");
                     playerStats.RestoreSanity(5f);
                 }
             }

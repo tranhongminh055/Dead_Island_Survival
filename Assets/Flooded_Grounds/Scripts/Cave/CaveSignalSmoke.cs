@@ -80,6 +80,22 @@ namespace HorrorGame.Cave
             {
                 FindPlayerAndCamera();
             }
+
+            // Tự động căn chỉnh vị trí khói áp sát ngay bên phải vòm đá cửa hang (1.1m)
+            TheForestCaveEntrance parentEntrance = GetComponentInParent<TheForestCaveEntrance>();
+            if (parentEntrance != null)
+            {
+                Vector3 desiredPos = parentEntrance.entranceWorldPosition + new Vector3(1.1f, 0f, -0.3f);
+                if (Terrain.activeTerrain != null)
+                {
+                    desiredPos.y = Terrain.activeTerrain.SampleHeight(desiredPos) + Terrain.activeTerrain.transform.position.y;
+                }
+                if (Vector3.Distance(transform.position, desiredPos) > 0.4f)
+                {
+                    transform.position = desiredPos;
+                    caveEntrancePos = desiredPos;
+                }
+            }
         }
 
 #if UNITY_EDITOR
@@ -448,8 +464,9 @@ namespace HorrorGame.Cave
             float dist = Vector3.Distance(playerTransform.position, transform.position);
             if (dist > maxDisplayDistance) return;
 
-            // Tính vị trí trên màn hình
-            Vector3 targetScreenPoint = transform.position + new Vector3(0f, 12f, 0f); // Đặt marker ngang lưng chừng cột khói
+            // Đặt marker ngang tầm mắt khi lại gần (1.6m), và cao dần khi ở xa
+            float markerHeight = Mathf.Clamp(dist * 0.18f, 1.6f, 12f);
+            Vector3 targetScreenPoint = transform.position + new Vector3(0f, markerHeight, 0f);
             Vector3 screenPos = mainCamera.WorldToScreenPoint(targetScreenPoint);
 
             // Kiểm tra điểm có nằm phía trước Camera không
@@ -458,7 +475,15 @@ namespace HorrorGame.Cave
                 float x = screenPos.x;
                 float y = Screen.height - screenPos.y;
 
-                string text = string.Format("🔴 CỘT KHÓI ĐỎ: {0}\n[Cách {1:0} mét]", caveName, dist);
+                string text;
+                if (dist <= 8f)
+                {
+                    text = string.Format("🟢 CỬA HANG Ở NGAY CẠNH CỘT KHÓI (1m)!\n👉 [Nhấn E] Để trèo dây thừng vào {0}", caveName);
+                }
+                else
+                {
+                    text = string.Format("🔴 CỘT KHÓI ĐỎ: {0}\n[Cách {1:0} mét]", caveName, dist);
+                }
 
                 GUIStyle shadowStyle = new GUIStyle(GUI.skin.label);
                 shadowStyle.alignment = TextAnchor.MiddleCenter;
@@ -470,7 +495,7 @@ namespace HorrorGame.Cave
                 textStyle.alignment = TextAnchor.MiddleCenter;
                 textStyle.fontSize = 13;
                 textStyle.fontStyle = FontStyle.Bold;
-                textStyle.normal.textColor = dist <= 40f ? Color.green : new Color(1f, 0.4f, 0.4f);
+                textStyle.normal.textColor = dist <= 12f ? Color.green : new Color(1f, 0.4f, 0.4f);
 
                 float width = 320f;
                 float height = 45f;
@@ -488,7 +513,7 @@ namespace HorrorGame.Cave
         {
             if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "MainMenu") return;
 
-            Vector3 forestPos = new Vector3(385f, 21.5f, 575f) + new Vector3(2.5f, 0f, -1.2f);
+            Vector3 forestPos = new Vector3(385f, 21.5f, 575f) + new Vector3(1.1f, 0f, -0.3f);
             if (Terrain.activeTerrain != null)
             {
                 forestPos.y = Terrain.activeTerrain.SampleHeight(forestPos) + Terrain.activeTerrain.transform.position.y;
@@ -503,16 +528,16 @@ namespace HorrorGame.Cave
                 comp.caveEntrancePos = forestPos;
                 Debug.Log("🔥 [CaveSignalSmoke] Đã tự động kích hoạt Cột Khói Đỏ báo hiệu Cửa Hang 1 tại rừng rậm: " + forestPos);
             }
-            else
+            else if (existing != null)
             {
-                // Nếu khói cũ đang ở gần nhà (480, 492) -> dời ngay vào rừng
-                if (Vector3.Distance(existing.transform.position, new Vector3(480f, 15f, 492f)) < 25f ||
-                    Vector3.Distance(existing.caveEntrancePos, new Vector3(480f, 15f, 492f)) < 25f)
+                // Nếu khói cũ đang ở cách hang xa (> 1.2m) hoặc ở khu nhà cũ -> dời ngay sát bên mép cửa hang
+                if (Vector3.Distance(existing.transform.position, forestPos) > 1.2f ||
+                    Vector3.Distance(existing.transform.position, new Vector3(480f, 15f, 492f)) < 25f)
                 {
                     existing.transform.position = forestPos;
                     existing.caveEntrancePos = forestPos;
                     existing.SetupSmokeSystems();
-                    Debug.Log("🔥 [CaveSignalSmoke] Đã di dời Cột Khói Đỏ vào sâu trong rừng rậm tại " + forestPos);
+                    Debug.Log("🔥 [CaveSignalSmoke] Đã di dời Cột Khói Đỏ áp sát ngay bên cạnh vòm đá cửa hang tại " + forestPos);
                 }
             }
         }

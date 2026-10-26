@@ -440,10 +440,31 @@ namespace HorrorGame.Cave
                     new Color(0.3f, 0.95f, 0.5f)  // Hang 6: Xanh ký sinh
                 };
 
+                Vector3[] forbiddenZones = new Vector3[]
+                {
+                    new Vector3(480f, 15f, 492f),   // Nhà gỗ chính
+                    new Vector3(480f, 15f, 500f),   // Khu vực spawn player
+                    new Vector3(475f, 15f, 488f),   // Khu vực lều trại
+                    new Vector3(485f, 15f, 495f)
+                };
+                float forbiddenRadius = 60f;
+
                 for (int i = 0; i < presets.Length; i++)
                 {
                     var p = presets[i];
                     Vector3 cavePos = p.pos;
+
+                    // Bảo đảm vị trí không được trùng hoặc gần khu nhà
+                    for (int f = 0; f < forbiddenZones.Length; f++)
+                    {
+                        if (Vector3.Distance(cavePos, forbiddenZones[f]) < forbiddenRadius)
+                        {
+                            // Đẩy sâu vào rừng Tây Bắc nếu bị trùng khu nhà
+                            cavePos = new Vector3(385f, 21.5f, 575f);
+                            break;
+                        }
+                    }
+
                     if (Terrain.activeTerrain != null)
                     {
                         cavePos.y = Mathf.Max(Terrain.activeTerrain.SampleHeight(cavePos) + Terrain.activeTerrain.transform.position.y, 16.2f);

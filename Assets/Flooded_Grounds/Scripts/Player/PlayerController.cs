@@ -47,6 +47,7 @@ namespace HorrorGame.Player
         private float highestAirborneY = 0f;
         private float lastFallVelocityY = 0f;
         private bool landingImpactHandledThisFall = false;
+        private bool wasInTrueAirborne = false;
 
         // Hiệu ứng Camera đi cà nhấc (Limping Head-Bob & Tilt)
         private Vector3 baseCameraLocalPos = new Vector3(0f, 0.65f, 0.15f);
@@ -178,21 +179,48 @@ namespace HorrorGame.Player
             if (fractureSystem == null) fractureSystem = GetComponent<PlayerFractureSystem>();
             bool hasFracture = (fractureSystem != null && fractureSystem.isFractured);
 
+            // Kiểm tra xem chân có đang chạm hoặc sát bề mặt dốc/sàn/cánh máy bay hay không
+            bool isTouchingSurface = controller.isGrounded;
+            if (!isTouchingSurface)
+            {
+                RaycastHit slopeHit;
+                float checkDist = (controller.height * 0.5f) + 0.5f;
+                if (Physics.Raycast(transform.position, Vector3.down, out slopeHit, checkDist, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    isTouchingSurface = true;
+                }
+            }
+
             // ═══════════════════════════════════════════════════════════════
             // 1. THEO DÕI ĐỘ CAO RƠI TỰ DO KHI Ở TRÊN KHÔNG
             // ═══════════════════════════════════════════════════════════════
             if (!controller.isGrounded)
             {
-                if (wasGroundedLastFrame)
+                if (isTouchingSurface && !wasInTrueAirborne)
                 {
-                    // Frame đầu tiên vừa rời khỏi mặt đất
-                    highestAirborneY = transform.position.y;
-                    landingImpactHandledThisFall = false;
-                }
-                else if (transform.position.y > highestAirborneY)
-                {
+                    // Đang đi bộ hoặc trượt bám sát mặt dốc / cánh máy bay nghiêng:
+                    // Không tính là rơi tự do, liên tục cập nhật mốc độ cao về cao độ hiện tại
                     highestAirborneY = transform.position.y;
                 }
+                else
+                {
+                    // Thực sự lơ lửng giữa không trung (cách mặt đất/dốc > 0.5m)
+                    wasInTrueAirborne = true;
+                    if (wasGroundedLastFrame)
+                    {
+                        highestAirborneY = transform.position.y;
+                        landingImpactHandledThisFall = false;
+                    }
+                    else if (transform.position.y > highestAirborneY)
+                    {
+                        highestAirborneY = transform.position.y;
+                    }
+                }
+            }
+            else
+            {
+                wasInTrueAirborne = false;
+                highestAirborneY = transform.position.y;
             }
 
             // ═══════════════════════════════════════════════════════════════
@@ -267,6 +295,7 @@ namespace HorrorGame.Player
                     landingImpactHandledThisFall = false;
                     wasGroundedLastFrame = false;
                     isGrounded = false;
+                    wasInTrueAirborne = true;
                     if (animator != null) animator.SetTrigger("Jump");
                 }
             }
@@ -285,18 +314,20 @@ namespace HorrorGame.Player
             if (hitGroundNow)
             {
                 // Vừa từ trên cao chạm mặt đất trong frame này -> Kích hoạt âm thanh & va đập ngay lập tức!
-                if (!wasGroundedLastFrame && !landingImpactHandledThisFall)
+                if (!wasGroundedLastFrame && !landingImpactHandledThisFall && wasInTrueAirborne)
                 {
                     TriggerInstantLanding();
                 }
 
                 isGrounded = true;
                 wasGroundedLastFrame = true;
+                wasInTrueAirborne = false;
                 landingImpactHandledThisFall = false;
 
                 if (velocity.y < 0)
                 {
-                    velocity.y = -2f; // Giữ nhân vật bám sát mặt đất
+                    // Khi di chuyển trên dốc, áp dụng trọng lực bám dốc nhẹ (-5f) tránh nảy
+                    velocity.y = isMoving ? -5f : -2f;
                 }
             }
             else
@@ -341,7 +372,7 @@ namespace HorrorGame.Player
         /// </summary>
         private void OnControllerColliderHit(ControllerColliderHit hit)
         {
-            if (!wasGroundedLastFrame && !landingImpactHandledThisFall)
+            if (!wasGroundedLastFrame && !landingImpactHandledThisFall && wasInTrueAirborne)
             {
                 // Pháp tuyến hướng lên > 0.45f hoặc điểm va chạm ở ngay dưới chân
                 if (hit.normal.y > 0.45f || hit.point.y < transform.position.y + 0.25f)
@@ -414,16 +445,18 @@ namespace HorrorGame.Player
                 return;
             }
 
-            // 1. Nhảy bình thường hoặc bậc thấp (< 3.2m và tốc độ < 8.5m/s): Hoàn toàn an toàn, không mất máu!
-            if (fallDistance < 3.2f && impactSpeed < 8.5f)
+            // 1. Nhảy bình thường hoặc bậc thấp (< 3.6m và tốc độ < 9.5m/s): Hoàn toàn an toàn, không mất máu!
+            if (fallDistance < 3.6f && impactSpeed < 9.5f)
             {
                 return;
             }
 
-            // 2. Rơi từ độ cao vừa (3.2m - 5.0m): Chấn thương nhẹ (8 - 25 HP), không gãy xương
-            if (fallDistance < 5.0f && impactSpeed < 11.0f)
+            // 2. Rơi từ độ cao vừa (3.6m - 6.2m): Chấn thương nhẹ (10 - 32 HP), NHƯNG KHÔNG GÃY XƯƠNG!
+            // Cho phép người chơi bước/nhảy từ sàn máy bay, thùng container hay mỏm đá cao mà không bị què chân
+            bool isSevereFractureFall = (fallDistance >= 6.2f && impactSpeed >= 11.0f) || fallDistance >= 8.0f;
+            if (!isSevereFractureFall)
             {
-                float damage = Mathf.Clamp((fallDistance - 3.0f) * 9.5f, 8f, 26f);
+                float damage = Mathf.Clamp((fallDistance - 3.2f) * 8.5f, 10f, 32f);
                 if (stats != null)
                 {
                     stats.TakeDamage(damage);
@@ -436,9 +469,9 @@ namespace HorrorGame.Player
                 return;
             }
 
-            // 3. Rơi từ trên cao xuống (>= 5.0m hoặc tốc độ >= 11.0m/s):
+            // 3. Rơi từ trên cao xuống rất nặng (>= 6.2m và tốc độ cao, hoặc rơi vực >= 8.0m):
             // KHỚP NGAY LẬP TỨC: SÁT THƯƠNG NẶNG + BẺ RẮC GÃY XƯƠNG + TIẾNG RÊN LA THẤT THANH (0ms DELAY)!
-            float severeDamage = 30f + (fallDistance - 5.0f) * 12.0f;
+            float severeDamage = 35f + (fallDistance - 6.0f) * 12.0f;
             if (stats != null)
             {
                 stats.TakeDamage(severeDamage);
