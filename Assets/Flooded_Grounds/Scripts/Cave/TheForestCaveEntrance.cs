@@ -25,21 +25,23 @@ namespace HorrorGame.Cave
         public int caveID = 1;
         public string caveName = "Hang Sụp Đổ (The Collapsed Den)";
 
-        [Tooltip("Tọa độ cửa hang sâu trong rừng rậm (Cách xa khu nhà gỗ ~120m)")]
-        public Vector3 entranceWorldPosition = new Vector3(385f, 21.5f, 575f);
+        [Tooltip("Tọa độ cửa hang sâu trong rừng rậm thoáng đãng Tây Bắc (Cách xa khu nhà gỗ / ban công)")]
+        public Vector3 entranceWorldPosition = new Vector3(310f, 17.5f, 500f);
 
-        [Header("── Tùy Chỉnh Kích Thước (Chuẩn Người Thật ~2.5m) ──")]
-        public float entranceScale = 1.35f;
+        [Header("── Tùy Chỉnh Kích Thước (Chuẩn Người Thật ~2.6m) ──")]
+        public float entranceScale = 1.0f;
 
         [Header("── Màu Dây Thừng ──")]
         public Color ropeColor = new Color(0.95f, 0.85f, 0.12f); // Mặc định vàng chanh The Forest
 
         private GameObject moundRoot;
-        private CaveEntrance caveEntranceComponent;
+        public CaveEntrance caveEntranceComponent;
+        public Transform exteriorSpawnPoint;
+        public Transform interiorSpawnPoint;
 
         public static readonly ForestCavePreset[] DefaultCavePresets = new ForestCavePreset[]
         {
-            new ForestCavePreset(1, "Hang Sụp Đổ (The Collapsed Den)", new Vector3(385f, 21.5f, 575f), new Color(0.95f, 0.85f, 0.12f), "Hang động nhỏ trong rừng rậm Tây Bắc. Nơi bắt đầu học cách sinh tồn dưới lòng đất."),
+            new ForestCavePreset(1, "Hang Sụp Đổ (The Collapsed Den)", new Vector3(310f, 17.5f, 500f), new Color(0.95f, 0.85f, 0.12f), "Hang động nhỏ trong rừng rậm Tây Bắc. Nơi bắt đầu học cách sinh tồn dưới lòng đất."),
             new ForestCavePreset(2, "Hang Rễ Cây (The Root Cavern)", new Vector3(320f, 22.5f, 660f), new Color(0.95f, 0.65f, 0.15f), "Hang sâu dưới gốc cây cổ thụ khổng lồ phía Bắc đảo. Mê cung rễ cây và suối ngầm 2 tầng."),
             new ForestCavePreset(3, "Hang Thủy Triều (The Tidal Grotto)", new Vector3(450f, 18.0f, 725f), new Color(0.20f, 0.85f, 0.95f), "Hang vách đá biển phía Bắc. Mực nước dâng theo thủy triều ban đêm và có bẫy nước dâng."),
             new ForestCavePreset(4, "Hang Đầm Lầy (The Swamp Abyss)", new Vector3(630f, 18.5f, 490f), new Color(0.95f, 0.25f, 0.15f), "Tổ lớn của bộ tộc Thổ Dân Ăn Thịt Người phía Đông. Đầy cọc nhọn cạm bẫy bí mật."),
@@ -51,6 +53,8 @@ namespace HorrorGame.Cave
         {
             if (!AllEntrances.Contains(this)) AllEntrances.Add(this);
             if (Instance == null || caveID == 1) Instance = this;
+
+            CheckAndAutoRelocateCave1();
         }
 
         private void OnDisable()
@@ -66,6 +70,7 @@ namespace HorrorGame.Cave
 
         private void Start()
         {
+            CheckAndAutoRelocateCave1();
             BuildForestCaveEntranceModel();
         }
 
@@ -73,6 +78,9 @@ namespace HorrorGame.Cave
 
         private void Update()
         {
+            // Tự động di dời Cửa Hang 1 ra khỏi khu nhà gỗ nếu đang bị kẹt ở ban công/nhà sàn tọa độ cũ (385, 575)
+            CheckAndAutoRelocateCave1();
+
             // Tự động dựng lại ngay lập tức trong frame đầu tiên sau khi code reload
             if (!hasAutoRebuilt)
             {
@@ -89,7 +97,39 @@ namespace HorrorGame.Cave
         }
 
         /// <summary>
-        /// Tự động dựng toàn bộ mô hình 3D cửa hang The Forest chuẩn kích thước người thật
+        /// Tự động di dời Hang 1 nếu phát hiện đang nằm trên nhà sàn / ban công cũ (385, 575)
+        /// </summary>
+        private void CheckAndAutoRelocateCave1()
+        {
+            if (caveID == 1)
+            {
+                bool atOldVilla = Vector3.Distance(transform.position, new Vector3(385f, 16.76f, 575f)) < 25f ||
+                                  Vector3.Distance(entranceWorldPosition, new Vector3(385f, 21.5f, 575f)) < 25f;
+
+                if (transform.parent != null && transform.parent.name.Contains("Cave1"))
+                {
+                    if (Vector3.Distance(transform.parent.position, new Vector3(385f, 16.76f, 575f)) < 25f ||
+                        Vector3.Distance(transform.parent.position, new Vector3(385f, 21.5f, 575f)) < 25f)
+                    {
+                        atOldVilla = true;
+                        transform.parent.position = new Vector3(310f, 17.5f, 500f);
+                        transform.parent.rotation = Quaternion.Euler(0f, 75f, 0f);
+                    }
+                }
+
+                if (atOldVilla)
+                {
+                    entranceWorldPosition = new Vector3(310f, 17.5f, 500f);
+                    transform.position = entranceWorldPosition;
+                    transform.rotation = Quaternion.Euler(0f, 75f, 0f);
+                    BuildForestCaveEntranceModel();
+                    Debug.Log("🌲 [TheForestCaveEntrance] Đã tự động dời Hang 1 khỏi khu nhà gỗ sang rừng thoáng mát (310, 17.5, 500)!");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Tự động dựng toàn bộ mô hình 3D cửa hang hầm mỏ chuẩn kích thước người thật (~2.6m)
         /// </summary>
         public void BuildForestCaveEntranceModel()
         {
@@ -101,6 +141,10 @@ namespace HorrorGame.Cave
             }
 
             transform.position = entranceWorldPosition;
+            if (caveID == 1 && transform.rotation == Quaternion.identity)
+            {
+                transform.rotation = Quaternion.Euler(0f, 75f, 0f);
+            }
 
             // Xóa cấu trúc cũ nếu có để dựng mới hoàn toàn
             Transform existingMound = transform.Find("CaveEntrance_ForestMound");
@@ -116,22 +160,22 @@ namespace HorrorGame.Cave
             moundRoot.transform.localRotation = Quaternion.identity;
             moundRoot.transform.localScale = Vector3.one * entranceScale;
 
-            // 1. TẠO VÒM ĐÁ TẢNG TỰ NHIÊN (CHUẨN KÍCH THƯỚC THE FOREST)
-            SetupCaveArchRocks(moundRoot);
+            // 1. TẠO CỔNG HẦM MỎ MINE (MINE TIMBER PORTAL & TUNNEL - CHUẨN TỶ LỆ NGƯỜI THẬT ~2.6m, KHÔNG CÓ ĐÁ CAO CHÓT VÓT)
+            SetupMineEntrancePortal(moundRoot);
 
-            // 2. TẠO HỐ ĐEN SÂU THẲM (DARK CAVERN VOID)
+            // 2. TẠO KHÔNG GIAN TỐI HUN HÚT TRONG HẦM (DARK CAVERN TUNNEL VOID)
             SetupCavernAbyssVoid(moundRoot);
 
-            // 3. TẠO CÁC TẤM VÁN GỖ GÁC MIỆNG HANG (WOODEN PLANKS)
+            // 3. TẠO CÁC TẤM VÁN GỖ THỀM CỬA HẦM (WOODEN PLANKS TỪ MINE ASSET)
             SetupWoodenThresholdPlanks(moundRoot);
 
-            // 4. TẠO DÂY THỪNG LEO HANG MÀU ĐẶC TRƯNG (CLIMBING ROPE)
+            // 4. DÂY THỪNG LEO HANG (CLIMBING ROPE THE FOREST)
             SetupClimbingRope(moundRoot);
 
-            // 5. TẠO CÂY CỐI & HOA CỎ RỪNG RẬM BAO QUANH MIỆNG HANG (THEO TỪNG BIOME)
+            // 5. CÂY CỐI & HOA CỎ RỪNG RẬM BAO QUANH CỬA HẦM
             SetupForestSurroundings(moundRoot);
 
-            // 6. TẠO LÀN HƠI SƯƠNG LẠNH BỐC TỪ TRONG HANG RA (COLD MIST)
+            // 6. LÀN HƠI SƯƠNG LẠNH BỐC TỪ TRONG HẦM RA (COLD MIST)
             SetupCaveDraftParticles(moundRoot);
 
             // 7. GẮN TRIGGER TƯƠNG TÁC PHÍM [E]
@@ -140,59 +184,140 @@ namespace HorrorGame.Cave
             // 8. CẬP NHẬT CỘT KHÓI ĐỎ BÁO HIỆU RIÊNG CHO HANG NÀY
             SetupAdjacentSignalSmoke();
 
-            Debug.Log(string.Format("⛰️ [TheForestCaveEntrance] Đã dựng thành công Cửa Hang {0} ({1}) tại tọa độ: {2}", caveID, caveName, entranceWorldPosition));
+            // 9. TỰ ĐỘNG XÂY DỰNG HẦM MỎ NGẦM MINE (NẾU CHƯA CÓ)
+            EnsureSubterraneanMineCavern();
+
+            Debug.Log(string.Format("⛰️ [TheForestCaveEntrance] Đã dựng thành công Cửa Hầm Mỏ {0} ({1}) tại tọa độ: {2}", caveID, caveName, entranceWorldPosition));
         }
 
         // =========================================================================
-        // 1. DỰNG VÒM ĐÁ TẢNG TỰ NHIÊN CHUẨN TỶ LỆ (THE FOREST ROCK ARCH)
-        // DÙNG CÁC TẢNG ĐÁ LỚN ROCK_A VÀ ROCK_B ĐỂ TẠO CỬA ĐỘNG SỪNG SỮNG CAO 3 MÉT
+        // 1. DỰNG CỔNG HẦM MỎ BẰNG ASSET MINE (CHUẨN TỶ LỆ NGƯỜI THẬT ~2.6m - 2.8m)
+        // DÙNG TRỰC TIẾP Support1, Tunnel1, Lantern, Pickaxe, Crate TỪ MINE ASSET!
+        // TUYỆT ĐỐI KHÔNG DÙNG ĐÁ TẢNG KHỔNG LỒ CAO CHÓT VÓT LÊN TRỜI!
         // =========================================================================
-        private void SetupCaveArchRocks(GameObject root)
+        private void SetupMineEntrancePortal(GameObject root)
         {
-            GameObject group = new GameObject("Arch_Rocks");
+            GameObject group = new GameObject("Mine_Entrance_Portal");
             group.transform.SetParent(root.transform);
             group.transform.localPosition = Vector3.zero;
             group.transform.localRotation = Quaternion.identity;
 
-            // Ưu tiên dùng đá tảng lớn Rock_A và Rock_B (boulder vách núi) để tạo vòm hang to lớn nhìn thấy từ xa
-            GameObject bigRockA = LoadRockPrefab("Rock_A") ?? LoadRockPrefab("CobbleRock_A");
-            GameObject bigRockB = LoadRockPrefab("Rock_B") ?? LoadRockPrefab("CobbleRock_B");
-            GameObject cobbleSmall = LoadRockPrefab("CobbleRock_A") ?? LoadNaturePrefab("Rocks", "CobbleRock_A");
-
-            float rotSeed = (caveID * 17f) % 30f - 15f;
-
-            // 1. Tảng đá trụ vách TRÁI (Rock_A to lớn vươn cao 2.8m)
-            SpawnRockPiece(group, bigRockA, new Vector3(-1.3f, 1.2f, 0.2f), new Vector3(5f, 25f + rotSeed, -12f), new Vector3(1.7f, 2.0f, 1.7f), "Rock_LeftPillar");
-
-            // 2. Tảng đá trụ vách PHẢI (Rock_B to lớn vươn cao 2.8m)
-            SpawnRockPiece(group, bigRockB, new Vector3(1.3f, 1.2f, 0.2f), new Vector3(8f, -30f + rotSeed, 12f), new Vector3(1.7f, 2.0f, 1.7f), "Rock_RightPillar");
-
-            // 3. Tảng đá vòm NÓC (Rock_A bắc ngang trên đỉnh, cao ~3.0m tạo mái vòm chéo góc hình The Forest)
-            SpawnRockPiece(group, bigRockA, new Vector3(0.0f, 2.5f, -0.1f), new Vector3(15f, 80f + rotSeed, 5f), new Vector3(2.0f, 1.5f, 1.8f), "Rock_KeystoneArch");
-
-            // 4. Khối đá ụ lưng phía sau (Rock_B làm dày gò đồi đất đá, bịt kín khe hở đằng sau)
-            SpawnRockPiece(group, bigRockB, new Vector3(0f, 1.3f, 1.5f), new Vector3(-12f, 0f, 0f), new Vector3(2.3f, 1.9f, 1.9f), "Rock_BackRidge");
-
-            // 5. Cụm đá kè sườn trái (nối dài gờ đá xuống mặt đất)
-            SpawnRockPiece(group, bigRockA, new Vector3(-2.2f, 0.6f, 0.7f), new Vector3(10f, 40f + rotSeed, 0f), new Vector3(1.4f, 1.3f, 1.3f), "Rock_ShoulderLeft");
-
-            // 6. Cụm đá kè sườn phải (nối dài gờ đá xuống mặt đất)
-            SpawnRockPiece(group, bigRockB, new Vector3(2.2f, 0.6f, 0.7f), new Vector3(10f, -40f + rotSeed, 0f), new Vector3(1.4f, 1.3f, 1.3f), "Rock_ShoulderRight");
-
-            // 7. Vành đá cuội bọc rêu quanh thềm cửa hang
-            Vector3[] rimPositions = new Vector3[]
+            // 1. ĐOẠN ĐƯỜNG HẦM ĐÁ MINE (Tunnel1 - Chiều cao ~2.8m, rộng ~3.0m chuẩn người thật, có MeshCollider rỗng đi xuyên qua được)
+            GameObject tunnelPrefab = LoadMinePrefab("Base", "Tunnel1");
+            if (tunnelPrefab != null)
             {
-                new Vector3(-1.4f, 0.15f, -0.6f),
-                new Vector3(-0.9f, 0.12f, -1.0f),
-                new Vector3(-0.4f, 0.10f, -1.2f),
-                new Vector3( 0.4f, 0.10f, -1.2f),
-                new Vector3( 0.9f, 0.12f, -1.0f),
-                new Vector3( 1.4f, 0.15f, -0.6f)
-            };
+                GameObject tunnel = Instantiate(tunnelPrefab);
+                tunnel.name = "Entrance_StoneTunnel";
+                tunnel.transform.SetParent(group.transform);
+                tunnel.transform.localPosition = new Vector3(0f, 0f, 2.0f);
+                tunnel.transform.localRotation = Quaternion.identity;
+                tunnel.transform.localScale = Vector3.one;
+            }
 
-            for (int i = 0; i < rimPositions.Length; i++)
+            // 2. KHUNG GỖ CỔNG MỎ MẶT TIỀN (Support1 - 2 cột gỗ đứng + 1 xà ngang + thanh giằng chéo)
+            GameObject supportPrefab = LoadMinePrefab("Props", "Support1");
+            if (supportPrefab != null)
             {
-                SpawnRockPiece(group, cobbleSmall, rimPositions[i], new Vector3(Random.Range(-10, 10), i * 45f, 0f), new Vector3(0.65f, 0.55f, 0.65f), "CobbleRim_" + i);
+                GameObject frontSupport = Instantiate(supportPrefab);
+                frontSupport.name = "Entrance_FrontTimberPortal";
+                frontSupport.transform.SetParent(group.transform);
+                frontSupport.transform.localPosition = new Vector3(0f, 0f, 0.05f);
+                frontSupport.transform.localRotation = Quaternion.identity;
+                frontSupport.transform.localScale = Vector3.one;
+            }
+
+            // 3. KHUNG GỖ PHÍA TRONG HẦM (Support2 - Tạo chiều sâu hầm mỏ bỏ hoang)
+            GameObject support2Prefab = LoadMinePrefab("Props", "Support2") ?? supportPrefab;
+            if (support2Prefab != null)
+            {
+                GameObject innerSupport = Instantiate(support2Prefab);
+                innerSupport.name = "Entrance_InnerTimberSupport";
+                innerSupport.transform.SetParent(group.transform);
+                innerSupport.transform.localPosition = new Vector3(0f, 0f, 3.8f);
+                innerSupport.transform.localRotation = Quaternion.identity;
+                innerSupport.transform.localScale = Vector3.one;
+            }
+
+            // 4. ĐÈN BÃO MINE TREO TRÊN KHUNG GỖ (Có sẵn Point Light ấm áp và Lửa cháy bập bùng)
+            GameObject lanternPrefab = LoadMinePrefab("Props", "Lantern");
+            if (lanternPrefab != null)
+            {
+                GameObject lantern = Instantiate(lanternPrefab);
+                lantern.name = "Entrance_Lantern";
+                lantern.transform.SetParent(group.transform);
+                lantern.transform.localPosition = new Vector3(-1.05f, 2.05f, -0.1f);
+                lantern.transform.localRotation = Quaternion.identity;
+
+                Light lanternLight = lantern.GetComponentInChildren<Light>();
+                if (lanternLight != null)
+                {
+                    lanternLight.color = Color.Lerp(new Color(1.0f, 0.75f, 0.4f), ropeColor, 0.3f);
+                    lanternLight.range = 10f;
+                    lanternLight.intensity = 2.5f;
+                }
+            }
+
+            // 5. CÔNG CỤ KHAI KHOÁNG (Cuốc chim tựa vào vách gỗ)
+            GameObject pickaxePrefab = LoadMinePrefab("Props", "Pickaxe");
+            if (pickaxePrefab != null)
+            {
+                GameObject pickaxe = Instantiate(pickaxePrefab);
+                pickaxe.name = "Entrance_Pickaxe";
+                pickaxe.transform.SetParent(group.transform);
+                pickaxe.transform.localPosition = new Vector3(1.15f, 0.45f, -0.05f);
+                pickaxe.transform.localRotation = Quaternion.Euler(15f, 0f, -22f);
+            }
+
+            // 6. THÙNG GỖ TIẾP TẾ ĐẶT NÉP BÊN CỔNG
+            GameObject cratePrefab = LoadMinePrefab("Props", "Crate");
+            if (cratePrefab != null)
+            {
+                GameObject crate = Instantiate(cratePrefab);
+                crate.name = "Entrance_SupplyCrate";
+                crate.transform.SetParent(group.transform);
+                crate.transform.localPosition = new Vector3(1.4f, 0.25f, 0.6f);
+                crate.transform.localRotation = Quaternion.Euler(0f, 18f, 0f);
+            }
+
+            // 7. ĐÁ TẢNG SÁT ĐẤT (CHỈ CAO ~0.5m ÔM CHÂN CỘT GỖ - TUYỆT ĐỐI KHÔNG CÓ ĐÁ CAO CHÓT VÓT LÊN TRỜI)
+            GameObject rock1Prefab = LoadMinePrefab("Rocks", "Rock1");
+            GameObject rock2Prefab = LoadMinePrefab("Rocks", "Rock2") ?? rock1Prefab;
+
+            if (rock1Prefab != null)
+            {
+                // Chân cột trái: khối đá nhỏ ôm sát đất
+                GameObject rLeft = Instantiate(rock1Prefab);
+                rLeft.name = "GroundRock_LeftBase";
+                rLeft.transform.SetParent(group.transform);
+                rLeft.transform.localPosition = new Vector3(-1.55f, 0.1f, -0.1f);
+                rLeft.transform.localRotation = Quaternion.Euler(5f, 35f, 0f);
+                rLeft.transform.localScale = new Vector3(0.65f, 0.55f, 0.65f); // Chiều cao chỉ ~0.5m!
+
+                // Chân cột phải: khối đá nhỏ ôm sát đất
+                GameObject rRight = Instantiate(rock2Prefab);
+                rRight.name = "GroundRock_RightBase";
+                rRight.transform.SetParent(group.transform);
+                rRight.transform.localPosition = new Vector3(1.55f, 0.1f, -0.1f);
+                rRight.transform.localRotation = Quaternion.Euler(5f, -30f, 0f);
+                rRight.transform.localScale = new Vector3(0.65f, 0.55f, 0.65f); // Chiều cao chỉ ~0.5m!
+            }
+
+            // 8. VÁCH ĐÁ TỐI ĐẰNG SAU ĐOẠN HẦM (Tạo cảm giác đường hầm sâu hun hút)
+            GameObject darkBackdrop = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            darkBackdrop.name = "Tunnel_DarkAbyssBackdrop";
+            darkBackdrop.transform.SetParent(group.transform);
+            darkBackdrop.transform.localPosition = new Vector3(0f, 1.35f, 4.0f);
+            darkBackdrop.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            darkBackdrop.transform.localScale = new Vector3(3.2f, 2.7f, 1f);
+            Collider quadCol = darkBackdrop.GetComponent<Collider>();
+            if (quadCol != null) quadCol.enabled = false;
+            Renderer quadRen = darkBackdrop.GetComponent<Renderer>();
+            if (quadRen != null)
+            {
+                Shader unlit = Shader.Find("Unlit/Color") ?? Shader.Find("Standard");
+                Material mat = new Material(unlit);
+                mat.color = Color.black;
+                quadRen.sharedMaterial = mat;
             }
         }
 
@@ -226,73 +351,42 @@ namespace HorrorGame.Cave
             return prefab;
         }
 
-        private void SpawnRockPiece(GameObject parent, GameObject prefab, Vector3 localPos, Vector3 localRot, Vector3 localScale, string name)
+        private GameObject LoadMinePrefab(string subFolder, string name)
         {
-            GameObject rock;
-            if (prefab != null)
+            GameObject prefab = null;
+#if UNITY_EDITOR
+            string path = "Assets/Mine/Prefabs/" + subFolder + "/" + name + ".prefab";
+            prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
+#endif
+            if (prefab == null)
             {
-                rock = Instantiate(prefab);
+                prefab = Resources.Load<GameObject>("Mine/Prefabs/" + subFolder + "/" + name);
             }
-            else
+            if (prefab == null)
             {
-                rock = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                Renderer r = rock.GetComponent<Renderer>();
-                if (r != null)
-                {
-                    Material mat = new Material(Shader.Find("Standard") ?? Shader.Find("Diffuse"));
-                    // Tông màu đá tùy biến nhẹ theo hang
-                    if (caveID == 5) mat.color = new Color(0.22f, 0.20f, 0.20f); // Nham thạch bazan đen sẫm
-                    else if (caveID == 6) mat.color = new Color(0.25f, 0.35f, 0.28f); // Ký sinh xanh rêu
-                    else mat.color = new Color(0.38f, 0.40f, 0.35f); // Đá rêu phong The Forest
-                    r.sharedMaterial = mat;
-                }
+                prefab = Resources.Load<GameObject>(name);
             }
-
-            rock.name = name;
-            rock.transform.SetParent(parent.transform);
-            rock.transform.localPosition = localPos;
-            rock.transform.localRotation = Quaternion.Euler(localRot);
-            rock.transform.localScale = localScale;
+            return prefab;
         }
 
         // =========================================================================
-        // 2. DỰNG HỐ ĐEN SÂU THẲM (DARK CAVERN VOID)
+        // 2. DỰNG KHÔNG GIAN TỐI HUN HÚT TRONG HẦM (DARK CAVERN TUNNEL VOID)
         // =========================================================================
         private void SetupCavernAbyssVoid(GameObject root)
         {
-            // Hố đen sâu thẳm nằm phẳng ngay trên mặt đất thềm hang (đường kính to 1.8m)
-            GameObject voidObj = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            voidObj.name = "Cavern_DarkAbyssVoid";
-            voidObj.transform.SetParent(root.transform);
-            voidObj.transform.localPosition = new Vector3(0f, 0.08f, 0.25f);
-            voidObj.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
-            voidObj.transform.localScale = new Vector3(1.8f, 0.05f, 1.8f);
-
-            Collider col = voidObj.GetComponent<Collider>();
-            if (col != null) col.enabled = false;
-
-            Renderer r = voidObj.GetComponent<Renderer>();
-            if (r != null)
-            {
-                Shader unlitShader = Shader.Find("Unlit/Color") ?? Shader.Find("Standard");
-                Material blackVoidMat = new Material(unlitShader);
-                blackVoidMat.color = Color.black;
-                r.sharedMaterial = blackVoidMat;
-            }
-
-            // Đèn lồng / ánh sáng ấm áp chiếu rọi miệng hang và dây thừng (dễ nhìn thấy từ xa)
+            // Đèn lồng / ánh sáng ấm áp chiếu rọi miệng hang và dây thừng
             GameObject lanternObj = new GameObject("Cave_EntranceBeaconLight");
             lanternObj.transform.SetParent(root.transform);
-            lanternObj.transform.localPosition = new Vector3(0f, 1.0f, -0.2f);
+            lanternObj.transform.localPosition = new Vector3(0f, 1.2f, 0.5f);
             Light lgt = lanternObj.AddComponent<Light>();
             lgt.type = LightType.Point;
             lgt.color = new Color(1.0f, 0.72f, 0.35f);
             lgt.range = 9.5f;
-            lgt.intensity = 2.2f;
+            lgt.intensity = 1.8f;
         }
 
         // =========================================================================
-        // 3. DỰNG VÁN GỖ GÁC NGANG MIỆNG HANG (WOODEN PLANKS)
+        // 3. DỰNG VÁN GỖ THỀM CỬA HẦM (WOODEN PLANKS TỪ ASSET MINE)
         // =========================================================================
         private void SetupWoodenThresholdPlanks(GameObject root)
         {
@@ -300,50 +394,22 @@ namespace HorrorGame.Cave
             group.transform.SetParent(root.transform);
             group.transform.localPosition = Vector3.zero;
 
-            Vector3[] plankPos = new Vector3[]
+            // Sử dụng trực tiếp Planks prefab từ Mine asset
+            GameObject planksPrefab = LoadMinePrefab("Props", "Planks");
+            if (planksPrefab != null)
             {
-                new Vector3(-0.15f, 0.12f, -0.25f),
-                new Vector3( 0.12f, 0.14f, -0.55f),
-                new Vector3(-0.05f, 0.13f, -0.80f)
-            };
+                GameObject p1 = Instantiate(planksPrefab);
+                p1.name = "Entrance_FloorPlanks_1";
+                p1.transform.SetParent(group.transform);
+                p1.transform.localPosition = new Vector3(0f, 0.03f, 0.6f);
+                p1.transform.localRotation = Quaternion.identity;
 
-            Vector3[] plankRot = new Vector3[]
-            {
-                new Vector3(0f, 6f, 0f),
-                new Vector3(0f, -5f, 0f),
-                new Vector3(0f, 3f, 0f)
-            };
-
-            Vector3[] plankScale = new Vector3[]
-            {
-                new Vector3(1.5f, 0.10f, 0.32f),
-                new Vector3(1.6f, 0.10f, 0.35f),
-                new Vector3(1.4f, 0.10f, 0.30f)
-            };
-
-            Material woodMat = CreateWoodMaterial();
-
-            for (int i = 0; i < plankPos.Length; i++)
-            {
-                GameObject plank = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                plank.name = "Plank_" + i;
-                plank.transform.SetParent(group.transform);
-                plank.transform.localPosition = plankPos[i];
-                plank.transform.localRotation = Quaternion.Euler(plankRot[i]);
-                plank.transform.localScale = plankScale[i];
-
-                Renderer pr = plank.GetComponent<Renderer>();
-                if (pr != null && woodMat != null) pr.sharedMaterial = woodMat;
+                GameObject p2 = Instantiate(planksPrefab);
+                p2.name = "Entrance_FloorPlanks_2";
+                p2.transform.SetParent(group.transform);
+                p2.transform.localPosition = new Vector3(0f, 0.03f, 2.2f);
+                p2.transform.localRotation = Quaternion.identity;
             }
-        }
-
-        private Material CreateWoodMaterial()
-        {
-            Shader s = Shader.Find("Standard") ?? Shader.Find("Diffuse");
-            if (s == null) return null;
-            Material m = new Material(s);
-            m.color = new Color(0.40f, 0.27f, 0.16f); // Nâu gỗ mộc cổ xưa
-            return m;
         }
 
         // =========================================================================
@@ -357,32 +423,21 @@ namespace HorrorGame.Cave
 
             LineRenderer line = rope.AddComponent<LineRenderer>();
             line.useWorldSpace = false;
-            line.startWidth = 0.10f;
-            line.endWidth = 0.08f;
-            line.positionCount = 7;
+            line.startWidth = 0.09f;
+            line.endWidth = 0.07f;
+            line.positionCount = 6;
 
-            line.SetPosition(0, new Vector3(-0.9f,  1.1f, -0.1f)); // Neo vách đá trái
-            line.SetPosition(1, new Vector3(-0.6f,  0.5f, -0.15f));
-            line.SetPosition(2, new Vector3(-0.3f,  0.2f, -0.25f)); // Vắt lên tấm ván gỗ
-            line.SetPosition(3, new Vector3( 0.0f,  0.15f, -0.1f)); // Mép hố
-            line.SetPosition(4, new Vector3( 0.1f, -0.3f, 0.2f));  // Rơi vào hố sâu
-            line.SetPosition(5, new Vector3( 0.12f, -1.0f, 0.4f));
-            line.SetPosition(6, new Vector3( 0.15f, -2.5f, 0.5f));
+            line.SetPosition(0, new Vector3(-0.95f, 2.45f, 0.05f)); // Buộc vào xà ngang cổng gỗ
+            line.SetPosition(1, new Vector3(-0.85f, 1.80f, 0.15f));
+            line.SetPosition(2, new Vector3(-0.75f, 1.10f, 0.35f));
+            line.SetPosition(3, new Vector3(-0.65f, 0.50f, 0.65f));
+            line.SetPosition(4, new Vector3(-0.55f, 0.15f, 1.10f)); // Cuộn trên thềm ván gỗ
+            line.SetPosition(5, new Vector3(-0.50f, 0.05f, 1.50f));
 
             Shader unlit = Shader.Find("Unlit/Color") ?? Shader.Find("Sprites/Default");
             Material ropeMat = new Material(unlit);
             ropeMat.color = ropeColor;
             line.sharedMaterial = ropeMat;
-
-            GameObject knot = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            knot.name = "Rope_AnchorKnot";
-            knot.transform.SetParent(rope.transform);
-            knot.transform.localPosition = new Vector3(-0.9f, 1.1f, -0.1f);
-            knot.transform.localScale = Vector3.one * 0.22f;
-            Collider kc = knot.GetComponent<Collider>();
-            if (kc != null) kc.enabled = false;
-            Renderer kr = knot.GetComponent<Renderer>();
-            if (kr != null) kr.sharedMaterial = ropeMat;
         }
 
         // =========================================================================
@@ -577,31 +632,65 @@ namespace HorrorGame.Cave
         {
             GameObject triggerObj = new GameObject("Entrance_InteractiveTrigger");
             triggerObj.transform.SetParent(root.transform);
-            triggerObj.transform.localPosition = new Vector3(0f, 0.3f, -0.25f);
+            triggerObj.transform.localPosition = new Vector3(0f, 1.2f, 1.2f);
 
             BoxCollider box = triggerObj.AddComponent<BoxCollider>();
             box.isTrigger = true;
-            box.size = new Vector3(4.0f, 3.0f, 4.0f);
-            box.center = new Vector3(0f, 0.5f, 0f);
+            box.size = new Vector3(2.8f, 2.6f, 2.8f);
+            box.center = Vector3.zero;
 
             caveEntranceComponent = triggerObj.AddComponent<CaveEntrance>();
-            caveEntranceComponent.promptEnter = string.Format("Nhấn [E] để trèo dây thừng vào {0}", caveName);
+            caveEntranceComponent.promptEnter = string.Format("Nhấn [E] để khám phá {0}", caveName);
 
-            // Spawn Points
-            GameObject interiorSpawn = new GameObject("InteriorSpawnPoint");
-            interiorSpawn.transform.SetParent(triggerObj.transform);
-            interiorSpawn.transform.localPosition = new Vector3(0f, 0f, 10f);
-            caveEntranceComponent.spawnPointInside = interiorSpawn.transform;
-
+            // Spawn Points: Mặt đất bên ngoài cách cổng hầm ~3.0m
             GameObject exteriorSpawn = new GameObject("ExteriorSpawnPoint");
             exteriorSpawn.transform.SetParent(triggerObj.transform);
-            exteriorSpawn.transform.localPosition = new Vector3(0f, 0f, -2.5f);
-            caveEntranceComponent.spawnPointOutside = exteriorSpawn.transform;
+            exteriorSpawn.transform.localPosition = new Vector3(0f, -1.1f, -3.0f);
+            exteriorSpawn.transform.localRotation = Quaternion.identity;
+            exteriorSpawnPoint = exteriorSpawn.transform;
+            caveEntranceComponent.spawnPointOutside = exteriorSpawnPoint;
+
+            // Spawn Point tạm thời dưới lòng đất (-60m)
+            GameObject interiorSpawn = new GameObject("InteriorSpawnPoint_Default");
+            interiorSpawn.transform.SetParent(triggerObj.transform);
+            interiorSpawn.transform.localPosition = new Vector3(0f, -60f, 0f);
+            interiorSpawnPoint = interiorSpawn.transform;
+            caveEntranceComponent.spawnPointInside = interiorSpawnPoint;
 
             CaveZone zone = GetComponentInParent<CaveZone>() ?? FindObjectOfType<CaveZone>();
             if (zone != null && caveEntranceComponent != null)
             {
                 caveEntranceComponent.targetCave = zone;
+            }
+        }
+
+        public void EnsureSubterraneanMineCavern()
+        {
+            Transform caveRoot = transform.parent != null ? transform.parent : transform;
+            TheForestMineCavern mineCavern = caveRoot.GetComponentInChildren<TheForestMineCavern>();
+            if (mineCavern == null)
+            {
+                GameObject mineObj = new GameObject("TheForest_MineCavern");
+                mineObj.transform.SetParent(caveRoot);
+                mineCavern = mineObj.AddComponent<TheForestMineCavern>();
+            }
+
+            mineCavern.caveID = caveID;
+            mineCavern.caveName = caveName;
+            mineCavern.entranceSurfacePos = entranceWorldPosition;
+            mineCavern.themeColor = ropeColor;
+            mineCavern.parentZone = GetComponentInParent<CaveZone>();
+            mineCavern.BuildMineCavern();
+
+            // Liên kết điểm spawn và exit trigger 2 chiều
+            if (caveEntranceComponent != null && mineCavern.interiorSpawnPoint != null)
+            {
+                interiorSpawnPoint = mineCavern.interiorSpawnPoint;
+                caveEntranceComponent.spawnPointInside = interiorSpawnPoint;
+            }
+            if (mineCavern.exitEntranceComponent != null && exteriorSpawnPoint != null)
+            {
+                mineCavern.exitEntranceComponent.spawnPointOutside = exteriorSpawnPoint;
             }
         }
 
@@ -614,8 +703,8 @@ namespace HorrorGame.Cave
             Transform existingSmoke = transform.Find(smokeObjName);
             CaveSignalSmoke signal = existingSmoke != null ? existingSmoke.GetComponent<CaveSignalSmoke>() : null;
 
-            // Đặt cột khói đỏ NGAY SÁT BÊN MỎM ĐÁ CỬA HANG (chỉ lệch 1.1m bên phải, ngay cạnh mép vòm đá)
-            Vector3 smokePos = entranceWorldPosition + new Vector3(1.1f, 0f, -0.3f);
+            // Đặt cột khói đỏ NGAY BÊN CẠNH CỔNG HẦM MỎ (lệch 2.2m bên phải, rất thoáng đãng)
+            Vector3 smokePos = entranceWorldPosition + transform.TransformDirection(new Vector3(2.2f, 0f, -0.4f));
             if (Terrain.activeTerrain != null)
             {
                 smokePos.y = Terrain.activeTerrain.SampleHeight(smokePos) + Terrain.activeTerrain.transform.position.y;
@@ -629,12 +718,14 @@ namespace HorrorGame.Cave
                 signal = smokeObj.AddComponent<CaveSignalSmoke>();
                 signal.caveName = string.Format("Hang {0} - {1}", caveID, caveName);
                 signal.caveEntrancePos = smokePos;
+                signal.SetupSmokeSystems();
             }
             else
             {
                 signal.transform.position = smokePos;
                 signal.caveName = string.Format("Hang {0} - {1}", caveID, caveName);
                 signal.caveEntrancePos = smokePos;
+                signal.SetupSmokeSystems();
             }
         }
 
@@ -643,13 +734,14 @@ namespace HorrorGame.Cave
         {
             if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "MainMenu") return;
 
-            // Vùng cấm: Khu nhà gỗ / lều trại player — hang KHÔNG ĐƯỢC spawn gần đây
+            // Vùng cấm: Khu nhà gỗ / lều trại player / nhà sàn ven đầm — hang KHÔNG ĐƯỢC spawn tại đây
             Vector3[] forbiddenZones = new Vector3[]
             {
                 new Vector3(480f, 15f, 492f),   // Nhà gỗ chính
                 new Vector3(480f, 15f, 500f),   // Khu vực spawn player
                 new Vector3(475f, 15f, 488f),   // Khu vực lều trại
-                new Vector3(485f, 15f, 495f)    // Bán kính mở rộng
+                new Vector3(485f, 15f, 495f),   // Bán kính mở rộng
+                new Vector3(385f, 16.8f, 575f)  // Khu Villa2 nhà sàn ven đầm cũ
             };
             float forbiddenRadius = 60f; // Bán kính cấm rộng hơn
 

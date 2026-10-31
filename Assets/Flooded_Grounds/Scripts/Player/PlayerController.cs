@@ -390,6 +390,18 @@ namespace HorrorGame.Player
         /// </summary>
         public bool IsInWater()
         {
+            // Nếu người chơi đang ở trong hang động / mỏ ngầm, bỏ qua mực nước biển ngoài đảo (Y <= 16.5f)
+            if (HorrorGame.Cave.CaveManager.IsPlayerInCave)
+            {
+                // Chỉ tính là dưới nước nếu chạm trực tiếp vào Collider nước ngầm bên trong hang
+                RaycastHit caveHit;
+                if (Physics.Raycast(transform.position + Vector3.up * 0.5f, Vector3.down, out caveHit, 1.2f, ~0, QueryTriggerInteraction.Collide))
+                {
+                    if (IsWaterCollider(caveHit.collider)) return true;
+                }
+                return false;
+            }
+
             // 1. Kiểm tra cao độ so với mặt nước toàn bản đồ (Mặt nước Flooded Grounds ở Y = 16.0f)
             // Khi người chơi chạm nước hoặc ngập nước: transform.position.y <= 16.5f
             if (transform.position.y <= 16.5f)

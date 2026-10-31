@@ -75,10 +75,10 @@ namespace HorrorGame.Editor
 
             manager.allCaves.Clear();
 
-            // Định nghĩa 6 hang động theo bản đồ trải dài khắp hòn đảo
+            // Định nghĩa 6 hang động theo bản đồ trải dài khắp hòn đảo (Hang 1 nằm ở rừng rậm thoáng đãng Tây Bắc)
             CaveSetupDef[] caveDefs = new CaveSetupDef[]
             {
-                new CaveSetupDef(1, "Hang Sụp Đổ (The Collapsed Den)", new Vector3(385f, 21.5f, 575f), 1,
+                new CaveSetupDef(1, "Hang Sụp Đổ (The Collapsed Den)", new Vector3(310f, 17.5f, 500f), 1,
                     new Color(0.95f, 0.85f, 0.12f), "Bản Vẽ Rìu Đá Nâng Cấp (Upgraded Axe Blueprint)",
                     "Nhật ký hành khách ghế 14B", "Hành khách sống sót",
                     "Chiếc máy bay bị gãy đôi trên không trung. Tôi tỉnh dậy thấy mình rơi xuống một hòn đảo kỳ lạ.\nBan đêm rừng cây phát ra tiếng hú rợn người. Tôi trốn vào hang này... ĐỪNG TẮT ĐÈN PIN!",
@@ -141,6 +141,11 @@ namespace HorrorGame.Editor
                     zoneObj.transform.position = targetPos;
                 }
 
+                if (def.id == 1)
+                {
+                    zoneObj.transform.rotation = Quaternion.Euler(0f, 75f, 0f);
+                }
+
                 CaveZone zone = zoneObj.GetComponent<CaveZone>();
                 if (zone == null) zone = zoneObj.AddComponent<CaveZone>();
 
@@ -193,26 +198,40 @@ namespace HorrorGame.Editor
             forestCave.ropeColor = def.ropeColor;
             forestCave.BuildForestCaveEntranceModel();
 
-            // 2. HỆ THỐNG ÁNH SÁNG NỘI THẤT (CaveLighting)
-            Transform lightsTrans = caveRoot.transform.Find("Cave_LightingSystem");
-            if (lightsTrans == null)
+            // 2. DỰNG HẦM MỎ NGẦM ĐA TẦNG BẰNG ASSET MINE (GREGORY SEGURU)
+            Transform existingMine = caveRoot.transform.Find("TheForest_MineCavern");
+            GameObject mineObj;
+            TheForestMineCavern mineCavern;
+
+            if (existingMine == null)
             {
-                GameObject lightsObj = new GameObject("Cave_LightingSystem");
-                lightsObj.transform.SetParent(caveRoot.transform);
-                lightsObj.transform.localPosition = Vector3.zero;
+                mineObj = new GameObject("TheForest_MineCavern");
+                mineObj.transform.SetParent(caveRoot.transform);
+                mineCavern = mineObj.AddComponent<TheForestMineCavern>();
+                Undo.RegisterCreatedObjectUndo(mineObj, "Create The Forest Mine Cavern");
+            }
+            else
+            {
+                mineObj = existingMine.gameObject;
+                mineCavern = mineObj.GetComponent<TheForestMineCavern>();
+                if (mineCavern == null) mineCavern = mineObj.AddComponent<TheForestMineCavern>();
+            }
 
-                CaveLighting lighting = lightsObj.AddComponent<CaveLighting>();
-                lighting.lightType = (def.id == 5) ? CaveLightType.LavaGlow : CaveLightType.Bioluminescent;
-                zone.caveLights = lightsObj;
+            mineCavern.caveID = def.id;
+            mineCavern.caveName = def.name;
+            mineCavern.entranceSurfacePos = caveRoot.transform.position;
+            mineCavern.themeColor = def.ropeColor;
+            mineCavern.parentZone = zone;
+            mineCavern.BuildMineCavern(def.treasure, def.noteTitle, def.noteAuthor, def.noteContent);
 
-                GameObject pointLightObj = new GameObject("Interior_AmbienceLight");
-                pointLightObj.transform.SetParent(lightsObj.transform);
-                pointLightObj.transform.localPosition = new Vector3(0f, 2f, 20f);
-                Light pl = pointLightObj.AddComponent<Light>();
-                pl.type = LightType.Point;
-                pl.color = def.ropeColor;
-                pl.range = 16f;
-                pl.intensity = 1.25f;
+            // Liên kết điểm teleport 2 chiều (Mặt đất <-> Hầm mỏ sâu -60m)
+            if (forestCave.caveEntranceComponent != null && mineCavern.interiorSpawnPoint != null)
+            {
+                forestCave.caveEntranceComponent.spawnPointInside = mineCavern.interiorSpawnPoint;
+            }
+            if (mineCavern.exitEntranceComponent != null && forestCave.exteriorSpawnPoint != null)
+            {
+                mineCavern.exitEntranceComponent.spawnPointOutside = forestCave.exteriorSpawnPoint;
             }
 
             // 3. HỆ THỐNG ÂM THANH (CaveAmbience)
@@ -242,70 +261,6 @@ namespace HorrorGame.Editor
                         ambience.ambienceType = CaveAmbienceType.DarkWet;
                         break;
                 }
-            }
-
-            // 4. KẺ THÙ TRONG HANG (CaveEnemySpawner)
-            Transform spawnerTrans = caveRoot.transform.Find("Cave_EnemySpawner");
-            if (spawnerTrans == null)
-            {
-                GameObject spawnerObj = new GameObject("Cave_EnemySpawner");
-                spawnerObj.transform.SetParent(caveRoot.transform);
-                spawnerObj.transform.localPosition = Vector3.zero;
-
-                CaveEnemySpawner spawner = spawnerObj.AddComponent<CaveEnemySpawner>();
-                spawner.parentCaveZone = zone;
-
-                for (int i = 1; i <= 3; i++)
-                {
-                    GameObject pt = new GameObject("EnemySpawnPoint_" + i);
-                    pt.transform.SetParent(spawnerObj.transform);
-                    pt.transform.localPosition = new Vector3((i - 2) * 4f, 0f, 15f + i * 8f);
-
-                    var config = new CaveEnemySpawner.EnemySpawnConfig
-                    {
-                        enemyName = "Cave Monster #" + i,
-                        spawnPoint = pt.transform,
-                        respawnDelay = 300f
-                    };
-                    spawner.spawnConfigs.Add(config);
-                }
-            }
-
-            // 5. RƯƠNG KHO BÁU ĐỘC QUYỀN (CaveLootChest)
-            Transform chestTrans = caveRoot.transform.Find("CaveLootChest_" + def.id);
-            if (chestTrans == null)
-            {
-                GameObject chestObj = new GameObject("CaveLootChest_" + def.id);
-                chestObj.transform.SetParent(caveRoot.transform);
-                chestObj.transform.localPosition = new Vector3(2f, 0f, 30f);
-
-                BoxCollider col = chestObj.AddComponent<BoxCollider>();
-                col.size = new Vector3(1.5f, 1f, 1.5f);
-
-                CaveLootChest chest = chestObj.AddComponent<CaveLootChest>();
-                chest.caveID = def.id;
-                chest.uniqueTreasureName = def.treasure;
-                zone.lootChests = new GameObject[] { chestObj };
-            }
-
-            // 6. GHI CHÚ LORE CỐT TRUYỆN (LoreNote)
-            Transform noteTrans = caveRoot.transform.Find("LoreNote_Cave" + def.id);
-            if (noteTrans == null)
-            {
-                GameObject noteObj = new GameObject("LoreNote_Cave" + def.id);
-                noteObj.transform.SetParent(caveRoot.transform);
-                noteObj.transform.localPosition = new Vector3(-2.5f, 0.4f, 28f);
-
-                BoxCollider col = noteObj.AddComponent<BoxCollider>();
-                col.isTrigger = true;
-                col.size = new Vector3(1.2f, 1f, 1.2f);
-
-                LoreNote note = noteObj.AddComponent<LoreNote>();
-                note.noteID = def.id;
-                note.noteTitle = def.noteTitle;
-                note.noteAuthor = def.noteAuthor;
-                note.noteContent = def.noteContent;
-                zone.loreNotes = new GameObject[] { noteObj };
             }
 
             // 7. TÍNH NĂNG ĐẶC BIỆT RIÊNG TỪNG HANG
@@ -366,10 +321,40 @@ namespace HorrorGame.Editor
             Debug.Log(string.Format("🚀 [CaveTeleport] Đã dịch chuyển người chơi tới ngay trước Cửa {0} tại {1}!", caveNameLabel, spawnP));
         }
 
-        [MenuItem("Horror Game/⛰️ Cài Đặt Hệ Thống Hang Động (Cave System)/2. 🚀 Dịch Chuyển Đến Hang 1 (Rừng Tây Bắc - Hang Sụp Đổ)", false, 20)]
+        [MenuItem("Horror Game/⛰️ Cài Đặt Hệ Thống Hang Động (Cave System)/2. 🧹 Xóa Toàn Bộ Cấu Trúc Hang Cũ Để Dựng Lại Mới", false, 11)]
+        public static void ClearOldCaveStructures()
+        {
+            GameObject cavesRoot = GameObject.Find("[Cave_Zones]");
+            if (cavesRoot != null)
+            {
+                Undo.DestroyObjectImmediate(cavesRoot);
+                Debug.Log("🧹 [CaveSetup] Đã xóa sạch thư mục gốc [Cave_Zones] cũ!");
+            }
+            CaveManager manager = Object.FindObjectOfType<CaveManager>();
+            if (manager != null)
+            {
+                manager.allCaves.Clear();
+            }
+            foreach (var cz in Object.FindObjectsOfType<CaveZone>())
+            {
+                if (cz != null) Undo.DestroyObjectImmediate(cz.gameObject);
+            }
+            foreach (var old in Object.FindObjectsOfType<TheForestCaveEntrance>())
+            {
+                if (old != null) Undo.DestroyObjectImmediate(old.gameObject);
+            }
+            foreach (var old in Object.FindObjectsOfType<TheForestMineCavern>())
+            {
+                if (old != null) Undo.DestroyObjectImmediate(old.gameObject);
+            }
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            Debug.Log("✨ [CaveSetup] Toàn bộ hang cũ đã được dọn sạch sẽ! Bạn hãy bấm lại mục 1 để dựng hệ thống Hầm Mỏ Mine mới.");
+        }
+
+        [MenuItem("Horror Game/⛰️ Cài Đặt Hệ Thống Hang Động (Cave System)/3. 🚀 Dịch Chuyển Đến Hang 1 (Rừng Tây Bắc - Hang Sụp Đổ)", false, 20)]
         public static void TeleportPlayerToCave1()
         {
-            TeleportPlayerToCoordinates(new Vector3(385f, 21.5f, 575f), "Hang 1 (Hang Sụp Đổ - Rừng Tây Bắc)");
+            TeleportPlayerToCoordinates(new Vector3(310f, 17.5f, 500f), "Hang 1 (Hang Sụp Đổ - Rừng Tây Bắc)");
         }
 
         [MenuItem("Horror Game/⛰️ Cài Đặt Hệ Thống Hang Động (Cave System)/3. 🚀 Dịch Chuyển Đến Hang 2 (Rừng Cổ Thụ - Hang Rễ Cây)", false, 21)]

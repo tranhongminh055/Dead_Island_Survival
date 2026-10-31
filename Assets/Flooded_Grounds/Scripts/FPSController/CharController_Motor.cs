@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -26,6 +26,10 @@ public class CharController_Motor : MonoBehaviour {
 
  
 	void CheckForWaterHeight(){
+		if (HorrorGame.Cave.CaveManager.IsPlayerInCave) {
+			gravity = -9.8f;
+			return;
+		}
 		if (transform.position.y < WaterHeight) {
 			gravity = 0f;			
 		} else {

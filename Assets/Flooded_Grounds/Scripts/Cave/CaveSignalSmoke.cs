@@ -464,48 +464,62 @@ namespace HorrorGame.Cave
             float dist = Vector3.Distance(playerTransform.position, transform.position);
             if (dist > maxDisplayDistance) return;
 
+            if (CaveManager.IsPlayerInCave) return;
+
             // Đặt marker ngang tầm mắt khi lại gần (1.6m), và cao dần khi ở xa
             float markerHeight = Mathf.Clamp(dist * 0.18f, 1.6f, 12f);
             Vector3 targetScreenPoint = transform.position + new Vector3(0f, markerHeight, 0f);
             Vector3 screenPos = mainCamera.WorldToScreenPoint(targetScreenPoint);
 
-            // Kiểm tra điểm có nằm phía trước Camera không
-            if (screenPos.z > 0)
+            bool isBehind = screenPos.z <= 0;
+            if (isBehind)
             {
-                float x = screenPos.x;
-                float y = Screen.height - screenPos.y;
-
-                string text;
-                if (dist <= 8f)
-                {
-                    text = string.Format("🟢 CỬA HANG Ở NGAY CẠNH CỘT KHÓI (1m)!\n👉 [Nhấn E] Để trèo dây thừng vào {0}", caveName);
-                }
-                else
-                {
-                    text = string.Format("🔴 CỘT KHÓI ĐỎ: {0}\n[Cách {1:0} mét]", caveName, dist);
-                }
-
-                GUIStyle shadowStyle = new GUIStyle(GUI.skin.label);
-                shadowStyle.alignment = TextAnchor.MiddleCenter;
-                shadowStyle.fontSize = 13;
-                shadowStyle.fontStyle = FontStyle.Bold;
-                shadowStyle.normal.textColor = Color.black;
-
-                GUIStyle textStyle = new GUIStyle(GUI.skin.label);
-                textStyle.alignment = TextAnchor.MiddleCenter;
-                textStyle.fontSize = 13;
-                textStyle.fontStyle = FontStyle.Bold;
-                textStyle.normal.textColor = dist <= 12f ? Color.green : new Color(1f, 0.4f, 0.4f);
-
-                float width = 320f;
-                float height = 45f;
-                Rect rect = new Rect(x - (width / 2), y - (height / 2), width, height);
-
-                // Bóng đổ
-                GUI.Label(new Rect(rect.x + 1, rect.y + 1, width, height), text, shadowStyle);
-                // Chữ chính
-                GUI.Label(rect, text, textStyle);
+                screenPos.x = Screen.width - screenPos.x;
+                screenPos.y = Screen.height - screenPos.y;
             }
+
+            float marginX = 80f;
+            float marginY = 45f;
+            bool isOffScreen = isBehind || screenPos.x < marginX || screenPos.x > Screen.width - marginX || screenPos.y < marginY || screenPos.y > Screen.height - marginY;
+
+            float x = Mathf.Clamp(screenPos.x, marginX, Screen.width - marginX);
+            float y = Mathf.Clamp(Screen.height - screenPos.y, marginY, Screen.height - marginY);
+
+            string text;
+            if (dist <= 6f)
+            {
+                text = string.Format("🟢 CỬA HANG & HẦM MỎ Ở ĐÂY (CẠNH CỘT KHÓI)!\n👉 [Nhấn E] Để trèo thang/dây vào {0}", caveName);
+            }
+            else if (isOffScreen)
+            {
+                string arrow = (screenPos.x < Screen.width / 2) ? "◀ " : "▶ ";
+                text = string.Format("{0}🔴 CỘT KHÓI ĐỎ: {1} [{2:0}m]", arrow, caveName, dist);
+            }
+            else
+            {
+                text = string.Format("🔴 CỘT KHÓI ĐỎ: {0}\n[Cách {1:0} mét]", caveName, dist);
+            }
+
+            GUIStyle shadowStyle = new GUIStyle(GUI.skin.label);
+            shadowStyle.alignment = TextAnchor.MiddleCenter;
+            shadowStyle.fontSize = 13;
+            shadowStyle.fontStyle = FontStyle.Bold;
+            shadowStyle.normal.textColor = Color.black;
+
+            GUIStyle textStyle = new GUIStyle(GUI.skin.label);
+            textStyle.alignment = TextAnchor.MiddleCenter;
+            textStyle.fontSize = 13;
+            textStyle.fontStyle = FontStyle.Bold;
+            textStyle.normal.textColor = dist <= 12f ? Color.green : new Color(1f, 0.4f, 0.4f);
+
+            float width = 360f;
+            float height = 48f;
+            Rect rect = new Rect(x - (width / 2), y - (height / 2), width, height);
+
+            // Bóng đổ
+            GUI.Label(new Rect(rect.x + 1, rect.y + 1, width, height), text, shadowStyle);
+            // Chữ chính
+            GUI.Label(rect, text, textStyle);
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -513,31 +527,46 @@ namespace HorrorGame.Cave
         {
             if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "MainMenu") return;
 
-            Vector3 forestPos = new Vector3(385f, 21.5f, 575f) + new Vector3(1.1f, 0f, -0.3f);
-            if (Terrain.activeTerrain != null)
+            TheForestCaveEntrance[] entrances = Object.FindObjectsOfType<TheForestCaveEntrance>();
+            if (entrances != null && entrances.Length > 0)
             {
-                forestPos.y = Terrain.activeTerrain.SampleHeight(forestPos) + Terrain.activeTerrain.transform.position.y;
-            }
-
-            CaveSignalSmoke existing = Object.FindObjectOfType<CaveSignalSmoke>();
-            if (existing == null && Object.FindObjectOfType<TheForestCaveEntrance>() == null)
-            {
-                GameObject smokeObj = new GameObject("[Cave_RedSmokeSignal]");
-                smokeObj.transform.position = forestPos;
-                var comp = smokeObj.AddComponent<CaveSignalSmoke>();
-                comp.caveEntrancePos = forestPos;
-                Debug.Log("🔥 [CaveSignalSmoke] Đã tự động kích hoạt Cột Khói Đỏ báo hiệu Cửa Hang 1 tại rừng rậm: " + forestPos);
-            }
-            else if (existing != null)
-            {
-                // Nếu khói cũ đang ở cách hang xa (> 1.2m) hoặc ở khu nhà cũ -> dời ngay sát bên mép cửa hang
-                if (Vector3.Distance(existing.transform.position, forestPos) > 1.2f ||
-                    Vector3.Distance(existing.transform.position, new Vector3(480f, 15f, 492f)) < 25f)
+                foreach (var ent in entrances)
                 {
-                    existing.transform.position = forestPos;
-                    existing.caveEntrancePos = forestPos;
-                    existing.SetupSmokeSystems();
-                    Debug.Log("🔥 [CaveSignalSmoke] Đã di dời Cột Khói Đỏ áp sát ngay bên cạnh vòm đá cửa hang tại " + forestPos);
+                    Transform existing = ent.transform.Find(string.Format("[Cave{0}_RedSmokeSignal]", ent.caveID));
+                    if (existing == null)
+                    {
+                        Vector3 smokePos = ent.entranceWorldPosition + new Vector3(1.1f, 0f, -0.3f);
+                        if (Terrain.activeTerrain != null)
+                        {
+                            smokePos.y = Terrain.activeTerrain.SampleHeight(smokePos) + Terrain.activeTerrain.transform.position.y;
+                        }
+                        GameObject smokeObj = new GameObject(string.Format("[Cave{0}_RedSmokeSignal]", ent.caveID));
+                        smokeObj.transform.SetParent(ent.transform);
+                        smokeObj.transform.position = smokePos;
+                        var comp = smokeObj.AddComponent<CaveSignalSmoke>();
+                        comp.caveName = string.Format("Hang {0} - {1}", ent.caveID, ent.caveName);
+                        comp.caveEntrancePos = smokePos;
+                        comp.SetupSmokeSystems();
+                    }
+                }
+            }
+            else
+            {
+                Vector3 forestPos = new Vector3(385f, 21.5f, 575f) + new Vector3(1.1f, 0f, -0.3f);
+                if (Terrain.activeTerrain != null)
+                {
+                    forestPos.y = Terrain.activeTerrain.SampleHeight(forestPos) + Terrain.activeTerrain.transform.position.y;
+                }
+
+                CaveSignalSmoke existing = Object.FindObjectOfType<CaveSignalSmoke>();
+                if (existing == null)
+                {
+                    GameObject smokeObj = new GameObject("[Cave_RedSmokeSignal]");
+                    smokeObj.transform.position = forestPos;
+                    var comp = smokeObj.AddComponent<CaveSignalSmoke>();
+                    comp.caveEntrancePos = forestPos;
+                    comp.SetupSmokeSystems();
+                    Debug.Log("🔥 [CaveSignalSmoke] Đã tự động kích hoạt Cột Khói Đỏ báo hiệu Cửa Hang tại: " + forestPos);
                 }
             }
         }

@@ -111,6 +111,7 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cave\CaveZone.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cave\LoreNote.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cave\TheForestCaveEntrance.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\Cave\TheForestMineCavern.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplaneCabinExterior.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplaneCrashCutscene.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Cutscenes\AirplanePassengerSeatPose.cs" />
