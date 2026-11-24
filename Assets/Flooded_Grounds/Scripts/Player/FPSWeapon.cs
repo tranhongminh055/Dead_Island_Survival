@@ -121,10 +121,7 @@ public class FPSWeapon : MonoBehaviour
         MeshCollider meshCol = GetComponent<MeshCollider>();
         if (meshCol != null) meshCol.enabled = false;
 
-        // Tạo nguồn phát âm thanh trên Camera
-        audioSource = gameObject.AddComponent<AudioSource>();
-
-        // TẠO ĐÈN CHỚP LỬA (Muzzle Flash Light) tự động
+        // TẠO ĐÈN CHỚP LỬA (Muzzle Flash Light) tự động + đặt AudioSource lên object con để KHÔNG xung đột với AudioListener trên Camera!
         GameObject lightObj = new GameObject("MuzzleFlashLight");
         lightObj.transform.parent = transform; 
         // Đặt đèn ra phía trước nòng súng một chút và nhô lên trên để sáng rõ thân súng
@@ -134,6 +131,11 @@ public class FPSWeapon : MonoBehaviour
         flashLight.color = new Color(1f, 0.7f, 0.1f); // Màu cam vàng của lửa
         flashLight.range = 25f; // Tăng tầm chiếu xa để nhìn thẳng vẫn thấy sáng
         flashLight.intensity = 0f; // Ban đầu tắt đèn
+
+        // Tạo nguồn phát âm thanh súng trên object con (tránh lỗi FMOD DSP trên Camera có AudioListener)
+        audioSource = lightObj.AddComponent<AudioSource>();
+        audioSource.playOnAwake = false;
+        audioSource.spatialBlend = 0f;
 
         // TỰ ĐỘNG CĂN CHỈNH CAMERA VÀO ĐÚNG MẮT NHÂN VẬT (chỉ khi KHÔNG có Cutscene máy bay đang chạy)
         if (!HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)

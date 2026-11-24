@@ -257,6 +257,27 @@ namespace HorrorGame.Enemy
             var sh = sporePS.shape;
             sh.shapeType = ParticleSystemShapeType.Sphere;
             sh.radius = 0.8f;
+
+            ParticleSystemRenderer psr = auraObj.GetComponent<ParticleSystemRenderer>();
+            if (psr != null)
+            {
+                Texture2D softDot = new Texture2D(32, 32, TextureFormat.RGBA32, false);
+                for (int py = 0; py < 32; py++)
+                {
+                    for (int px = 0; px < 32; px++)
+                    {
+                        float dx = (px - 15.5f) / 15.5f;
+                        float dy = (py - 15.5f) / 15.5f;
+                        float d = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy));
+                        softDot.SetPixel(px, py, new Color(1f, 1f, 1f, d * d));
+                    }
+                }
+                softDot.Apply();
+                Shader pShader = Shader.Find("Sprites/Default") ?? Shader.Find("Particles/Alpha Blended") ?? Shader.Find("Standard");
+                Material pMat = new Material(pShader);
+                pMat.mainTexture = softDot;
+                psr.sharedMaterial = pMat;
+            }
         }
 
         private void AnimateBodyParasites()

@@ -128,6 +128,7 @@ namespace HorrorGame.UI
 
         private void Update()
         {
+            if (GameMenuManager.Instance != null && GameMenuManager.Instance.isMainMenuScene) return;
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
             if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
 
@@ -320,6 +321,7 @@ namespace HorrorGame.UI
 
         private void OnGUI()
         {
+            if (GameMenuManager.Instance != null && GameMenuManager.Instance.isMainMenuScene) return;
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
             if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
             if (GameMenuManager.IsPaused) return;

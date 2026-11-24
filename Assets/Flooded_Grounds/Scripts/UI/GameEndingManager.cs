@@ -454,10 +454,13 @@ namespace HorrorGame.UI
         /// </summary>
         private GameObject BuildSurvivorFigure3D(Transform parent, Vector3 localPos, float yaw, bool isPlayerHero = false)
         {
-            GameObject charPrefab = null;
+            GameObject charPrefab = Resources.Load<GameObject>("BuildAssets/Ch15_nonPBR");
 #if UNITY_EDITOR
-            charPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
-                "Assets/Flooded_Grounds/Character No Animation/Ch15_nonPBR.fbx");
+            if (charPrefab == null)
+            {
+                charPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                    "Assets/Flooded_Grounds/Character No Animation/Ch15_nonPBR.fbx");
+            }
 #endif
             // Fallback ở bản Build: clone trực tiếp mesh nhân vật từ Player trong Scene
             if (charPrefab == null && playerTransform != null)
@@ -491,11 +494,15 @@ namespace HorrorGame.UI
                     }
                 }
 
-                // Gắn Animator Idle tự nhiên (tránh đứng T-Pose)
+                // Gắn Animator Idle tự nhiên (tránh đứng T-Pose — hoạt động cả trên bản Build .exe!)
                 Animator anim = model.GetComponent<Animator>();
                 if (anim == null) anim = model.AddComponent<Animator>();
                 anim.enabled = true;
                 anim.applyRootMotion = false;
+                if (anim.runtimeAnimatorController == null)
+                {
+                    anim.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>("BuildAssets/PlayerAnim");
+                }
 #if UNITY_EDITOR
                 if (anim.runtimeAnimatorController == null)
                 {
@@ -1136,6 +1143,28 @@ namespace HorrorGame.UI
             var em = ps.emission;
             em.rateOverTime = 0f;
             em.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, 45) });
+
+            ParticleSystemRenderer psr = burstObj.GetComponent<ParticleSystemRenderer>();
+            if (psr != null)
+            {
+                Texture2D softDot = new Texture2D(32, 32, TextureFormat.RGBA32, false);
+                for (int py = 0; py < 32; py++)
+                {
+                    for (int px = 0; px < 32; px++)
+                    {
+                        float dx = (px - 15.5f) / 15.5f;
+                        float dy = (py - 15.5f) / 15.5f;
+                        float d = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy));
+                        softDot.SetPixel(px, py, new Color(1f, 1f, 1f, d * d));
+                    }
+                }
+                softDot.Apply();
+                Shader pShader = Shader.Find("Sprites/Default") ?? Shader.Find("Particles/Alpha Blended") ?? Shader.Find("Standard");
+                Material pMat = new Material(pShader);
+                pMat.mainTexture = softDot;
+                psr.sharedMaterial = pMat;
+            }
+
             Destroy(burstObj, 4f);
         }
 

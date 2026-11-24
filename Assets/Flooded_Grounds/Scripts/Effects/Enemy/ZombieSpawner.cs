@@ -123,6 +123,9 @@ namespace HorrorGame.Enemy
 
         void Update()
         {
+            // Khi đang ở Main Menu: Không đẻ zombie
+            if (HorrorGame.UI.GameMenuManager.Instance != null && HorrorGame.UI.GameMenuManager.Instance.isMainMenuScene) return;
+
             // Trong suốt cutscene mở đầu: Không đẻ thêm zombie
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
 

@@ -1,5 +1,5 @@
-using UnityEngine;
 using System.Collections;
+using UnityEngine;
 
 namespace HorrorGame.Effects
 {
@@ -90,6 +90,10 @@ namespace HorrorGame.Effects
 
             private void CheckAndAttach()
             {
+                string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+                if (sceneName.ToLower().Contains("mainmenu")) return;
+                if (HorrorGame.UI.GameMenuManager.Instance != null && HorrorGame.UI.GameMenuManager.Instance.isMainMenuScene) return;
+
                 Camera mainCam = Camera.main;
                 if (mainCam != null && mainCam.GetComponent<UnderwaterVisualManager>() == null)
                 {
@@ -125,24 +129,34 @@ namespace HorrorGame.Effects
 
         private void SetupAudio()
         {
+            // KHÔNG gắn AudioLowPassFilter lúc khởi động để tuyệt đối không làm kẹt kênh FMOD của AudioListener trên Camera!
             lowPassFilter = GetComponent<AudioLowPassFilter>();
-            if (lowPassFilter == null)
+            if (lowPassFilter != null)
             {
-                lowPassFilter = gameObject.AddComponent<AudioLowPassFilter>();
+                Destroy(lowPassFilter);
+                lowPassFilter = null;
             }
-            lowPassFilter.cutoffFrequency = normalAudioCutoff;
-            lowPassFilter.lowpassResonanceQ = 1.4f;
 
-            audioSource = GetComponent<AudioSource>();
+            // QUAN TRỌNG: Đặt AudioSource tiếng nước lên object con riêng, KHÔNG gắn chung GameObject với AudioListener!
+            Transform splashHost = transform.Find("Underwater_SplashAudio");
+            if (splashHost == null)
+            {
+                GameObject shObj = new GameObject("Underwater_SplashAudio");
+                shObj.transform.SetParent(transform, false);
+                splashHost = shObj.transform;
+            }
+            audioSource = splashHost.GetComponent<AudioSource>();
             if (audioSource == null)
             {
-                audioSource = gameObject.AddComponent<AudioSource>();
-                audioSource.spatialBlend = 0f;
-                audioSource.playOnAwake = false;
+                audioSource = splashHost.gameObject.AddComponent<AudioSource>();
             }
+            audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 0f;
 
+            waterSplashClip = Resources.Load<AudioClip>("Sounds/Water");
 #if UNITY_EDITOR
-            waterSplashClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/Water.mp3");
+            if (waterSplashClip == null)
+                waterSplashClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/Water.mp3");
 #endif
         }
 
@@ -172,7 +186,11 @@ namespace HorrorGame.Effects
             shape.radius = 0.35f;
 
             var rend = bubbleObj.GetComponent<ParticleSystemRenderer>();
-            rend.material = new Material(Shader.Find("Particles/Alpha Blended Premultiply") ?? Shader.Find("Diffuse"));
+            if (rend != null)
+            {
+                Shader bShader = Shader.Find("Sprites/Default") ?? Shader.Find("Particles/Alpha Blended") ?? Shader.Find("Standard");
+                rend.sharedMaterial = new Material(bShader);
+            }
         }
 
         private void SaveAtmosphereSettings()
@@ -193,6 +211,7 @@ namespace HorrorGame.Effects
 
         private void Update()
         {
+            if (HorrorGame.UI.GameMenuManager.Instance != null && HorrorGame.UI.GameMenuManager.Instance.isMainMenuScene) return;
             if (targetCamera == null) targetCamera = GetComponent<Camera>();
             if (targetCamera == null) return;
 
@@ -223,11 +242,22 @@ namespace HorrorGame.Effects
                 }
             }
 
+            // Không lọc âm khi đang ở MainMenu
+            if (HorrorGame.UI.GameMenuManager.Instance != null && HorrorGame.UI.GameMenuManager.Instance.isMainMenuScene)
+            {
+                if (lowPassFilter != null) lowPassFilter.enabled = false;
+                return;
+            }
+
             // Nếu đang trong hang ngầm thì tắt sạch hiệu ứng nước & không ghi đè fog của CaveManager
             if (inUndergroundCave)
             {
                 transitionProgress = 0f;
-                if (lowPassFilter != null) lowPassFilter.cutoffFrequency = normalAudioCutoff;
+                if (lowPassFilter != null)
+                {
+                    lowPassFilter.cutoffFrequency = normalAudioCutoff;
+                    lowPassFilter.enabled = false;
+                }
                 if (bubbleParticles != null)
                 {
                     var em = bubbleParticles.emission;
@@ -243,7 +273,12 @@ namespace HorrorGame.Effects
             // 1. Điều chỉnh lọc âm thanh (Audio Low-Pass Filter)
             if (lowPassFilter != null)
             {
-                lowPassFilter.cutoffFrequency = Mathf.Lerp(normalAudioCutoff, underwaterAudioCutoff, transitionProgress);
+                bool filterActive = isUnderwater || transitionProgress > 0.01f;
+                lowPassFilter.enabled = filterActive;
+                if (filterActive)
+                {
+                    lowPassFilter.cutoffFrequency = Mathf.Lerp(normalAudioCutoff, underwaterAudioCutoff, transitionProgress);
+                }
             }
 
             // 2. Điều chỉnh sương mù biển sâu (Underwater Oceanic Fog)

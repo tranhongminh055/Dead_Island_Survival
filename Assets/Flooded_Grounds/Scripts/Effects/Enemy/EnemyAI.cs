@@ -69,9 +69,13 @@ namespace HorrorGame.Enemy
                 animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
                 if (animator.runtimeAnimatorController == null)
                 {
+                    animator.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>("BuildAssets/ZombieAnim");
 #if UNITY_EDITOR
-                    animator.runtimeAnimatorController = UnityEditor.AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(
-                        "Assets/Flooded_Grounds/Character No Animation/Enemy No Animation/Animation zoombie/ZombieAnim.controller");
+                    if (animator.runtimeAnimatorController == null)
+                    {
+                        animator.runtimeAnimatorController = UnityEditor.AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(
+                            "Assets/Flooded_Grounds/Character No Animation/Enemy No Animation/Animation zoombie/ZombieAnim.controller");
+                    }
 #endif
                 }
                 animator.Rebind();

@@ -83,6 +83,9 @@ namespace HorrorGame.Enemy
 
         void Update()
         {
+            // Khi đang ở Main Menu: Không sinh thổ dân
+            if (HorrorGame.UI.GameMenuManager.Instance != null && HorrorGame.UI.GameMenuManager.Instance.isMainMenuScene) return;
+
             // Trong Cutscene máy bay: Không sinh thổ dân
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
 

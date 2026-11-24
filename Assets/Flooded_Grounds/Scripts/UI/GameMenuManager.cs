@@ -67,6 +67,11 @@ namespace HorrorGame.UI
         // Trạng thái giao diện
         private MenuState currentState = MenuState.Main;
         private AudioSource audioSource;
+        private AudioSource ambientWindSource;
+        private AudioClip ambientLayerClip;
+        private AudioListener tempMenuListener;
+        private System.Collections.Generic.List<AudioListener> pausedSceneListeners = new System.Collections.Generic.List<AudioListener>();
+        private bool loggedMenuAudioOnce = false;
         private int lastHoveredButton = -1;
 
         // Cài đặt game (Lưu vào PlayerPrefs)
@@ -128,6 +133,8 @@ namespace HorrorGame.UI
         private Light liveLightningLight;
         private Light liveRedFlareLight;
         private Transform liveZombieTransform;
+        private float liveZombieFloorLocalY = 0f;
+        private Renderer[] liveZombieRenderers;
         private bool liveStageBuilt = false;
 
 #if UNITY_EDITOR
@@ -178,26 +185,48 @@ namespace HorrorGame.UI
             masterVolume = PlayerPrefs.GetFloat("MasterVolume", 1f);
             mouseSensitivity = PlayerPrefs.GetFloat("MouseSensitivity", 2f);
             graphicsQualityIndex = PlayerPrefs.GetInt("GraphicsQuality", QualitySettings.GetQualityLevel());
-            isFullscreen = PlayerPrefs.GetInt("Fullscreen", Screen.fullScreen ? 1 : 0) == 1;
+            isFullscreen = PlayerPrefs.GetInt("FullscreenV2", 1) == 1;
 
             // Áp dụng cài đặt
-            AudioListener.volume = masterVolume;
+            Application.runInBackground = true;
+#if UNITY_EDITOR
+            UnityEditor.EditorUtility.audioMasterMute = false;
+#endif
+            AudioListener.volume = Mathf.Max(0.1f, masterVolume);
             QualitySettings.SetQualityLevel(graphicsQualityIndex);
+#if !UNITY_EDITOR
+            if (isFullscreen)
+            {
+                Resolution nativeRes = Screen.currentResolution;
+                Screen.SetResolution(nativeRes.width, nativeRes.height, true);
+            }
+            else
+            {
+                Screen.fullScreen = false;
+            }
+#else
             Screen.fullScreen = isFullscreen;
+#endif
 
-            // Thiết lập AudioSource cho Menu
+            // Thiết lập AudioSource cho Menu (ép 2D stereo, không bị mute/pause)
             audioSource = GetComponent<AudioSource>();
             if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
-            audioSource.ignoreListenerPause = true; // Cho phép phát tiếng click ngay cả khi đang Pause
+            audioSource.ignoreListenerPause = true;
+            audioSource.spatialBlend = 0f;
+            audioSource.mute = false;
+            audioSource.playOnAwake = false;
 
-            // Tìm nạp âm thanh nền menu (ưu tiên file nhạc kinh dị trong thư mục "sound main menu")
+            // Tìm nạp đúng file nhạc nền menu: Assets/Flooded_Grounds/sound main menu/lemonmusiclab-dark-ambient-soundscape-505384.mp3
+#if UNITY_EDITOR
+            AudioClip directClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/sound main menu/lemonmusiclab-dark-ambient-soundscape-505384.mp3");
+            if (directClip != null) menuMusic = directClip;
+#endif
             if (menuMusic == null)
             {
                 menuMusic = Resources.Load<AudioClip>("MenuMusic");
                 if (menuMusic == null)
                     menuMusic = Resources.Load<AudioClip>("Background");
 #if UNITY_EDITOR
-                // Ưu tiên 1: File nhạc chính trong thư mục "sound main menu"
                 if (menuMusic == null)
                 {
                     string[] guids = UnityEditor.AssetDatabase.FindAssets("t:AudioClip", new[] { "Assets/Flooded_Grounds/sound main menu" });
@@ -205,14 +234,8 @@ namespace HorrorGame.UI
                     {
                         string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
                         menuMusic = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(path);
-                        Debug.Log("🎵 [Menu] Đã nạp nhạc nền menu: " + path);
                     }
                 }
-                // Fallback: các file cũ
-                if (menuMusic == null)
-                    menuMusic = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/Background.mp3");
-                if (menuMusic == null)
-                    menuMusic = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/WindHowl.mp3");
 #endif
             }
 
@@ -223,6 +246,30 @@ namespace HorrorGame.UI
                 if (buttonClickSound == null)
                     buttonClickSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/Taps.mp3");
 #endif
+            }
+            if (buttonHoverSound == null)
+            {
+                buttonHoverSound = buttonClickSound;
+            }
+
+            // Nạp thêm lớp nhạc nền kinh dị tần số trung/cao (Background / WindHowl) để loa laptop vẫn nghe cực rõ ngay giây đầu tiên!
+            ambientLayerClip = Resources.Load<AudioClip>("Background");
+            if (ambientLayerClip == null)
+                ambientLayerClip = Resources.Load<AudioClip>("Sounds/WindHowl");
+#if UNITY_EDITOR
+            if (ambientLayerClip == null)
+                ambientLayerClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/Background.mp3");
+#endif
+            if (ambientWindSource == null)
+            {
+                GameObject ambObj = new GameObject("[Menu_AmbientHorrorLayer]");
+                ambObj.transform.SetParent(transform, false);
+                ambientWindSource = ambObj.AddComponent<AudioSource>();
+                ambientWindSource.playOnAwake = false;
+                ambientWindSource.ignoreListenerPause = true;
+                ambientWindSource.spatialBlend = 0f;
+                ambientWindSource.loop = true;
+                ambientWindSource.mute = false;
             }
 
             // Xử lý luồng cảnh
@@ -235,39 +282,34 @@ namespace HorrorGame.UI
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
 
+                // Đảm bảo luôn có ít nhất 1 AudioListener đang bật
+                EnsureActiveAudioListener();
+
                 // Tắt / ngắt các âm thanh rác trong scene nếu có
                 MuteOtherSceneAudios();
 
-                if (menuMusic != null)
-                {
-                    audioSource.clip = menuMusic;
-                    audioSource.loop = true;
-                    audioSource.volume = masterVolume * 0.75f;
-                    audioSource.Play();
-                }
+                StartMenuAudioPlayback();
             }
             else
             {
                 // Khi đang ở trong màn chơi Scene_A:
                 if (!hasStartedFromMainMenu && showMenuOnPlayInGameScene)
                 {
-                    // Chuyển sang chế độ Main Menu hiển thị trên nền Avatar
+                    // Chuyển sang chế độ Main Menu hiển thị trên nền 3D Outlast (giữ Time.timeScale = 1f y hệt MainMenu.unity để FMOD phát nhạc 100% ngay lập tức!)
                     isMainMenuScene = true;
-                    IsPaused = true;
-                    Time.timeScale = 0f;
+                    IsPaused = false;
+                    Time.timeScale = 1f;
+                    AudioListener.pause = false;
                     Cursor.lockState = CursorLockMode.None;
                     Cursor.visible = true;
+
+                    // Đảm bảo luôn có ít nhất 1 AudioListener đang bật để phát nhạc nền Menu
+                    EnsureActiveAudioListener();
 
                     // Cách ly tuyệt đối: Tắt ngay âm thanh trailer máy bay trong Scene_A
                     MuteOtherSceneAudios();
 
-                    if (menuMusic != null)
-                    {
-                        audioSource.clip = menuMusic;
-                        audioSource.loop = true;
-                        audioSource.volume = masterVolume * 0.75f;
-                        audioSource.Play();
-                    }
+                    StartMenuAudioPlayback();
                 }
                 else
                 {
@@ -279,12 +321,82 @@ namespace HorrorGame.UI
             }
         }
 
+        void Start()
+        {
+            if (isMainMenuScene)
+            {
+#if UNITY_EDITOR
+                UnityEditor.EditorUtility.audioMasterMute = false;
+#endif
+                EnsureActiveAudioListener();
+                MuteOtherSceneAudios();
+                StartMenuAudioPlayback();
+            }
+        }
+
+        private void StartMenuAudioPlayback()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorUtility.audioMasterMute = false;
+#endif
+            AudioListener.pause = false;
+            AudioListener.volume = Mathf.Max(0.1f, masterVolume);
+
+            if (menuMusic != null && audioSource != null)
+            {
+                audioSource.clip = menuMusic;
+                audioSource.loop = true;
+                audioSource. priority = 0; // Ưu tiên FMOD cao nhất tuyệt đối (0), không bao giờ bị cướp kênh bởi 32 Real Voices trong Scene_A!
+                audioSource.spatialBlend = 0f;
+                audioSource.mute = false;
+                audioSource.pitch = 1f;
+                audioSource.ignoreListenerPause = true;
+                audioSource.ignoreListenerVolume = false;
+                audioSource.volume = Mathf.Max(0.25f, masterVolume);
+                if (!audioSource.isPlaying)
+                {
+                    audioSource.Play();
+                }
+            }
+
+            if (!loggedMenuAudioOnce)
+            {
+                loggedMenuAudioOnce = true;
+                Debug.Log("🔊 [MenuAudio] Đã bật nhạc Menu! Clip=" + (menuMusic != null ? menuMusic.name : "null") + " | isPlaying=" + (audioSource != null && audioSource.isPlaying) + " | Vol=" + masterVolume);
+            }
+        }
+
+        private void EnsureActiveAudioListener()
+        {
+            // Tạo 1 object AudioListener hoàn toàn độc lập & sạch 100% riêng cho Menu (không chung object với AudioSource/Filter/MissingScript!)
+            if (tempMenuListener == null)
+            {
+                GameObject alObj = new GameObject("[Menu_Dedicated_AudioListener]");
+                alObj.transform.SetParent(transform, false);
+                tempMenuListener = alObj.AddComponent<AudioListener>();
+            }
+            tempMenuListener.enabled = true;
+
+            // Tạm tắt các AudioListener khác trong scene lúc đang ở Menu để tránh trùng lặp hoặc lỗi DSP trên Camera
+            AudioListener[] listeners = FindObjectsOfType<AudioListener>();
+            for (int i = 0; i < listeners.Length; i++)
+            {
+                AudioListener l = listeners[i];
+                if (l != null && l != tempMenuListener && l.enabled)
+                {
+                    l.enabled = false;
+                    if (!pausedSceneListeners.Contains(l))
+                        pausedSceneListeners.Add(l);
+                }
+            }
+        }
+
         private void MuteOtherSceneAudios()
         {
             AudioSource[] all = FindObjectsOfType<AudioSource>();
             foreach (var a in all)
             {
-                if (a != audioSource && a.isPlaying)
+                if (a != null && a != audioSource && a != ambientWindSource && a.isPlaying)
                 {
                     a.Pause();
                 }
@@ -296,7 +408,7 @@ namespace HorrorGame.UI
             AudioSource[] all = FindObjectsOfType<AudioSource>();
             foreach (var a in all)
             {
-                if (a == null || a == audioSource) continue;
+                if (a == null || a == audioSource || a == ambientWindSource) continue;
 
                 // Tuyệt đối không bật lại âm thanh mưa gió nếu đang xem trailer hoặc chưa vào game thật
                 if (HorrorGame.Environment.Weather.WeatherSystem.Instance != null)
@@ -309,17 +421,30 @@ namespace HorrorGame.UI
                     }
                 }
 
+                // Phục hồi audio đã bị Pause bởi MuteOtherSceneAudios + bật lại các source có clip (vì PlayOnAwake đã tắt)
                 a.UnPause();
+                if (!a.isPlaying && a.clip != null && a.loop)
+                {
+                    a.Play();
+                }
             }
         }
 
         void Update()
         {
-            // Nếu ở Main Menu Scene -> Luôn hiện chuột
+            // Nếu ở Main Menu Scene -> Luôn hiện chuột & duy trì âm thanh Menu liên tục (tránh bị script khác tắt AudioListener trong Start!)
             if (isMainMenuScene)
             {
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
+                AudioListener.pause = false;
+                Time.timeScale = 1f; // Giữ timeScale = 1f như MainMenu.unity để FMOD luôn phát nhạc ngay từ giây đầu
+                EnsureActiveAudioListener();
+                MuteOtherSceneAudios();
+                if (audioSource != null && menuMusic != null && !audioSource.isPlaying)
+                {
+                    StartMenuAudioPlayback();
+                }
                 return;
             }
 
@@ -400,6 +525,20 @@ namespace HorrorGame.UI
                 {
                     audioSource.Stop();
                 }
+                if (ambientWindSource != null && ambientWindSource.isPlaying)
+                {
+                    ambientWindSource.Stop();
+                }
+                if (tempMenuListener != null)
+                {
+                    tempMenuListener.enabled = false;
+                }
+                for (int i = 0; i < pausedSceneListeners.Count; i++)
+                {
+                    if (pausedSceneListeners[i] != null)
+                        pausedSceneListeners[i].enabled = true;
+                }
+                pausedSceneListeners.Clear();
 
                 UnmuteOtherSceneAudios();
 
@@ -715,7 +854,8 @@ namespace HorrorGame.UI
             {
                 masterVolume = newVol;
                 AudioListener.volume = masterVolume;
-                if (audioSource != null) audioSource.volume = masterVolume * 0.75f;
+                if (audioSource != null) audioSource.volume = masterVolume;
+                if (ambientWindSource != null) ambientWindSource.volume = masterVolume * 0.55f;
                 PlayerPrefs.SetFloat("MasterVolume", masterVolume);
             }
             curY += 38f;
@@ -773,8 +913,17 @@ namespace HorrorGame.UI
             if (GUI.Button(fsBtnRect, GUIContent.none, GUIStyle.none))
             {
                 isFullscreen = !isFullscreen;
-                Screen.fullScreen = isFullscreen;
-                PlayerPrefs.SetInt("Fullscreen", isFullscreen ? 1 : 0);
+                if (isFullscreen)
+                {
+                    Resolution nativeRes = Screen.currentResolution;
+                    Screen.SetResolution(nativeRes.width, nativeRes.height, true);
+                }
+                else
+                {
+                    Screen.fullScreen = false;
+                }
+                PlayerPrefs.SetInt("FullscreenV2", isFullscreen ? 1 : 0);
+                PlayerPrefs.Save();
                 PlayClickSound();
             }
             curY += 55f;
@@ -1251,40 +1400,54 @@ namespace HorrorGame.UI
             liveMenuStageRoot = new GameObject("[Outlast_Live3D_MenuStage]");
             liveMenuStageRoot.transform.position = liveStageOrigin;
 
-            // 1. Sàn đất ướt tối + Hành lang đá hầm ngục / rừng đêm 3D thật từ gói Mine
+            // 1. Sàn nền dự phòng đặt thấp bên dưới sàn đá của hầm (tránh cắt xuyên sàn hầm gây đốm đen/lún chân)
             GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
             ground.transform.SetParent(liveMenuStageRoot.transform, false);
+            ground.transform.localPosition = new Vector3(0f, -0.6f, 0f);
             ground.transform.localScale = new Vector3(10f, 1f, 10f);
             Renderer gr = ground.GetComponent<Renderer>();
             if (gr != null)
             {
                 Material gm = new Material(Shader.Find("Standard") ?? Shader.Find("Diffuse"));
-                gm.color = new Color(0.08f, 0.09f, 0.08f);
-                gm.SetFloat("_Glossiness", 0.65f);
+                gm.color = new Color(0.05f, 0.06f, 0.05f);
+                gm.SetFloat("_Glossiness", 0.45f);
                 gr.sharedMaterial = gm;
             }
 
+            GameObject pTunnel1 = Resources.Load<GameObject>("BuildAssets/Tunnel1");
+            GameObject pTunnel2 = Resources.Load<GameObject>("BuildAssets/Tunnel2");
+            GameObject pSupport1 = Resources.Load<GameObject>("BuildAssets/Support1");
+            GameObject pLantern = Resources.Load<GameObject>("BuildAssets/Lantern");
+            GameObject pCrate = Resources.Load<GameObject>("BuildAssets/Crate");
+            GameObject pRock1 = Resources.Load<GameObject>("BuildAssets/Rock1");
+            GameObject pZombie = Resources.Load<GameObject>("BuildAssets/Zombiegirl");
+            RuntimeAnimatorController zCtrl = Resources.Load<RuntimeAnimatorController>("BuildAssets/ZombieAnim");
 #if UNITY_EDITOR
-            GameObject pTunnel1 = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Base/Tunnel1.prefab");
-            GameObject pTunnel2 = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Base/Tunnel2.prefab");
-            GameObject pSupport1 = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Props/Support1.prefab");
-            GameObject pLantern = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Props/Lantern.prefab");
-            GameObject pCrate = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Props/Crate.prefab");
-            GameObject pRock1 = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Rocks/Rock1.prefab");
-            GameObject pZombie = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Flooded_Grounds/Character No Animation/Enemy No Animation/Zombiegirl W Kurniawan.fbx");
-            RuntimeAnimatorController zCtrl = UnityEditor.AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Flooded_Grounds/Character No Animation/Enemy No Animation/Animation zoombie/ZombieAnim.controller");
+            if (pTunnel1 == null) pTunnel1 = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Base/Tunnel1.prefab");
+            if (pTunnel2 == null) pTunnel2 = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Base/Tunnel2.prefab");
+            if (pSupport1 == null) pSupport1 = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Props/Support1.prefab");
+            if (pLantern == null) pLantern = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Props/Lantern.prefab");
+            if (pCrate == null) pCrate = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Props/Crate.prefab");
+            if (pRock1 == null) pRock1 = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Rocks/Rock1.prefab");
+            if (pZombie == null) pZombie = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Flooded_Grounds/Character No Animation/Enemy No Animation/Zombiegirl W Kurniawan.fbx");
+            if (zCtrl == null) zCtrl = UnityEditor.AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Flooded_Grounds/Character No Animation/Enemy No Animation/Animation zoombie/ZombieAnim.controller");
+#endif
 
+            MeshCollider tunnelCol1 = null;
+            MeshCollider tunnelCol2 = null;
             if (pTunnel1 != null)
             {
                 GameObject t1 = Instantiate(pTunnel1);
                 t1.transform.SetParent(liveMenuStageRoot.transform, false);
                 t1.transform.localPosition = new Vector3(0f, 0f, 6f);
+                tunnelCol1 = t1.GetComponentInChildren<MeshCollider>();
             }
             if (pTunnel2 != null)
             {
                 GameObject t2 = Instantiate(pTunnel2);
                 t2.transform.SetParent(liveMenuStageRoot.transform, false);
                 t2.transform.localPosition = new Vector3(0f, 0f, 18f);
+                tunnelCol2 = t2.GetComponentInChildren<MeshCollider>();
             }
             if (pSupport1 != null)
             {
@@ -1317,17 +1480,27 @@ namespace HorrorGame.UI
                     ll.enabled = true;
                     ll.range = 14f;
                     ll.intensity = 2.4f;
+#if UNITY_EDITOR
                     ll.lightmapBakeType = LightmapBakeType.Realtime;
+#endif
                 }
             }
 
-            // 2. Bóng dáng Zombie 3D thật đang thở/lắc lư trong hành lang tối (chạy UnscaledTime nên cử động kể cả khi Scene_A đang Pause!)
+            // 2. Bóng dáng Zombie 3D thật đứng chuẩn giữa lòng sàn đá hành lang (x = 0.1f để không trúng vách đá cong hai bên làm lơ lửng!)
             if (pZombie != null)
             {
                 GameObject zObj = Instantiate(pZombie);
                 zObj.name = "OutlastMenu_StalkingZombie";
                 zObj.transform.SetParent(liveMenuStageRoot.transform, false);
-                zObj.transform.localPosition = new Vector3(0.45f, 0f, 10.5f);
+                float floorLocalY = -0.04f;
+                Ray downRay = new Ray(liveStageOrigin + new Vector3(0.05f, 1.2f, 10.5f), Vector3.down);
+                RaycastHit floorHit;
+                if (tunnelCol1 != null && tunnelCol1.Raycast(downRay, out floorHit, 3f))
+                {
+                    floorLocalY = Mathf.Clamp(floorHit.point.y - liveStageOrigin.y - 0.04f, -0.25f, 0.05f);
+                }
+                liveZombieFloorLocalY = floorLocalY;
+                zObj.transform.localPosition = new Vector3(0.15f, floorLocalY, 10.5f);
                 zObj.transform.localRotation = Quaternion.Euler(0f, 165f, 0f);
                 Animator za = zObj.GetComponent<Animator>();
                 if (za == null) za = zObj.AddComponent<Animator>();
@@ -1337,8 +1510,8 @@ namespace HorrorGame.UI
                 za.applyRootMotion = false;
                 za.SetFloat("Speed", 0f);
                 liveZombieTransform = zObj.transform;
+                liveZombieRenderers = zObj.GetComponentsInChildren<Renderer>();
             }
-#endif
 
             // 3. Đèn huỳnh quang xanh lục nhấp nháy trên trần (đặc trưng Outlast 1!)
             GameObject flObj = new GameObject("Outlast_FlickerFluorescent");
@@ -1378,6 +1551,28 @@ namespace HorrorGame.UI
             var sh = ps.shape;
             sh.shapeType = ParticleSystemShapeType.Box;
             sh.scale = new Vector3(6f, 4f, 18f);
+
+            // Gán Material + Texture tròn mềm bằng shader Sprites/Default (luôn có sẵn trong bản Build .exe, tránh lỗi hạt màu hồng!)
+            ParticleSystemRenderer psr = mistObj.GetComponent<ParticleSystemRenderer>();
+            if (psr != null)
+            {
+                Texture2D softDot = new Texture2D(32, 32, TextureFormat.RGBA32, false);
+                for (int py = 0; py < 32; py++)
+                {
+                    for (int px = 0; px < 32; px++)
+                    {
+                        float dx = (px - 15.5f) / 15.5f;
+                        float dy = (py - 15.5f) / 15.5f;
+                        float d = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy));
+                        softDot.SetPixel(px, py, new Color(1f, 1f, 1f, d * d));
+                    }
+                }
+                softDot.Apply();
+                Shader pShader = Shader.Find("Sprites/Default") ?? Shader.Find("Particles/Alpha Blended") ?? Shader.Find("Standard");
+                Material pMat = new Material(pShader);
+                pMat.mainTexture = softDot;
+                psr.sharedMaterial = pMat;
+            }
         }
 
         private void UpdateLiveOutlast3DCamera()
@@ -1403,6 +1598,31 @@ namespace HorrorGame.UI
             if (liveZombieTransform != null)
             {
                 liveZombieTransform.localRotation = Quaternion.Euler(0f, 165f + Mathf.Sin(t * 0.6f) * 14f, 0f);
+
+                // Tự động khóa bàn chân Zombie đứng đúng trên mặt sàn (chống animation Mixamo kéo tụt hông xuống dưới sàn!)
+                if (liveZombieRenderers != null && liveZombieRenderers.Length > 0)
+                {
+                    float minY = float.MaxValue;
+                    for (int i = 0; i < liveZombieRenderers.Length; i++)
+                    {
+                        if (liveZombieRenderers[i] != null)
+                        {
+                            float bMin = liveZombieRenderers[i].bounds.min.y;
+                            if (bMin < minY) minY = bMin;
+                        }
+                    }
+                    if (minY < float.MaxValue * 0.5f)
+                    {
+                        float targetFloorWorldY = liveStageOrigin.y + liveZombieFloorLocalY;
+                        float deltaY = targetFloorWorldY - minY;
+                        if (Mathf.Abs(deltaY) > 0.02f && Mathf.Abs(deltaY) < 3.0f)
+                        {
+                            Vector3 pZ = liveZombieTransform.position;
+                            pZ.y += deltaY;
+                            liveZombieTransform.position = pZ;
+                        }
+                    }
+                }
             }
 
             Vector3 localCamPos;
@@ -1414,12 +1634,12 @@ namespace HorrorGame.UI
                     localLookAt = new Vector3(0.45f, 1.35f, 11.5f);
                     break;
                 case 1:
-                    localCamPos = Vector3.Lerp(new Vector3(-1.1f, 0.55f, 7.2f), new Vector3(-0.7f, 0.70f, 8.2f), p);
-                    localLookAt = new Vector3(0.45f, 1.45f, 10.5f);
+                    localCamPos = Vector3.Lerp(new Vector3(-1.1f, 0.75f, 6.6f), new Vector3(-0.7f, 0.90f, 7.6f), p);
+                    localLookAt = new Vector3(0.45f, 1.25f, 10.5f);
                     break;
                 case 2:
-                    localCamPos = Vector3.Lerp(new Vector3(0.95f, 1.65f, 8.1f), new Vector3(0.70f, 1.58f, 8.6f), p);
-                    localLookAt = new Vector3(0.45f, 1.45f, 10.6f);
+                    localCamPos = Vector3.Lerp(new Vector3(0.95f, 1.55f, 7.4f), new Vector3(0.70f, 1.48f, 7.9f), p);
+                    localLookAt = new Vector3(0.45f, 1.25f, 10.6f);
                     break;
                 default:
                     localCamPos = Vector3.Lerp(new Vector3(0.4f, 1.85f, 13.8f), new Vector3(-0.3f, 1.65f, 15.8f), p);

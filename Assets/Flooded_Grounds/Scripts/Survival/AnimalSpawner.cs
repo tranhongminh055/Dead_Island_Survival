@@ -80,6 +80,9 @@ namespace HorrorGame.Survival
 
         void Update()
         {
+            // Khi đang ở Main Menu: Không sinh thú
+            if (HorrorGame.UI.GameMenuManager.Instance != null && HorrorGame.UI.GameMenuManager.Instance.isMainMenuScene) return;
+
             FindPlayer();
             if (playerTransform == null) return;
 
