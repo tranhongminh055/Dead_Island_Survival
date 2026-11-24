@@ -90,6 +90,9 @@ namespace HorrorGame.Survival
             // Không mở khi đang trong cutscene
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
 
+            // Không mở khi Cinematic Trailer đang chiếu
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
+
             isMenuOpen = !isMenuOpen;
             selectedRecipe = -1;
 

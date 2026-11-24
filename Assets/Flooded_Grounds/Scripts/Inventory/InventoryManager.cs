@@ -199,6 +199,22 @@ namespace HorrorGame.Inventory
             return false;
         }
 
+        public bool HasItem(string itemNameOrId)
+        {
+            if (string.IsNullOrEmpty(itemNameOrId)) return false;
+            foreach (InventorySlot slot in slots)
+            {
+                if (slot.item != null && slot.amount > 0)
+                {
+                    if (slot.item.itemID == itemNameOrId || slot.item.itemName == itemNameOrId)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         public void OpenInventory()
         {
             if (isInventoryOpen) return;

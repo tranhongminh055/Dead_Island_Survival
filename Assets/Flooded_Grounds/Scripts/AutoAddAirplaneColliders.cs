@@ -30,31 +30,17 @@ public class AutoAddAirplaneColliders : MonoBehaviour
             {
                 if (mf.gameObject.GetComponent<Collider>() == null && mf.sharedMesh != null)
                 {
-                    // Kiểm tra Scale âm hoặc Mesh không Readable: Dùng BoxCollider để tránh lỗi console
-                    Vector3 s = mf.transform.lossyScale;
-                    bool hasNegativeScale = (s.x < 0 || s.y < 0 || s.z < 0);
-
-                    if (hasNegativeScale || !mf.sharedMesh.isReadable)
+                    if (mf.sharedMesh.isReadable)
                     {
-                        mf.gameObject.AddComponent<BoxCollider>();
+                        mf.gameObject.AddComponent<MeshCollider>();
                         addedCount++;
                     }
                     else
                     {
-                        try
-                        {
-                            mf.gameObject.AddComponent<MeshCollider>();
-                            addedCount++;
-                        }
-                        catch (System.Exception)
-                        {
-                            mf.gameObject.AddComponent<BoxCollider>();
-                            addedCount++;
-                        }
+                        // Nếu Mesh không cho phép Read/Write, thêm BoxCollider để tránh lỗi console đỏ chót
+                        mf.gameObject.AddComponent<BoxCollider>();
+                        addedCount++;
                     }
-
-                    // Tránh giật màn hình: cứ thêm 20 cái collider thì cho Unity nghỉ 1 frame
-                    if (addedCount > 0 && addedCount % 20 == 0) yield return null;
                 }
             }
         }
@@ -67,30 +53,17 @@ public class AutoAddAirplaneColliders : MonoBehaviour
             {
                 if (smr.gameObject.GetComponent<Collider>() == null && smr.sharedMesh != null)
                 {
-                    Vector3 s = smr.transform.lossyScale;
-                    bool hasNegativeScale = (s.x < 0 || s.y < 0 || s.z < 0);
-
-                    if (hasNegativeScale || !smr.sharedMesh.isReadable)
+                    if (smr.sharedMesh.isReadable)
                     {
-                        smr.gameObject.AddComponent<BoxCollider>();
+                        MeshCollider mc = smr.gameObject.AddComponent<MeshCollider>();
+                        mc.sharedMesh = smr.sharedMesh;
                         addedCount++;
                     }
                     else
                     {
-                        try
-                        {
-                            MeshCollider mc = smr.gameObject.AddComponent<MeshCollider>();
-                            if (smr.sharedMesh != null) mc.sharedMesh = smr.sharedMesh;
-                            addedCount++;
-                        }
-                        catch (System.Exception)
-                        {
-                            smr.gameObject.AddComponent<BoxCollider>();
-                            addedCount++;
-                        }
+                        smr.gameObject.AddComponent<BoxCollider>();
+                        addedCount++;
                     }
-
-                    if (addedCount > 0 && addedCount % 20 == 0) yield return null;
                 }
             }
         }

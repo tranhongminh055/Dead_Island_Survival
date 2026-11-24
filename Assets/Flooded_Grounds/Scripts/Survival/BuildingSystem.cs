@@ -240,6 +240,9 @@ namespace HorrorGame.Survival
             // Không nhận input khi Cutscene
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
 
+            // Không nhận input khi Cinematic Trailer đang chiếu
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
+
             // Không nhận input khi mở inventory
             if (Inventory.InventoryManager.Instance != null && Inventory.InventoryManager.Instance.isInventoryOpen) return;
 
@@ -525,7 +528,6 @@ namespace HorrorGame.Survival
                 blueprintObj.transform.position = pos;
                 blueprintObj.transform.rotation = rot;
 
-                // Gắn ConstructionBlueprint phong cách The Forest
                 ConstructionBlueprint bp = blueprintObj.AddComponent<ConstructionBlueprint>();
                 bp.Initialize(
                     recipeName,
@@ -537,7 +539,8 @@ namespace HorrorGame.Survival
                     ghostBlueprintMat,
                     placeMaterialSound,
                     buildSound,
-                    cancelSound
+                    cancelSound,
+                    playerCamera
                 );
 
                 ShowNotice(string.Format("🔨 Đã đặt khung mờ {0}! Chặt gỗ rồi đến gần bấm [E] để đóng từng thanh gỗ.", recipeName));

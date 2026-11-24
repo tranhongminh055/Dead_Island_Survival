@@ -357,7 +357,6 @@ public class FPSWeapon : MonoBehaviour
 
             ParticleSystem ps = psObj.AddComponent<ParticleSystem>();
             ParticleSystem.MainModule main = ps.main;
-            main.duration = 0.1f;
             main.loop = false;
             main.playOnAwake = false;
             main.startLifetime = new ParticleSystem.MinMaxCurve(0.04f, 0.08f);
@@ -568,6 +567,17 @@ public class FPSWeapon : MonoBehaviour
         if (HorrorGame.UI.GameMenuManager.IsPaused) return;
 
         if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive)
+        {
+            if (gunInstance != null && gunInstance.activeSelf)
+            {
+                gunInstance.SetActive(false);
+            }
+            isEquipped = false;
+            return;
+        }
+
+        // Khi Cinematic Trailer đang chiếu, tuyệt đối không cho phép tương tác vũ khí
+        if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning)
         {
             if (gunInstance != null && gunInstance.activeSelf)
             {
@@ -986,6 +996,7 @@ public class FPSWeapon : MonoBehaviour
     void OnGUI()
     {
         if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
+        if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
         if (!isEquipped) return;
 
         // === TÂM NGẮM (Crosshair) ===

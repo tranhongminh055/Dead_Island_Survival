@@ -461,6 +461,14 @@ namespace HorrorGame.Survival
                 return;
             }
 
+            // Không nhận input khi Cinematic Trailer đang chiếu
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning)
+            {
+                if (axeInstance != null && axeInstance.activeSelf) axeInstance.SetActive(false);
+                isEquipped = false;
+                return;
+            }
+
             // Nếu chưa tạo được rìu (Camera.main chưa sẵn sàng ở Start), thử lại
             if (!axeVisualCreated)
             {
@@ -576,6 +584,11 @@ namespace HorrorGame.Survival
             // Bắt đầu animation vung rìu
             isSwinging = true;
             swingTimer = 0f;
+
+            // Tiêu hao calo và nước khi vung rìu chặt cây (chuẩn The Forest & Green Hell)
+            var playerStats = GetComponentInParent<HorrorGame.Player.PlayerStats>();
+            if (playerStats == null) playerStats = FindObjectOfType<HorrorGame.Player.PlayerStats>();
+            if (playerStats != null) playerStats.OnExertion(1.0f);
 
             // Phát âm thanh chặt
             if (chopSound != null) audioSource.PlayOneShot(chopSound);
@@ -699,7 +712,8 @@ namespace HorrorGame.Survival
                 {
                     enemy.TakeDamage(chopDamage, hit.point);
                     HorrorGame.Enemy.EnemyAI.SpawnBloodImpact(hit.point, hit.normal);
-                    displayText = "Chém trúng Zombie! (-" + chopDamage + " HP)";
+                    bool isCannibal = (enemy is HorrorGame.Enemy.CannibalAI);
+                    displayText = (isCannibal ? "Chém trúng Thổ dân! (-" : "Chém trúng Zombie! (-") + chopDamage + " HP)";
                     displayTimer = 1.8f;
                 }
                 else

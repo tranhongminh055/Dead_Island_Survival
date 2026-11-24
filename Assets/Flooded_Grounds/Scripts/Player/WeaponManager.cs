@@ -50,6 +50,13 @@ namespace HorrorGame.Player
                 return;
             }
 
+            // Khi Cinematic Trailer đang chiếu, ẩn vũ khí và không xử lý input
+            if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning)
+            {
+                HideAllWeapons();
+                return;
+            }
+
             // Giảm bộ đếm thời gian hiển thị tên súng
             if (weaponNameTimer > 0)
             {

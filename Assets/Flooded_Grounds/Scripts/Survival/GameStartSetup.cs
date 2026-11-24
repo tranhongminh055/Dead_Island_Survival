@@ -71,7 +71,37 @@ namespace HorrorGame.Survival
             // ═══════════════════════════════════════════════════════
             SetupWeatherSystem();
 
+            // ═══════════════════════════════════════════════════════
+            // 4. KHỞI TẠO XÁC HÀNH KHÁCH MÁY BAY RƠI (PASSENGER CORPSES)
+            // ═══════════════════════════════════════════════════════
+            SetupCrashPassengerCorpses();
+
+            // ═══════════════════════════════════════════════════════
+            // 5. KHỞI TẠO THỔ DÂN ĂN THỊT NGƯỜI (CANNIBAL TRIBALS)
+            // ═══════════════════════════════════════════════════════
+            SetupCannibalSpawner();
+
             Debug.Log("🎮 [GameStartSetup] Setup hoàn tất! Chúc sinh tồn vui vẻ!");
+        }
+
+        private void SetupCrashPassengerCorpses()
+        {
+            if (FindObjectOfType<HorrorGame.Environment.CrashPassengerSpawner>() == null)
+            {
+                GameObject spawnerObj = new GameObject("[CrashPassengerSpawner]");
+                spawnerObj.AddComponent<HorrorGame.Environment.CrashPassengerSpawner>();
+                Debug.Log("💀 [GameStartSetup] Đã kích hoạt hệ thống Xác Hành Khách Máy Bay Rơi!");
+            }
+        }
+
+        private void SetupCannibalSpawner()
+        {
+            if (FindObjectOfType<HorrorGame.Enemy.CannibalSpawner>() == null)
+            {
+                GameObject cannibalSpawnerObj = new GameObject("[CannibalSpawner]");
+                cannibalSpawnerObj.AddComponent<HorrorGame.Enemy.CannibalSpawner>();
+                Debug.Log("🏹 [GameStartSetup] Đã kích hoạt bầy Thổ Dân Ăn Thịt Người (Cannibals)!");
+            }
         }
 
         private void GiveStartingAxe()

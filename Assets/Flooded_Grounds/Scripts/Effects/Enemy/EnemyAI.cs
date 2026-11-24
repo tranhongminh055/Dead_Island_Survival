@@ -25,12 +25,12 @@ namespace HorrorGame.Enemy
 
         [Header("Zombie Health Settings")]
         public float maxHealth = 100f; // Máu tối đa của Zombie
-        private float currentHealth;
+        protected float currentHealth;
 
-        private NavMeshAgent agent;
-        private Animator animator;
-        private bool isDead = false;
-        private float lastAttackTime = 0f;
+        protected NavMeshAgent agent;
+        protected Animator animator;
+        protected bool isDead = false;
+        protected float lastAttackTime = 0f;
         private Coroutine flashRoutine;
 
         public bool IsDead { get { return isDead; } }
@@ -54,7 +54,7 @@ namespace HorrorGame.Enemy
             col.isTrigger = false;
         }
 
-        void Start()
+        protected virtual void Start()
         {
             EnsureCollider();
             agent = GetComponent<NavMeshAgent>();
@@ -83,7 +83,7 @@ namespace HorrorGame.Enemy
             }
         }
 
-        void Update()
+        protected virtual void Update()
         {
             if (isDead) return;
 
@@ -103,11 +103,15 @@ namespace HorrorGame.Enemy
                 return;
             }
 
-            // Chỉ tính khoảng cách trên mặt phẳng (bỏ qua độ cao Y) để tránh lỗi lệch tâm (pivot)
+            // Tính khoảng cách theo phương ngang và chênh lệch độ cao Y
             Vector3 targetPos = new Vector3(player.position.x, transform.position.y, player.position.z);
-            float distanceToPlayer = Vector3.Distance(transform.position, targetPos);
+            float horizontalDistance = Vector3.Distance(transform.position, targetPos);
+            float heightDiff = Mathf.Abs(player.position.y - transform.position.y);
 
-            if (distanceToPlayer <= attackRange)
+            // Zombie chỉ có thể với tới cào trúng khi áp sát ngang (<= attackRange) VÀ chênh lệch độ cao <= 2.2m
+            bool canReachPlayer = (horizontalDistance <= attackRange) && (heightDiff <= 2.2f);
+
+            if (canReachPlayer)
             {
                 // Áp sát -> Dừng lại và Tấn công
                 agent.speed = 0f;
@@ -131,6 +135,11 @@ namespace HorrorGame.Enemy
                     if (stats != null)
                     {
                         stats.TakeDamage(damage);
+
+                        // Có 20% nguy cơ nhiễm ký sinh trùng Zombie khi bị cào cắn trúng
+                        var parasiteSys = player.GetComponentInParent<HorrorGame.Player.ZombieParasiteSystem>();
+                        if (parasiteSys == null) parasiteSys = player.GetComponentInChildren<HorrorGame.Player.ZombieParasiteSystem>();
+                        if (parasiteSys != null) parasiteSys.TryInfect(0.20f, "Vết cào độc hại của Zombie");
                     }
                     else
                     {
@@ -138,7 +147,17 @@ namespace HorrorGame.Enemy
                     }
                 }
             }
-            else if (distanceToPlayer <= chaseRange)
+            else if (horizontalDistance <= attackRange && heightDiff > 2.2f)
+            {
+                // Người chơi đang đứng trên cao ngoài tầm với (trên nóc nhà, tảng đá, cánh máy bay...):
+                // Zombie dừng lại dưới chân, hướng mặt nhìn lên người chơi nhưng KHÔNG THỂ cào trúng gây mất máu
+                agent.speed = 0f;
+                agent.SetDestination(transform.position);
+                animator.SetFloat("Speed", 0f);
+                isInvestigatingSound = false;
+                transform.LookAt(new Vector3(player.position.x, transform.position.y, player.position.z));
+            }
+            else if (horizontalDistance <= chaseRange)
             {
                 // Nằm trong tầm nhìn -> Chạy rượt đuổi
                 agent.speed = runSpeed;
@@ -217,12 +236,12 @@ namespace HorrorGame.Enemy
         }
 
         // Gọi hàm này khi Zombie bị người chơi bắn/chém trúng
-        public void TakeDamage(float amount)
+        public virtual void TakeDamage(float amount)
         {
             TakeDamage(amount, Vector3.zero);
         }
 
-        public void TakeDamage(float amount, Vector3 hitPoint)
+        public virtual void TakeDamage(float amount, Vector3 hitPoint)
         {
             if (isDead) return;
 
@@ -283,7 +302,7 @@ namespace HorrorGame.Enemy
             flashRoutine = null;
         }
 
-        private void Die()
+        protected virtual void Die()
         {
             if (isDead) return;
             isDead = true;
@@ -377,7 +396,6 @@ namespace HorrorGame.Enemy
 
             ParticleSystem ps = fx.AddComponent<ParticleSystem>();
             ParticleSystem.MainModule main = ps.main;
-            main.duration = 0.2f;
             main.loop = false;
             main.startLifetime = 0.35f;
             main.startSpeed = 3f;

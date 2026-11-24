@@ -56,7 +56,7 @@ namespace HorrorGame.Editor
 
             GUILayout.Space(4f);
             GUI.backgroundColor = new Color(1f, 0.9f, 0.3f);
-            if (GUILayout.Button("⚡ [TEST] ĐÁNH SÉT NGAY BÂY GIỜ!", GUILayout.Height(34)))
+            if (GUILayout.Button(" [TEST] ĐÁNH SÉT NGAY BÂY GIỜ!", GUILayout.Height(34)))
             {
                 if (ws.lightningSystem != null)
                 {
