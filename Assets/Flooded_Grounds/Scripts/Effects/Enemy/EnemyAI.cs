@@ -333,6 +333,7 @@ namespace HorrorGame.Enemy
         {
             if (isDead) return;
             isDead = true;
+            HorrorGame.UI.GameEndingManager.TotalEnemiesKilled++;
 
             Debug.Log("[EnemyAI] Zombie đã bị tiêu diệt!");
 

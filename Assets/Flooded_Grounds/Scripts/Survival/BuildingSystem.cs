@@ -1,5 +1,5 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace HorrorGame.Survival
 {
@@ -782,14 +782,6 @@ namespace HorrorGame.Survival
             GUI.Label(new Rect(menuX, menuY + 10, menuWidth, 40), "🔨 XÂY DỰNG", titleStyle);
 
             // Nút test nguyên liệu (để trải nghiệm xây dựng ngay)
-            GUIStyle testBtnStyle = new GUIStyle(GUI.skin.button);
-            testBtnStyle.fontSize = 11;
-            testBtnStyle.fontStyle = FontStyle.Bold;
-            if (GUI.Button(new Rect(menuX + 15, menuY + 12, 110, 26), "+50 Gỗ/Đá (Test)", testBtnStyle))
-            {
-                GiveTestMaterials();
-            }
-
             // Nút đóng
             GUIStyle closeStyle = new GUIStyle(GUI.skin.button);
             closeStyle.fontSize = 18;
