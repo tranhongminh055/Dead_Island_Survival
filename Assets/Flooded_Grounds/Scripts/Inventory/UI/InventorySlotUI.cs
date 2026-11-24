@@ -21,22 +21,41 @@ namespace HorrorGame.Inventory.UI
         {
             currentSlot = slot;
 
-            if (slot == null || slot.IsEmpty())
+            if (iconImage == null)
             {
-                iconImage.sprite = null;
-                iconImage.color = new Color(1, 1, 1, 0);
+                iconImage = GetComponentInChildren<Image>();
+            }
+
+            if (slot == null || slot.IsEmpty() || slot.item == null)
+            {
+                if (iconImage != null)
+                {
+                    iconImage.sprite = null;
+                    iconImage.color = new Color(1, 1, 1, 0);
+                    iconImage.raycastTarget = false;
+                }
                 if (amountText != null) 
                 {
                     amountText.text = "";
                     amountText.raycastTarget = false;
                 }
-                iconImage.raycastTarget = false; // Ô trống không cần nhận Raycast từ chuột (ngoại trừ ô nền)
             }
             else
             {   
-                iconImage.sprite = slot.item.icon;
-                iconImage.color = new Color(1, 1, 1, 1);
-                iconImage.raycastTarget = true; // Để có thể click/kéo
+                if (iconImage != null)
+                {
+                    if (slot.item.icon != null)
+                    {
+                        iconImage.sprite = slot.item.icon;
+                    }
+                    else
+                    {
+                        // Tạo sprite placeholder khi không có icon (ví dụ: Gỗ, Lá runtime)
+                        iconImage.sprite = GeneratePlaceholderSprite(slot.item);
+                    }
+                    iconImage.color = new Color(1, 1, 1, 1);
+                    iconImage.raycastTarget = true; // Để có thể click/kéo
+                }
 
                 if (amountText != null)
                 {
@@ -46,6 +65,153 @@ namespace HorrorGame.Inventory.UI
                     else
                         amountText.text = "";
                 }
+            }
+        }
+
+        /// <summary>
+        /// Tạo sprite placeholder với nền màu và chữ cái đầu khi item không có icon
+        /// </summary>
+        private Sprite GeneratePlaceholderSprite(ItemData item)
+        {
+            int size = 64;
+            Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+
+            // Chọn màu nền dựa theo loại item
+            Color bgColor;
+            switch (item.itemType)
+            {
+                case ItemType.Resource:
+                    string id = !string.IsNullOrEmpty(item.itemID) ? item.itemID.ToLower() : "";
+                    if (id.Contains("wood") || id.Contains("log"))
+                        bgColor = new Color(0.55f, 0.35f, 0.15f); // Nâu gỗ
+                    else if (id.Contains("leaf") || id.Contains("la"))
+                        bgColor = new Color(0.18f, 0.55f, 0.18f); // Xanh lá
+                    else
+                        bgColor = new Color(0.45f, 0.45f, 0.45f); // Xám
+                    break;
+                case ItemType.Tool:
+                    bgColor = new Color(0.5f, 0.5f, 0.6f); // Xám xanh
+                    break;
+                case ItemType.Consumable:
+                    bgColor = new Color(0.7f, 0.3f, 0.3f); // Đỏ nhạt
+                    break;
+                default:
+                    bgColor = new Color(0.4f, 0.4f, 0.5f);
+                    break;
+            }
+
+            // Vẽ nền với bo viền nhẹ
+            Color borderColor = bgColor * 0.6f;
+            borderColor.a = 1f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    bool isBorder = x < 2 || x >= size - 2 || y < 2 || y >= size - 2;
+                    tex.SetPixel(x, y, isBorder ? borderColor : bgColor);
+                }
+            }
+
+            // Vẽ chữ cái đầu (đơn giản, pixel font 5x7 cho các ký tự phổ biến)
+            string itemName = !string.IsNullOrEmpty(item.itemName) ? item.itemName : "?";
+            char firstChar = char.ToUpper(itemName[0]);
+            DrawCharOnTexture(tex, firstChar, size);
+
+            tex.Apply();
+            tex.filterMode = FilterMode.Point;
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        }
+
+        /// <summary>
+        /// Vẽ ký tự pixel đơn giản lên texture
+        /// </summary>
+        private void DrawCharOnTexture(Texture2D tex, char c, int texSize)
+        {
+            // Pixel font patterns 5x7 cho các ký tự thường dùng
+            int[,] pattern = GetCharPattern(c);
+            if (pattern == null) return;
+
+            int charW = pattern.GetLength(1);
+            int charH = pattern.GetLength(0);
+            int scale = 4; // Mỗi pixel font = 4x4 pixel thực
+            int startX = (texSize - charW * scale) / 2;
+            int startY = (texSize - charH * scale) / 2;
+
+            Color textColor = Color.white;
+            for (int row = 0; row < charH; row++)
+            {
+                for (int col = 0; col < charW; col++)
+                {
+                    if (pattern[row, col] == 1)
+                    {
+                        for (int sy = 0; sy < scale; sy++)
+                        {
+                            for (int sx = 0; sx < scale; sx++)
+                            {
+                                int px = startX + col * scale + sx;
+                                int py = startY + (charH - 1 - row) * scale + sy; // Y ngược
+                                if (px >= 0 && px < texSize && py >= 0 && py < texSize)
+                                    tex.SetPixel(px, py, textColor);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private int[,] GetCharPattern(char c)
+        {
+            switch (c)
+            {
+                // G (Gỗ)
+                case 'G': return new int[,] {
+                    {0,1,1,1,0},
+                    {1,0,0,0,1},
+                    {1,0,0,0,0},
+                    {1,0,1,1,1},
+                    {1,0,0,0,1},
+                    {1,0,0,0,1},
+                    {0,1,1,1,0}
+                };
+                // L (Lá)
+                case 'L': return new int[,] {
+                    {1,0,0,0,0},
+                    {1,0,0,0,0},
+                    {1,0,0,0,0},
+                    {1,0,0,0,0},
+                    {1,0,0,0,0},
+                    {1,0,0,0,0},
+                    {1,1,1,1,1}
+                };
+                // W (Wood)
+                case 'W': return new int[,] {
+                    {1,0,0,0,1},
+                    {1,0,0,0,1},
+                    {1,0,0,0,1},
+                    {1,0,1,0,1},
+                    {1,0,1,0,1},
+                    {1,1,0,1,1},
+                    {1,0,0,0,1}
+                };
+                // R (Resource)
+                case 'R': return new int[,] {
+                    {1,1,1,1,0},
+                    {1,0,0,0,1},
+                    {1,0,0,0,1},
+                    {1,1,1,1,0},
+                    {1,0,1,0,0},
+                    {1,0,0,1,0},
+                    {1,0,0,0,1}
+                };
+                default: return new int[,] {
+                    {0,1,1,1,0},
+                    {1,0,0,0,1},
+                    {0,0,0,1,0},
+                    {0,0,1,0,0},
+                    {0,0,1,0,0},
+                    {0,0,0,0,0},
+                    {0,0,1,0,0}
+                };
             }
         }
 
@@ -71,8 +237,9 @@ namespace HorrorGame.Inventory.UI
 
             Debug.Log(string.Format("<color=yellow>[USE ITEM]</color> Click sử dụng: {0} (ID: {1}, Type: {2})", item.itemName, item.itemID, type));
 
-            // Tìm PlayerStats trên Player
-            var stats = FindObjectOfType<Player.PlayerStats>();
+            // Tìm PlayerStats trên Player (Ưu tiên Singleton Instance)
+            var stats = Player.PlayerStats.Instance;
+            if (stats == null) stats = FindObjectOfType<Player.PlayerStats>();
             if (stats == null)
             {
                 var playerObj = GameObject.FindGameObjectWithTag("Player");
@@ -90,27 +257,38 @@ namespace HorrorGame.Inventory.UI
             bool itemUsed = false;
             string feedbackMsg = "";
 
-            // 1. HỒI MÁU (Băng cứu thương / Medkit)
-            if (id.Contains("medkit") || id.Contains("bandaid") || id.Contains("bandage") || name.Contains("băng") || name.Contains("cứu thương") || name.Contains("thuốc"))
+            // 1. HỒI MÁU (Băng cứu thương / Medkit / Hộp sơ cứu)
+            if (id.Contains("medkit") || id.Contains("bandaid") || id.Contains("bandage") || id.Contains("firstaid") || id.Contains("cure") || id.Contains("thuốc") || name.Contains("băng") || name.Contains("cứu thương") || name.Contains("sơ cứu") || name.Contains("thuốc") || name.Contains("medkit"))
             {
                 if (stats != null)
                 {
-                    stats.Heal(40f);
+                    float healAmount = 50f;
+                    stats.Heal(healAmount);
+                    stats.RestoreSanity(15f); // Băng bó vết thương giảm đau giúp hồi phục Sanity
+
+                    var parasiteSys = stats.GetComponent<Player.ZombieParasiteSystem>();
+                    if (parasiteSys != null) parasiteSys.RemoveParasites(2);
+
                     itemUsed = true;
-                    feedbackMsg = string.Format("💚 Đã dùng Băng cứu thương: Hồi +40 Máu! ({0:F0}/{1} HP)", stats.currentHealth, stats.maxHealth);
+                    feedbackMsg = string.Format("💚 Đã dùng Túi Cứu Thương: Hồi +{0:F0} Máu, +15 Tinh thần! ({1:F0}/{2:F0} HP)", healAmount, stats.currentHealth, stats.maxHealth);
+                    stats.ShowStatusNotice(feedbackMsg);
+                }
+                else
+                {
+                    Debug.LogError("[InventorySlotUI] Không tìm thấy PlayerStats khi dùng Túi cứu thương!");
                 }
             }
             // 2. LƯƠNG THỰC / ĐỒ HỘP (Hộp lương thực dự trữ / Food)
-            else if (id.Contains("food") || id.Contains("ration") || id.Contains("canned") || name.Contains("lương thực") || name.Contains("thịt") || name.Contains("ăn"))
+            else if (id.Contains("food") || id.Contains("ration") || id.Contains("canned") || id.Contains("meat") || name.Contains("lương thực") || name.Contains("thịt") || name.Contains("đồ hộp") || name.Contains("ăn"))
             {
                 if (stats != null)
                 {
-                    stats.Eat(45f);
+                    stats.Eat(45f, 18f); // Hồi 45 đói và 18 Tinh thần!
                     stats.Heal(15f); // Thức ăn dinh dưỡng hồi thêm 15 HP!
                     stats.currentStamina = Mathf.Min(stats.maxStamina, stats.currentStamina + 35f);
-                    stats.RestoreSanity(20f);
                     itemUsed = true;
-                    feedbackMsg = string.Format("🍖 Đã ăn Hộp lương thực: +45 Đói, +15 Máu, +35 Thể lực!");
+                    feedbackMsg = string.Format("🍖 Đã ăn: +45 Đói, +15 Máu, +18 Tinh thần!");
+                    stats.ShowStatusNotice(feedbackMsg);
                 }
             }
             // 3. ĐẠN DƯỢC (Hộp đạn dã chiến / Ammo)
@@ -173,6 +351,9 @@ namespace HorrorGame.Inventory.UI
                 {
                     InventoryManager.Instance.onInventoryChangedEvent();
                 }
+
+                var invUI = FindObjectOfType<HorrorGame.Inventory.UI.InventoryUI>();
+                if (invUI != null) invUI.UpdateUI();
             }
 
             // Hiển thị thông báo và in Log rõ ràng

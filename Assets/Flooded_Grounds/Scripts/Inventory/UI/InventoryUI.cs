@@ -8,10 +8,23 @@ namespace HorrorGame.Inventory.UI
         public Transform slotsParent; // Kéo thả Grid Layout Group chứa các Slot vào đây
         private InventorySlotUI[] slotUIs;
 
+        private void EnsureSlots()
+        {
+            if (slotUIs != null && slotUIs.Length > 0) return;
+
+            if (slotsParent != null)
+            {
+                slotUIs = slotsParent.GetComponentsInChildren<InventorySlotUI>(true);
+            }
+            if (slotUIs == null || slotUIs.Length == 0)
+            {
+                slotUIs = GetComponentsInChildren<InventorySlotUI>(true);
+            }
+        }
+
         private void Start()
         {
-            // Lấy tất cả các InventorySlotUI là con của slotsParent
-            slotUIs = slotsParent.GetComponentsInChildren<InventorySlotUI>();
+            EnsureSlots();
 
             // Đăng ký sự kiện khi Inventory thay đổi
             if (InventoryManager.Instance != null)
@@ -20,6 +33,21 @@ namespace HorrorGame.Inventory.UI
             }
 
             UpdateUI(); // Cập nhật lần đầu
+        }
+
+        private void OnEnable()
+        {
+            EnsureSlots();
+
+            // Mỗi lần mở panel, đảm bảo đã đăng ký event và cập nhật lại UI
+            if (InventoryManager.Instance != null)
+            {
+                // Hủy đăng ký trước để tránh đăng ký trùng
+                InventoryManager.Instance.onInventoryChangedEvent -= UpdateUI;
+                InventoryManager.Instance.onInventoryChangedEvent += UpdateUI;
+            }
+
+            UpdateUI();
         }
 
         private void OnDestroy()
@@ -33,13 +61,17 @@ namespace HorrorGame.Inventory.UI
 
         public void UpdateUI()
         {
-            Debug.Log("Inventory da them vat pham");
             if (InventoryManager.Instance == null) return;
+
+            EnsureSlots();
+            if (slotUIs == null || slotUIs.Length == 0) return;
 
             List<InventorySlot> inventorySlots = InventoryManager.Instance.slots;
 
             for (int i = 0; i < slotUIs.Length; i++)
             {
+                if (slotUIs[i] == null) continue;
+
                 if (i < inventorySlots.Count)
                 {
                     // Truyền dữ liệu sang UI để hiển thị

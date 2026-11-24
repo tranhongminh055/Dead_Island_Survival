@@ -64,6 +64,62 @@ namespace HorrorGame.Player
             {
                 ToggleFlashlight();
             }
+
+            // Xử lý hiệu ứng chớp nháy (Flicker) khi ở trong hang động sâu
+            HandleCaveFlicker();
+        }
+
+        private float nextFlickerCheck = 0f;
+        private Coroutine flickerRoutine;
+
+        private void HandleCaveFlicker()
+        {
+            if (!isOn || flashlightLight == null) return;
+
+            // Nếu người chơi đang ở trong hang động
+            if (HorrorGame.Cave.CaveManager.IsPlayerInCave)
+            {
+                if (Time.time >= nextFlickerCheck)
+                {
+                    nextFlickerCheck = Time.time + Random.Range(10f, 25f);
+                    // 35% khả năng đèn pin chập chờn
+                    if (Random.value < 0.35f)
+                    {
+                        TriggerFlicker(Random.Range(0.8f, 2.2f));
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Kích hoạt hiệu ứng đèn pin chớp giật kinh dị
+        /// </summary>
+        public void TriggerFlicker(float duration)
+        {
+            if (!isOn || flashlightLight == null) return;
+            if (flickerRoutine != null) StopCoroutine(flickerRoutine);
+            flickerRoutine = StartCoroutine(FlickerCoroutine(duration));
+        }
+
+        private System.Collections.IEnumerator FlickerCoroutine(float duration)
+        {
+            float elapsed = 0f;
+            float originalIntensity = 2.8f;
+
+            while (elapsed < duration)
+            {
+                flashlightLight.enabled = Random.value > 0.45f;
+                flashlightLight.intensity = Random.Range(0.4f, originalIntensity);
+                float step = Random.Range(0.04f, 0.12f);
+                elapsed += step;
+                yield return new WaitForSeconds(step);
+            }
+
+            if (isOn)
+            {
+                flashlightLight.enabled = true;
+                flashlightLight.intensity = originalIntensity;
+            }
         }
 
         public void ToggleFlashlight()

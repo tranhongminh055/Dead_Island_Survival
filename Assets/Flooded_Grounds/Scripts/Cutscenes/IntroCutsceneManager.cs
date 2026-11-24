@@ -122,7 +122,12 @@ namespace HorrorGame.Cutscenes
                 blackScreenUI.gameObject.SetActive(false);
             }
 
-            // BƯỚC 6: TRẢ LẠI QUYỀN ĐIỀU KHIỂN CHO NGƯỜI CHƠI
+            // BƯỚC 6: TRẢ LẠI QUYỀN ĐIỀU KHIỂN CHO NGƯỜI CHƠI & BẬT MƯA SẤM CHỚP
+            if (HorrorGame.Environment.Weather.WeatherSystem.Instance != null)
+            {
+                HorrorGame.Environment.Weather.WeatherSystem.Instance.TriggerPostTrailerStorm();
+            }
+
             if (playerController != null)
             {
                 playerController.enabled = true; // Cho phép đi lại, quay chuột

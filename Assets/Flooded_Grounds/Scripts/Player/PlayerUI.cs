@@ -19,10 +19,26 @@ namespace HorrorGame.Player
         public Image thirstImage;     // Hình giọt nước
         public Image sanityImage;     // Hình bộ não (nếu có)
 
+        [Header("UI Fracture Icon (Biểu tượng Gãy Xương Green Hell)")]
+        public GameObject fractureIconObject; // GameObject chứa icon gãy xương trong Canvas
+        public Image fractureIconImage;       // Image icon gãy xương (nếu có)
+
+        private void Awake()
+        {
+            if (PlayerStats.Instance != null)
+            {
+                playerStats = PlayerStats.Instance;
+            }
+        }
+
         private void Start()
         {
-            // Tự động tìm PlayerStats nếu quên kéo thả
-            if (playerStats == null)
+            // Tự động gắn kết với PlayerStats.Instance duy nhất của nhân vật
+            if (PlayerStats.Instance != null)
+            {
+                playerStats = PlayerStats.Instance;
+            }
+            else if (playerStats == null)
             {
                 playerStats = FindObjectOfType<PlayerStats>();
             }
@@ -40,9 +56,14 @@ namespace HorrorGame.Player
 
         private void Update()
         {
-            if (playerStats == null)
+            // Đảm bảo luôn trỏ đúng vào Instance duy nhất của PlayerStats
+            if (PlayerStats.Instance != null && playerStats != PlayerStats.Instance)
             {
-                playerStats = FindObjectOfType<PlayerStats>();
+                playerStats = PlayerStats.Instance;
+            }
+            else if (playerStats == null)
+            {
+                playerStats = PlayerStats.Instance != null ? PlayerStats.Instance : FindObjectOfType<PlayerStats>();
                 if (playerStats != null)
                 {
                     if (healthSlider != null) healthSlider.maxValue = playerStats.maxHealth;
@@ -54,17 +75,29 @@ namespace HorrorGame.Player
                 else return;
             }
 
-            // Cập nhật độ dài của các thanh UI liên tục theo thời gian thực
-            if (healthSlider != null) healthSlider.value = playerStats.currentHealth;
-            if (staminaSlider != null) staminaSlider.value = playerStats.currentStamina;
-            if (hungerSlider != null) hungerSlider.value = playerStats.currentHunger;
-            if (thirstSlider != null) thirstSlider.value = playerStats.currentThirst;
-            if (sanitySlider != null) sanitySlider.value = playerStats.currentSanity;
+            // Cập nhật độ dài và trần tối đa của các thanh UI liên tục theo thời gian thực (hiển thị Fatigue)
+            if (healthSlider != null) { healthSlider.maxValue = playerStats.maxHealth; healthSlider.value = playerStats.currentHealth; }
+            if (staminaSlider != null) { staminaSlider.maxValue = playerStats.maxStamina; staminaSlider.value = playerStats.currentStamina; }
+            if (hungerSlider != null) { hungerSlider.maxValue = playerStats.maxHunger; hungerSlider.value = playerStats.currentHunger; }
+            if (thirstSlider != null) { thirstSlider.maxValue = playerStats.maxThirst; thirstSlider.value = playerStats.currentThirst; }
+            if (sanitySlider != null) { sanitySlider.maxValue = playerStats.maxSanity; sanitySlider.value = playerStats.currentSanity; }
 
             // Cập nhật cho dạng Hình ảnh (Dạ dày đầy/vơi) - Tính theo tỷ lệ 0 đến 1
             if (hungerImage != null) hungerImage.fillAmount = playerStats.currentHunger / playerStats.maxHunger;
             if (thirstImage != null) thirstImage.fillAmount = playerStats.currentThirst / playerStats.maxThirst;
             if (sanityImage != null) sanityImage.fillAmount = playerStats.currentSanity / playerStats.maxSanity;
+
+            // Cập nhật trạng thái hiển thị Icon Gãy Xương trong Canvas
+            PlayerFractureSystem fractureSys = PlayerFractureSystem.Instance != null ? PlayerFractureSystem.Instance : (playerStats != null ? playerStats.GetComponent<PlayerFractureSystem>() : null);
+            bool isFractured = (fractureSys != null && fractureSys.isFractured);
+            if (fractureIconObject != null && fractureIconObject.activeSelf != isFractured)
+            {
+                fractureIconObject.SetActive(isFractured);
+            }
+            if (fractureIconImage != null && fractureIconImage.enabled != isFractured)
+            {
+                fractureIconImage.enabled = isFractured;
+            }
         }
     }
 }

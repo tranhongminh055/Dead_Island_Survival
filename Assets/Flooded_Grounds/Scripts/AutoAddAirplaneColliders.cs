@@ -26,13 +26,21 @@ public class AutoAddAirplaneColliders : MonoBehaviour
         
         foreach (MeshFilter mf in allMeshes)
         {
-            // Chỉ gắn cho các object thực sự nằm trong Scene (bỏ qua Prefab trong thư mục Project)
             if (mf.gameObject.scene.IsValid())
             {
-                if (mf.gameObject.GetComponent<Collider>() == null)
+                if (mf.gameObject.GetComponent<Collider>() == null && mf.sharedMesh != null)
                 {
-                    mf.gameObject.AddComponent<MeshCollider>();
-                    addedCount++;
+                    if (mf.sharedMesh.isReadable)
+                    {
+                        mf.gameObject.AddComponent<MeshCollider>();
+                        addedCount++;
+                    }
+                    else
+                    {
+                        // Nếu Mesh không cho phép Read/Write, thêm BoxCollider để tránh lỗi console đỏ chót
+                        mf.gameObject.AddComponent<BoxCollider>();
+                        addedCount++;
+                    }
                 }
             }
         }
@@ -43,11 +51,19 @@ public class AutoAddAirplaneColliders : MonoBehaviour
         {
             if (smr.gameObject.scene.IsValid())
             {
-                if (smr.gameObject.GetComponent<Collider>() == null)
+                if (smr.gameObject.GetComponent<Collider>() == null && smr.sharedMesh != null)
                 {
-                    MeshCollider mc = smr.gameObject.AddComponent<MeshCollider>();
-                    if (smr.sharedMesh != null) mc.sharedMesh = smr.sharedMesh;
-                    addedCount++;
+                    if (smr.sharedMesh.isReadable)
+                    {
+                        MeshCollider mc = smr.gameObject.AddComponent<MeshCollider>();
+                        mc.sharedMesh = smr.sharedMesh;
+                        addedCount++;
+                    }
+                    else
+                    {
+                        smr.gameObject.AddComponent<BoxCollider>();
+                        addedCount++;
+                    }
                 }
             }
         }
