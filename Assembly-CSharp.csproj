@@ -184,6 +184,7 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\ItemConsumption.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\ShelterRest.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\TerrainTreeChopper.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\UI\GameEndingManager.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\UI\GameMenuManager.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\UI\PlayerDeathUI.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\UI\SurvivalObjectiveManager.cs" />

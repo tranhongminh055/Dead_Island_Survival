@@ -47,8 +47,25 @@ namespace HorrorGame.UI
         private GUIStyle btnStyle;
         private bool stylesReady = false;
 
+        private static bool sceneHookRegistered = false;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoInit()
+        {
+            if (!sceneHookRegistered)
+            {
+                sceneHookRegistered = true;
+                SceneManager.sceneLoaded += OnAnySceneLoaded;
+            }
+            EnsureInstanceForActiveScene();
+        }
+
+        private static void OnAnySceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            EnsureInstanceForActiveScene();
+        }
+
+        private static void EnsureInstanceForActiveScene()
         {
             string sceneName = SceneManager.GetActiveScene().name;
             if (sceneName.ToLower().Contains("mainmenu")) return;
