@@ -97,6 +97,9 @@ namespace HorrorGame.Cave
         // TRIGGER DETECTION
         // ═══════════════════════════════════════════════════════════════
 
+        [Tooltip("Tự động kích hoạt khi rơi/chui vào hố mà không cần bấm phím E")]
+        public bool autoTriggerOnFall = false;
+
         private void OnTriggerEnter(Collider other)
         {
             if (!other.CompareTag("Player")) return;
@@ -108,6 +111,12 @@ namespace HorrorGame.Cave
             playerController = other.GetComponent<CharacterController>();
             if (playerController == null)
                 playerController = other.GetComponentInParent<CharacterController>();
+
+            if (autoTriggerOnFall)
+            {
+                HandleInteraction();
+                return;
+            }
 
             UpdatePrompt();
         }
@@ -150,6 +159,7 @@ namespace HorrorGame.Cave
         private void HandleInteraction()
         {
             if (targetCave == null) return;
+            if (CaveManager.Instance == null || CaveManager.IsTransitioning) return;
 
             if (entranceType == EntranceType.Entrance)
             {
@@ -166,10 +176,13 @@ namespace HorrorGame.Cave
                     return;
                 }
 
-                // Vào hang!
+                // Vào hang: Fade đen -> Bật geometry hang -> Teleport an toàn -> Fade sáng!
                 PlaySound(enterSound);
-                TeleportPlayer(spawnPointInside);
-                CaveManager.Instance.EnterCave(targetCave);
+                Transform dest = spawnPointInside;
+                CaveManager.Instance.EnterCave(targetCave, () =>
+                {
+                    TeleportPlayer(dest);
+                });
             }
             else // Exit
             {
@@ -177,8 +190,11 @@ namespace HorrorGame.Cave
                 if (!CaveManager.IsPlayerInCave) return;
 
                 PlaySound(exitSound);
-                TeleportPlayer(spawnPointOutside);
-                CaveManager.Instance.ExitCave();
+                Transform dest = spawnPointOutside;
+                CaveManager.Instance.ExitCave(() =>
+                {
+                    TeleportPlayer(dest);
+                });
             }
         }
 
@@ -192,6 +208,11 @@ namespace HorrorGame.Cave
 
             playerTransform.position = destination.position;
             playerTransform.rotation = destination.rotation;
+
+            // Reset trạng thái rơi để không bị fall damage hoặc gãy chân khi teleport xuống -60m
+            HorrorGame.Player.PlayerController pc = playerTransform.GetComponent<HorrorGame.Player.PlayerController>();
+            if (pc == null) pc = playerTransform.GetComponentInParent<HorrorGame.Player.PlayerController>();
+            if (pc != null) pc.ResetFallState();
 
             if (playerController != null)
                 playerController.enabled = true;
@@ -283,28 +304,23 @@ namespace HorrorGame.Cave
 
         private void OnDrawGizmos()
         {
-            Gizmos.color = entranceType == EntranceType.Entrance ?
-                new Color(0f, 0.8f, 1f, 0.4f) : new Color(0f, 1f, 0.4f, 0.4f);
-
-            Gizmos.DrawWireCube(transform.position, new Vector3(4f, 4f, 2f));
-
-            if (spawnPointInside != null)
+            Collider col = GetComponent<Collider>();
+            if (col != null)
             {
-                Gizmos.color = Color.cyan;
-                Gizmos.DrawSphere(spawnPointInside.position, 0.3f);
-                Gizmos.DrawLine(transform.position, spawnPointInside.position);
-            }
-
-            if (spawnPointOutside != null)
-            {
-                Gizmos.color = Color.green;
-                Gizmos.DrawSphere(spawnPointOutside.position, 0.3f);
-                Gizmos.DrawLine(transform.position, spawnPointOutside.position);
+                Gizmos.color = entranceType == EntranceType.Entrance ?
+                    new Color(0f, 0.8f, 1f, 0.3f) : new Color(0f, 1f, 0.4f, 0.3f);
+                Gizmos.DrawWireCube(col.bounds.center, col.bounds.size);
             }
 
 #if UNITY_EDITOR
-            string label = entranceType == EntranceType.Entrance ? "🚪 CỬA VÀO" : "🚪 CỬA RA";
-            if (targetCave != null) label += "\n→ " + targetCave.caveName;
+            // Chỉ vẽ nhãn đúng tầng: nếu camera đang ở trên mặt đất (Y > -20m) thì KHÔNG vẽ nhãn CỬA RA ở hầm sâu -60m
+            if (Camera.current != null)
+            {
+                if (entranceType == EntranceType.Exit && Camera.current.transform.position.y > -20f) return;
+                if (entranceType == EntranceType.Entrance && Camera.current.transform.position.y < -20f) return;
+            }
+            string label = entranceType == EntranceType.Entrance ? "🕳️ LỖ HANG THE FOREST (CỬA VÀO)" : "🧗 DÂY THỪNG TRÈO LÊN MẶT ĐẤT";
+            if (targetCave != null) label += "\n" + targetCave.caveName;
             UnityEditor.Handles.Label(transform.position + Vector3.up * 2.5f, label);
 #endif
         }

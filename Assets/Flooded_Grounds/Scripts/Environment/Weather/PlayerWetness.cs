@@ -61,8 +61,9 @@ namespace HorrorGame.Environment.Weather
         private void UpdateWetnessLevel()
         {
             WeatherSystem ws = WeatherSystem.Instance;
+            bool inCave = HorrorGame.Cave.CaveManager.IsPlayerInCave || transform.position.y < -20f;
             bool isRaining = (ws != null && ws.IsRaining);
-            bool isSheltered = (ws != null && ws.IsPlayerSheltered);
+            bool isSheltered = inCave || (ws != null && ws.IsPlayerSheltered);
 
             if (isRaining && !isSheltered)
             {

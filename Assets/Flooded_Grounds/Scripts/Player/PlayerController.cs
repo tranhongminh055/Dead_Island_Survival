@@ -390,8 +390,8 @@ namespace HorrorGame.Player
         /// </summary>
         public bool IsInWater()
         {
-            // Nếu người chơi đang ở trong hang động / mỏ ngầm, bỏ qua mực nước biển ngoài đảo (Y <= 16.5f)
-            if (HorrorGame.Cave.CaveManager.IsPlayerInCave)
+            // Nếu người chơi đang ở trong hang động / mỏ ngầm (IsPlayerInCave hoặc ở sâu dưới Y < -20m), bỏ qua mực nước biển ngoài đảo
+            if (HorrorGame.Cave.CaveManager.IsPlayerInCave || transform.position.y < -20f)
             {
                 // Chỉ tính là dưới nước nếu chạm trực tiếp vào Collider nước ngầm bên trong hang
                 RaycastHit caveHit;
@@ -570,6 +570,19 @@ namespace HorrorGame.Player
                     controller.height = normalHeight;
                 }
             }
+        }
+
+        /// <summary>
+        /// Reset vận tốc rơi và trạng thái trên không (gọi khi teleport vào/ra hang động để tránh gãy xương/fall damage giả)
+        /// </summary>
+        public void ResetFallState()
+        {
+            velocity = Vector3.zero;
+            wasGroundedLastFrame = true;
+            highestAirborneY = transform.position.y;
+            lastFallVelocityY = 0f;
+            landingImpactHandledThisFall = true;
+            wasInTrueAirborne = false;
         }
     }
 }

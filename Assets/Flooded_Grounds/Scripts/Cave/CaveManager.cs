@@ -1,5 +1,5 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace HorrorGame.Cave
 {
@@ -30,10 +30,13 @@ namespace HorrorGame.Cave
 
         [Header("── Cài Đặt Chuyển Cảnh ──")]
         [Tooltip("Thời gian fade đen khi vào/ra hang (giây)")]
-        public float transitionFadeTime = 1.5f;
+        public float transitionFadeTime = 0.5f;
 
         [Tooltip("Thời gian chờ trước khi bật ánh sáng hang (giây)")]
-        public float lightingTransitionDelay = 0.5f;
+        public float lightingTransitionDelay = 0.25f;
+
+        private bool isTransitioning = false;
+        public static bool IsTransitioning { get { return Instance != null && Instance.isTransitioning; } }
 
         [Header("── Tham Chiếu ──")]
         [Tooltip("Directional Light (Mặt trời) — sẽ tắt khi vào hang")]
@@ -116,16 +119,17 @@ namespace HorrorGame.Cave
         // ═══════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Gọi khi player bước vào cửa hang
+        /// Gọi khi player bước vào cửa hang (fade đen -> bật geometry hang -> teleport -> fade sáng)
         /// </summary>
-        public void EnterCave(CaveZone cave)
+        public void EnterCave(CaveZone cave, System.Action onMidTransition = null)
         {
-            if (IsPlayerInCave) return;
+            if (IsPlayerInCave || isTransitioning) return;
             if (cave == null) return;
 
+            isTransitioning = true;
             Debug.Log(string.Format("[CaveManager] 🕳️ Đang vào {0}...", cave.caveName));
 
-            // Fade đen → chuyển cảnh → fade sáng
+            // Fade đen → bật hang & teleport → fade sáng
             StartFade(1f, transitionFadeTime, () =>
             {
                 // Lưu trạng thái bên ngoài
@@ -138,29 +142,39 @@ namespace HorrorGame.Cave
                 // Tắt ánh sáng ngoài trời
                 DisableOutdoorLighting();
 
-                // Kích hoạt hang
+                // Kích hoạt hang TRƯỚC khi teleport để toàn bộ MeshCollider sàn/tường đã sẵn sàng!
                 cave.ActivateCave();
+
+                // Teleport player xuống sàn hang an toàn
+                if (onMidTransition != null) onMidTransition();
 
                 // Đánh dấu đã khám phá
                 MarkCaveDiscovered(cave.caveID);
 
                 // Fade sáng trở lại (trong bóng tối hang)
-                StartFade(0f, transitionFadeTime, null);
+                StartFade(0f, transitionFadeTime, () =>
+                {
+                    isTransitioning = false;
+                });
             });
         }
 
         /// <summary>
-        /// Gọi khi player rời khỏi hang
+        /// Gọi khi player rời khỏi hang (fade đen -> teleport lên mặt đất -> tắt hang -> fade sáng)
         /// </summary>
-        public void ExitCave()
+        public void ExitCave(System.Action onMidTransition = null)
         {
-            if (!IsPlayerInCave || CurrentCave == null) return;
+            if (!IsPlayerInCave || CurrentCave == null || isTransitioning) return;
 
+            isTransitioning = true;
             CaveZone exitingCave = CurrentCave;
             Debug.Log(string.Format("[CaveManager] 🌤️ Đang rời {0}...", exitingCave.caveName));
 
             StartFade(1f, transitionFadeTime, () =>
             {
+                // Teleport player lên mặt đất trước khi tắt geometry hang
+                if (onMidTransition != null) onMidTransition();
+
                 // Tắt hang
                 exitingCave.DeactivateCave();
 
@@ -172,7 +186,10 @@ namespace HorrorGame.Cave
                 CurrentCave = null;
 
                 // Fade sáng trở lại
-                StartFade(0f, transitionFadeTime, null);
+                StartFade(0f, transitionFadeTime, () =>
+                {
+                    isTransitioning = false;
+                });
             });
         }
 
@@ -197,14 +214,14 @@ namespace HorrorGame.Cave
             if (sunLight != null) sunLight.intensity = 0f;
             if (moonLight != null) moonLight.intensity = 0f;
 
-            // Đặt ambient tối nhất
-            RenderSettings.ambientLight = new Color(0.02f, 0.02f, 0.03f);
-            RenderSettings.ambientIntensity = 0.1f;
+            // Đặt ambient tối âm u nhưng đủ thấy hình khối đá khi có đèn lồng
+            RenderSettings.ambientLight = new Color(0.05f, 0.055f, 0.07f);
+            RenderSettings.ambientIntensity = 0.25f;
 
-            // Fog đặc bên trong hang
+            // Fog âm u bên trong hang
             RenderSettings.fog = true;
-            RenderSettings.fogColor = new Color(0.01f, 0.01f, 0.02f);
-            RenderSettings.fogDensity = 0.06f;
+            RenderSettings.fogColor = new Color(0.015f, 0.018f, 0.025f);
+            RenderSettings.fogDensity = 0.035f;
         }
 
         private void RestoreOutdoorLighting()
@@ -401,8 +418,13 @@ namespace HorrorGame.Cave
             }
         }
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        // Đã tắt tự động sinh hang động khi vào game theo yêu cầu người dùng
         public static void EnsureCaveSystemRuntime()
+        {
+            return;
+        }
+
+        private static void _DisabledEnsureCaveSystemRuntime()
         {
             if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "MainMenu") return;
 
@@ -480,7 +502,7 @@ namespace HorrorGame.Cave
                     zone.caveDescription = p.desc;
                     zone.difficulty = Mathf.Min(i + 1, 5);
 
-                    // Cửa hang 3D The Forest
+                    // Cửa hang 3D Hố Sâu
                     GameObject forestObj = new GameObject("TheForest_CaveEntrance_3D");
                     forestObj.transform.SetParent(caveObj.transform);
                     forestObj.transform.localPosition = Vector3.zero;
@@ -489,7 +511,20 @@ namespace HorrorGame.Cave
                     forestCave.caveName = p.name;
                     forestCave.entranceWorldPosition = cavePos;
                     forestCave.ropeColor = p.ropeColor;
-                    forestCave.BuildForestCaveEntranceModel();
+                    forestCave.BuildForestCaveEntranceModel(false);
+
+                    // Hầm Mỏ Ngầm 3 tầng (Package Mine)
+                    GameObject mineObj = new GameObject("TheForest_MineCavern");
+                    mineObj.transform.SetParent(caveObj.transform);
+                    TheForestMineCavern mineCavern = mineObj.AddComponent<TheForestMineCavern>();
+                    mineCavern.caveID = p.id;
+                    mineCavern.caveName = p.name;
+                    mineCavern.entranceSurfacePos = cavePos;
+                    mineCavern.subterraneanDepthY = -60f;
+                    mineCavern.themeColor = p.ropeColor;
+                    mineCavern.parentZone = zone;
+                    mineCavern.BuildMineCavern(treasures[i], "", "", "");
+                    forestCave.LinkToMineCavern(mineCavern, zone);
 
                     // Ánh sáng nội thất riêng cho từng hang
                     GameObject lightsObj = new GameObject("Cave_LightingSystem");

@@ -22,16 +22,16 @@ namespace HorrorGame.Cave
         public Vector3 caveEntrancePos = new Vector3(385f, 21.5f, 575f);
 
         [Header("── Tùy Chỉnh Khói Đỏ ──")]
-        public Color primarySmokeColor = new Color(1.0f, 0.12f, 0.08f, 0.85f);
-        public Color secondarySmokeColor = new Color(0.65f, 0.05f, 0.05f, 0.4f);
+        public Color primarySmokeColor = new Color(1.0f, 0.2f, 0.15f, 0.4f);
+        public Color secondarySmokeColor = new Color(0.65f, 0.1f, 0.1f, 0.25f);
         public float smokeHeight = 85f;
-        public float smokeSize = 3.5f;
+        public float smokeSize = 1.8f;
 
         [Header("── Đèn Cảnh Báo (Signal Flare Light) ──")]
-        public bool enableFlareLight = true;
-        public Color flareLightColor = new Color(1.0f, 0.2f, 0.15f);
-        public float flareIntensity = 3.5f;
-        public float flareRange = 25f;
+        public bool enableFlareLight = false; // Tắt đèn đỏ chói lóa làm đỏ rực sườn đồi
+        public Color flareLightColor = new Color(1.0f, 0.3f, 0.2f);
+        public float flareIntensity = 0.5f;
+        public float flareRange = 5f;
 
         [Header("── Hiển Thị Khoảng Cách (HUD) ──")]
         public bool showDistanceMarker = true;
@@ -81,16 +81,16 @@ namespace HorrorGame.Cave
                 FindPlayerAndCamera();
             }
 
-            // Tự động căn chỉnh vị trí khói áp sát ngay bên phải vòm đá cửa hang (1.1m)
+            // Đặt cột khói đỏ ngay đầu lối dốc đi xuống hố sâu (-3.2, 0, -12.0) để Player đi theo khói là thấy ngay miệng hố!
             TheForestCaveEntrance parentEntrance = GetComponentInParent<TheForestCaveEntrance>();
             if (parentEntrance != null)
             {
-                Vector3 desiredPos = parentEntrance.entranceWorldPosition + new Vector3(1.1f, 0f, -0.3f);
+                Vector3 desiredPos = parentEntrance.entranceWorldPosition + new Vector3(-3.2f, 0f, -12.0f);
                 if (Terrain.activeTerrain != null)
                 {
                     desiredPos.y = Terrain.activeTerrain.SampleHeight(desiredPos) + Terrain.activeTerrain.transform.position.y;
                 }
-                if (Vector3.Distance(transform.position, desiredPos) > 0.4f)
+                if (Vector3.Distance(transform.position, desiredPos) > 0.5f)
                 {
                     transform.position = desiredPos;
                     caveEntrancePos = desiredPos;
@@ -488,7 +488,7 @@ namespace HorrorGame.Cave
             string text;
             if (dist <= 6f)
             {
-                text = string.Format("🟢 CỬA HANG & HẦM MỎ Ở ĐÂY (CẠNH CỘT KHÓI)!\n👉 [Nhấn E] Để trèo thang/dây vào {0}", caveName);
+                text = string.Format("🟢 HỐ SÂU HANG ĐỘNG NGAY TRƯỚC MẶT!\n👇 Đi xuống dốc vào cửa hầm mỏ bên dưới ({0})", caveName);
             }
             else if (isOffScreen)
             {
@@ -522,8 +522,13 @@ namespace HorrorGame.Cave
             GUI.Label(rect, text, textStyle);
         }
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        // Đã tắt tự động sinh cột khói đỏ khi vào game theo yêu cầu người dùng
         private static void AutoEnsureSignalSmokeRuntime()
+        {
+            return;
+        }
+
+        private static void _DisabledAutoEnsureSignalSmokeRuntime()
         {
             if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "MainMenu") return;
 

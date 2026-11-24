@@ -330,6 +330,7 @@ namespace HorrorGame.Cave
             Gizmos.DrawWireSphere(transform.position, interactDistance);
 
 #if UNITY_EDITOR
+            if (Camera.current != null && Camera.current.transform.position.y > -20f) return;
             UnityEditor.Handles.Label(transform.position + Vector3.up * 0.5f,
                 string.Format("📜 Note #{0}: {1}", noteID, noteTitle));
 #endif

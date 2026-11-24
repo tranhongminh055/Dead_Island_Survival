@@ -197,9 +197,13 @@ namespace HorrorGame.Effects
             if (targetCamera == null) return;
 
             float camY = targetCamera.transform.position.y;
-            bool shouldBeUnderwater = isUnderwater 
-                ? (camY < waterHeight + surfaceExitMargin) 
-                : (camY < waterHeight);
+
+            // KHÔNG kích hoạt hiệu ứng lặn dưới biển khi đang ở trong hang động ngầm (Y < -20m hoặc IsPlayerInCave)
+            bool inUndergroundCave = HorrorGame.Cave.CaveManager.IsPlayerInCave || camY < -20f;
+
+            bool shouldBeUnderwater = !inUndergroundCave && (isUnderwater
+                ? (camY < waterHeight + surfaceExitMargin)
+                : (camY < waterHeight));
 
             // Xử lý khoảnh khắc chuyển giao
             if (shouldBeUnderwater != isUnderwater)
@@ -212,7 +216,24 @@ namespace HorrorGame.Effects
                 else
                 {
                     OnExitWater();
+                    if (!inUndergroundCave)
+                    {
+                        RestoreAtmosphereSettings();
+                    }
                 }
+            }
+
+            // Nếu đang trong hang ngầm thì tắt sạch hiệu ứng nước & không ghi đè fog của CaveManager
+            if (inUndergroundCave)
+            {
+                transitionProgress = 0f;
+                if (lowPassFilter != null) lowPassFilter.cutoffFrequency = normalAudioCutoff;
+                if (bubbleParticles != null)
+                {
+                    var em = bubbleParticles.emission;
+                    em.rateOverTime = 0f;
+                }
+                return;
             }
 
             // Chuyển đổi mượt mà hiệu ứng (tăng tốc độ chuyển 0.18s)
@@ -232,10 +253,6 @@ namespace HorrorGame.Effects
                 RenderSettings.fogMode = FogMode.ExponentialSquared;
                 RenderSettings.fogColor = Color.Lerp(origFogColor, underwaterFogColor, transitionProgress);
                 RenderSettings.fogDensity = Mathf.Lerp(origFogDensity, underwaterFogDensity, transitionProgress);
-            }
-            else if (!isUnderwater)
-            {
-                RestoreAtmosphereSettings();
             }
 
             // 3. Tỷ lệ phát bong bóng khí
