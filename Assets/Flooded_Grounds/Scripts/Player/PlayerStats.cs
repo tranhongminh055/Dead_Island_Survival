@@ -12,8 +12,8 @@ namespace HorrorGame.Player
         [Header("Stamina")]
         public float maxStamina = 100f;
         public float currentStamina;
-        public float staminaDrainRate = 15f; // Tốc độ tụt khi chạy
-        public float staminaRegenRate = 10f; // Tốc độ hồi khi đi bộ
+        public float staminaDrainRate = 6.5f; // Tốc độ tụt chậm & từ từ khi chạy nhanh (~15.4s mới hết thanh)
+        public float staminaRegenRate = 13f;  // Tốc độ hồi mượt khi đi bộ/đứng yên
         private bool isExhaustedState = false; // Trạng thái kiệt sức không thể chạy
 
         [Header("Hunger & Thirst (Chuẩn The Forest & Green Hell)")]
@@ -88,6 +88,10 @@ namespace HorrorGame.Player
             // Luôn đảm bảo thời gian chạy mượt mà ở tốc độ bình thường
             Time.timeScale = 1.0f;
             isDead = false;
+
+            // Đảm bảo tốc độ tụt Stamina chậm rãi (tránh giá trị cũ 15f lưu trong Inspector Scene)
+            if (staminaDrainRate > 8f) staminaDrainRate = 6.5f;
+            if (staminaRegenRate < 12f) staminaRegenRate = 13f;
 
             // Khởi tạo chỉ số ban đầu đầy đủ 100%
             currentHealth = maxHealth;

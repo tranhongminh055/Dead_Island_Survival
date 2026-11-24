@@ -21,8 +21,8 @@ namespace HorrorGame.UI
 
         [Header("── Tọa Độ Các Mốc Khám Phá Trên Đảo ──")]
         public Vector3 crashSitePos = new Vector3(537f, 17.6f, 545f);
-        public Vector3 abandonedVillagePos = new Vector3(495f, 19.0f, 520f);
-        public Vector3 escapeDockPos = new Vector3(310f, 17.0f, 495f);
+        public Vector3 abandonedVillagePos = new Vector3(500f, 17.9f, 470f);
+        public Vector3 escapeDockPos = new Vector3(522f, 17.6f, 548f);
 
         [Header("── Cài Đặt Hiển Thị ──")]
         public bool showHUD = true;
@@ -57,8 +57,25 @@ namespace HorrorGame.UI
         private Texture2D darkTex;
         private Texture2D accentTex;
 
+        private static bool sceneHookRegistered = false;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoInit()
+        {
+            if (!sceneHookRegistered)
+            {
+                sceneHookRegistered = true;
+                UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnAnySceneLoaded;
+            }
+            EnsureInstanceForActiveScene();
+        }
+
+        private static void OnAnySceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+        {
+            EnsureInstanceForActiveScene();
+        }
+
+        private static void EnsureInstanceForActiveScene()
         {
             string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
             if (sceneName.ToLower().Contains("mainmenu")) return;
@@ -306,6 +323,8 @@ namespace HorrorGame.UI
             if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
             if (HorrorGame.Cutscenes.CinematicTrailerDirector.IsTrailerRunning) return;
             if (GameMenuManager.IsPaused) return;
+            if (PlayerDeathUI.IsShowingDeathScreen) return;
+            if (GameEndingManager.IsEndingUIActive) return;
             if (playerStats != null && playerStats.isDead) return;
 
             InitStyles();
@@ -331,57 +350,84 @@ namespace HorrorGame.UI
 
             if (!showHUD) return;
 
-            // 2. Vẽ Bảng Mục Tiêu gọn gàng góc trên bên trái
-            float w = 315f;
+            // 2. Vẽ Bảng Mục Tiêu đồng bộ trực tiếp với Cốt Truyện 2 Ending (GameEndingManager)
+            float w = 325f;
             float x = 14f;
             float y = 14f;
-            float h = (CurrentStage >= 4) ? 105f : 148f;
+            float h = 152f;
 
             GUI.Box(new Rect(x, y, w, h), "", boxStyle);
-            // Thanh nhấn vàng bên cạnh trái
             GUI.DrawTexture(new Rect(x, y, 4f, h), accentTex);
-
-            GUI.Label(new Rect(x + 12, y + 6, w - 20, 20), string.Format("MỤC TIÊU SINH TỒN ({0}/4)", Mathf.Min(CurrentStage + 1, 4)), headerStyle);
 
             string title = "";
             string desc = "";
             string navInfo = "";
+            int stepDisplay = 1;
 
-            if (CurrentStage == 0)
+            GameEndingManager em = GameEndingManager.Instance;
+            if (em != null && em.Stage == EndingStoryStage.FreeRoamAfterEnding2)
             {
+                stepDisplay = 4;
+                title = "★ NGƯỜI GÁC ĐẢO VĨNH CỬU";
+                desc = "Bạn đã chọn ở lại bảo vệ thế giới. Tự do xây dựng và sinh tồn mãi mãi!";
+                navInfo = "🌲 Chế độ Sinh Tồn Tự Do";
+            }
+            else if (em != null && em.Stage == EndingStoryStage.CarryingSurvivorToDock)
+            {
+                stepDisplay = 4;
+                title = "4. Cõng Người Chạy Ra Bến Tàu!";
+                desc = "Tại Bến Tàu ven sông: Bấm [E] lên Tàu = Thoát đảo (Ending 1) | Đập Máy Tín Hiệu = Ở lại (Ending 2).";
+                navInfo = FormatNavHint("Bến Tàu Ven Sông", em.dockShorePos);
+            }
+            else if (em != null && em.Stage == EndingStoryStage.ReturnToLabAndCarry)
+            {
+                stepDisplay = 4;
+                title = "4. Quay Lại Phòng Thí Nghiệm!";
+                desc = "Mang ống Huyết Thanh quay lại Phòng Thí Nghiệm tiêm và cõng Người Sống Sót chạy ra Bến Tàu.";
+                navInfo = FormatNavHint("Phòng Thí Nghiệm Bí Mật", em.secretLabPos);
+            }
+            else if (em != null && em.Stage == EndingStoryStage.PickupDroppedCure)
+            {
+                stepDisplay = 3;
+                title = "🧪 Nhặt Ống Huyết Thanh Giải Độc!";
+                desc = "Nữ Hoàng Ký Sinh đã rơi ra Ống Huyết Thanh phát sáng xanh trên mặt đất — hãy lại gần nhấn [E] nhặt!";
+                navInfo = "★ Tìm ống thuốc phát sáng xanh ngay chỗ Boss gục";
+            }
+            else if (em != null && em.Stage == EndingStoryStage.BossFightActive)
+            {
+                stepDisplay = 3;
+                title = "☠ HẠ GỤC NỮ HOÀNG KÝ SINH!";
+                desc = "Tiêu diệt Trùm Cuối ngay ngoài Phòng Thí Nghiệm để nó rơi ra Ống Huyết Thanh Giải Độc!";
+                navInfo = "⚔ Chiến đấu sinh tử!";
+            }
+            else if (em != null && em.Stage == EndingStoryStage.SearchSecretLab)
+            {
+                stepDisplay = 3;
+                title = "3. Tìm Phòng Thí Nghiệm Bí Mật";
+                desc = "Khám phá sâu trong rừng phía Tây Bắc để tìm căn hầm bê tông có ánh đèn huỳnh quang xanh mờ.";
+                navInfo = "🔍 Không có định vị — Tự lần dấu trong rừng sâu!";
+            }
+            else if (CurrentStage == 0)
+            {
+                stepDisplay = 1;
                 title = "1. Kiểm tra Xác Máy Bay & Nhặt đồ";
                 desc = "Tìm quanh xác máy bay C400, nhấn [E] nhặt vật phẩm, [I] mở ba lô, [F] bật đèn pin.";
                 navInfo = FormatNavHint("Xác máy bay", crashSitePos);
             }
-            else if (CurrentStage == 1)
-            {
-                title = "2. Dựng Trại & Sống qua Đêm 1";
-                desc = "Chặt cây lấy gỗ, nhấn [B] dựng Lửa Trại / Chòi trú ẩn để giữ ấm và qua đêm an toàn.";
-                int day = DayNightCycle.Instance != null ? DayNightCycle.Instance.currentDay : 1;
-                navInfo = string.Format("Ngày hiện tại: Ngày {0} | Cần lửa trại hoặc sang Ngày 2", day);
-            }
-            else if (CurrentStage == 2)
-            {
-                title = "3. Khám phá Khu Làng Bỏ Hoang";
-                desc = "Di chuyển tới khu nhà bỏ hoang trên đảo để tìm lương thực và manh mối cứu hộ.";
-                navInfo = FormatNavHint("Khu Làng Bỏ Hoang", abandonedVillagePos);
-            }
-            else if (CurrentStage == 3)
-            {
-                title = "4. Tiến tới Bến Tàu / Cầu Gỗ";
-                desc = "Vượt qua khu rừng tới Cầu Gỗ phía Tây để tìm đường thoát khỏi hòn đảo!";
-                navInfo = FormatNavHint("Bến Tàu / Cầu Gỗ", escapeDockPos);
-            }
             else
             {
-                title = "✔ Đã mở khóa Khu Vực Thoát Hiểm!";
-                desc = "Bạn đã khám phá đủ các khu vực trọng yếu trên đảo và sẵn sàng cho màn Cứu Hộ cuối.";
-                navInfo = "★ Hoàn thành 4/4 mục tiêu sinh tồn";
+                stepDisplay = 2;
+                int day = DayNightCycle.Instance != null ? DayNightCycle.Instance.currentDay : 1;
+                int reqDay = em != null ? em.requiredSurvivalDay : 2;
+                title = string.Format("2. Sinh tồn tới Ngày {0} & Chuẩn bị", reqDay);
+                desc = "Chặt cây, dựng Lửa Trại/Chòi ([B]), kiếm vũ khí sống qua đêm để mở khóa tín hiệu cầu cứu.";
+                navInfo = string.Format("Tiến độ: Ngày {0}/{1} | Khi đủ ngày sẽ nhận tín hiệu ở Làng", day, reqDay);
             }
 
+            GUI.Label(new Rect(x + 12, y + 6, w - 20, 20), string.Format("MỤC TIÊU CỐT TRUYỆN ({0}/4)", stepDisplay), headerStyle);
             GUI.Label(new Rect(x + 12, y + 28, w - 22, 22), title, titleStyle);
-            GUI.Label(new Rect(x + 12, y + 50, w - 22, 42), desc, descStyle);
-            GUI.Label(new Rect(x + 12, y + 96, w - 22, 22), navInfo, distStyle);
+            GUI.Label(new Rect(x + 12, y + 50, w - 22, 44), desc, descStyle);
+            GUI.Label(new Rect(x + 12, y + 98, w - 22, 22), navInfo, distStyle);
             GUI.Label(new Rect(x + 12, y + h - 20, w - 22, 18), "[J] Ẩn/Hiện bảng mục tiêu", hintStyle);
         }
 

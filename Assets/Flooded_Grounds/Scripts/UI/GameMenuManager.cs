@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Video;
 
 namespace HorrorGame.UI
 {
@@ -38,9 +39,15 @@ namespace HorrorGame.UI
         public string gameplaySceneName = "Scene_A";
         public string mainMenuSceneName = "MainMenu";
 
-        [Header("Ảnh Nền Menu")]
+        [Header("Ảnh & Video Nền Động (Phong Cách Outlast 1)")]
+        [Tooltip("Kéo file Video (.mp4 / .webm) vào đây nếu muốn phát video động làm nền Main Menu")]
+        public VideoClip menuBackgroundVideo;
+        [Tooltip("Bật hiệu ứng chuyển cảnh động, máy quay cầm tay REC, nhiễu VHS, sấm chớp giống Outlast 1")]
+        public bool enableOutlastEffects = true;
         [Tooltip("Ảnh nền cho Menu Game (avata chinh thuc.png)")]
         public Texture2D menuBackgroundTexture;
+        [Tooltip("Ảnh nền phụ thứ 2 để cắt chuyển cảnh xen kẽ")]
+        public Texture2D menuSecondaryTexture;
 
         [Header("Chế độ hiển thị ảnh nền")]
         [Tooltip("StretchToFill: Hiển thị trọn vẹn 100% toàn bộ chi tiết ảnh (chữ SURVIVAL, căn nhà, bầu trời), không bị phóng to cắt xén góc.")]
@@ -94,6 +101,35 @@ namespace HorrorGame.UI
         private GUIStyle keyDescStyle;
         private bool stylesInitialized = false;
 
+        // Hiệu ứng động phong cách Outlast 1 (VideoPlayer + Multi-Shot Pan/Zoom + VHS Glitch + Camcorder HUD + Lightning)
+        private VideoPlayer bgVideoPlayer;
+        private RenderTexture bgVideoRT;
+        private Texture2D scanlineTex;
+        private Texture2D staticNoiseTex;
+        private Texture2D camcorderWhiteTex;
+        private GUIStyle camcorderStyle;
+        private GUIStyle camcorderRedStyle;
+
+        private float outlastTime = 0f;
+        private int currentShotIndex = 0;
+        private float shotTimer = 0f;
+        private const float SHOT_DURATION = 5.5f;
+        private float glitchBurstTimer = 0f;
+        private float nextRandomGlitchTime = 3.2f;
+        private float lightningFlashAlpha = 0f;
+        private float nextLightningTime = 6.5f;
+        private Vector2[] dustMotes;
+        private float[] dustSpeeds;
+
+        // Nền 3D động thời gian thực (KHÔNG dùng ảnh tĩnh!) cho MainMenu.unity
+        private GameObject liveMenuStageRoot;
+        private Camera liveMenuCam;
+        private Light liveFlickerLight;
+        private Light liveLightningLight;
+        private Light liveRedFlareLight;
+        private Transform liveZombieTransform;
+        private bool liveStageBuilt = false;
+
 #if UNITY_EDITOR
         void OnValidate()
         {
@@ -110,6 +146,21 @@ namespace HorrorGame.UI
             {
                 Instance = this;
             }
+
+            // Tự động nạp ảnh nền phụ thứ 2 để cắt cảnh luân phiên nếu có
+#if UNITY_EDITOR
+            if (menuSecondaryTexture == null)
+            {
+                menuSecondaryTexture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Flooded_Grounds/avata game/10ff3322-8a41-4636-bade-bf7fff81406d.jpg");
+            }
+#endif
+            // Tự động nạp VideoClip từ Resources/MenuVideo nếu người dùng có bỏ vào
+            if (menuBackgroundVideo == null)
+            {
+                menuBackgroundVideo = Resources.Load<VideoClip>("MenuVideo");
+            }
+            SetupMenuVideoPlayer();
+            InitOutlastDustMotes();
 
             // Tự động nạp ảnh nền Avatar chính thức
             if (menuBackgroundTexture == null)
@@ -275,8 +326,10 @@ namespace HorrorGame.UI
             // Trong màn chơi (In-Game): Nhấn ESC để Tạm Dừng / Tiếp Tục
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                // Không bật Pause nếu đang trong Cutscene máy bay rơi
+                // Không bật Pause nếu đang trong Cutscene, Bạn Đã Chết, hoặc Màn Hình Ending
                 if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
+                if (PlayerDeathUI.IsShowingDeathScreen) return;
+                if (GameEndingManager.IsEndingUIActive) return;
 
                 // Nếu túi đồ đang mở -> để túi đồ tự đóng trước
                 if (Inventory.InventoryManager.Instance != null && Inventory.InventoryManager.Instance.isInventoryOpen) return;
@@ -336,7 +389,8 @@ namespace HorrorGame.UI
         {
             if (isMainMenuScene && SceneManager.GetActiveScene().name == gameplaySceneName)
             {
-                // Người chơi đang bấm Play trực tiếp trong Scene_A -> Bắt đầu chơi ngay lập tức!
+                // Người chơi đang bấm Play trực tiếp trong Scene_A -> Dọn sân khấu 3D menu & bắt đầu chơi ngay lập tức!
+                CleanupLiveOutlast3DStage();
                 isMainMenuScene = false;
                 IsPaused = false;
                 AudioListener.pause = false;
@@ -408,52 +462,22 @@ namespace HorrorGame.UI
             float sw = Screen.width;
             float sh = Screen.height;
 
-            // 1. VẼ NỀN VÀ HIỆU ỨNG ÁNH SÁNG ĐIỆN ẢNH
+            // 1. VẼ NỀN VIDEO ĐỘNG / CAMERA 3D TRỰC TIẾP PHONG CÁCH OUTLAST 1 (KHÔNG DÙNG ẢNH TĨNH!)
             if (isMainMenuScene)
             {
-                // Vẽ tác phẩm Avatar game toàn màn hình (Không bị zoom hay cắt xén)
-                if (menuBackgroundTexture != null)
-                {
-                    GUI.color = Color.white;
-                    if (backgroundScaleMode == MenuBackgroundScaleMode.StretchToFill)
-                    {
-                        // Hiển thị trọn vẹn 100% hình ảnh (chữ SURVIVAL trên đầu, căn nhà ma quái, đầm lầy dưới chân)
-                        GUI.DrawTexture(new Rect(0, 0, sw, sh), menuBackgroundTexture, ScaleMode.StretchToFill);
-                    }
-                    else if (backgroundScaleMode == MenuBackgroundScaleMode.FitCenter)
-                    {
-                        float imgAspect = (float)menuBackgroundTexture.width / menuBackgroundTexture.height;
-                        float screenAspect = sw / sh;
-                        float drawW, drawH;
-                        if (screenAspect > imgAspect)
-                        {
-                            drawH = sh;
-                            drawW = sh * imgAspect;
-                        }
-                        else
-                        {
-                            drawW = sw;
-                            drawH = sw / imgAspect;
-                        }
-                        Rect bgRect = new Rect((sw - drawW) * 0.5f, (sh - drawH) * 0.5f, drawW, drawH);
-                        GUI.DrawTexture(bgRect, menuBackgroundTexture, ScaleMode.StretchToFill);
-                    }
-                    else
-                    {
-                        GUI.DrawTexture(new Rect(0, 0, sw, sh), menuBackgroundTexture, ScaleMode.ScaleAndCrop);
-                    }
-                }
-                else
-                {
-                    GUI.color = new Color(0.04f, 0.04f, 0.06f, 1f);
-                    GUI.DrawTexture(new Rect(0, 0, sw, sh), fullDarkVeilTex);
-                }
+                EnsureLiveOutlast3DStage();
+                UpdateOutlastAnimations();
+                DrawOutlastAnimatedBackground(sw, sh);
 
-                // Dải Smoky Gradient góc trái: Tạo bóng râm mờ đen phía sau cột nút bấm (35% màn hình)
-                // Giữ trọn vẹn chữ SURVIVAL và toàn bộ căn nhà hoang ở giữa và bên phải không bị che mờ!
+                // Dải Smoky Gradient góc trái: Tạo bóng râm mờ đen phía sau cột nút bấm (36% màn hình)
                 float gradWidth = Mathf.Clamp(sw * 0.36f, 320f, 440f);
                 GUI.color = Color.white;
                 GUI.DrawTexture(new Rect(0, 0, gradWidth, sh), leftGradientTex);
+
+                if (enableOutlastEffects)
+                {
+                    DrawOutlastAtmosphereAndCamcorderHUD(sw, sh);
+                }
             }
             else
             {
@@ -496,10 +520,12 @@ namespace HorrorGame.UI
                 GUI.Label(new Rect(startX, currentY, 400f, 22f), "SURVIVAL HORROR EXPERIENCE", brandTagStyle);
                 currentY += 24f;
 
-                // Tên Game chính với bóng đổ
+                // Tên Game chính với bóng đổ + giật glitch nhẹ khi nhiễu VHS (Outlast 1 style)
                 string mainTitle = "DEAD ISLAND";
-                GUI.Label(new Rect(startX + 2f, currentY + 2f, 400f, 52f), mainTitle, titleShadowStyle);
-                GUI.Label(new Rect(startX, currentY, 400f, 52f), mainTitle, titleStyle);
+                float glitchJitterX = (enableOutlastEffects && glitchBurstTimer > 0f) ? Random.Range(-5f, 5f) : 0f;
+                float glitchJitterY = (enableOutlastEffects && glitchBurstTimer > 0f) ? Random.Range(-2f, 2f) : 0f;
+                GUI.Label(new Rect(startX + 2f + glitchJitterX, currentY + 2f + glitchJitterY, 400f, 52f), mainTitle, titleShadowStyle);
+                GUI.Label(new Rect(startX + glitchJitterX, currentY + glitchJitterY, 400f, 52f), mainTitle, titleStyle);
                 currentY += 56f;
 
                 // Đường kẻ line máu sắc sảo (Hairline Divider)
@@ -1010,6 +1036,507 @@ namespace HorrorGame.UI
             tex.SetPixels(pixels);
             tex.Apply();
             return tex;
+        }
+
+        // =========================================================================
+        // HỆ THỐNG NỀN VIDEO ĐỘNG & CHUYỂN CẢNH KINH DỊ PHONG CÁCH OUTLAST 1
+        // =========================================================================
+
+        private void SetupMenuVideoPlayer()
+        {
+            if (menuBackgroundVideo == null) return;
+
+            if (bgVideoRT == null)
+            {
+                bgVideoRT = new RenderTexture(1280, 720, 0);
+                bgVideoRT.Create();
+            }
+
+            bgVideoPlayer = GetComponent<VideoPlayer>();
+            if (bgVideoPlayer == null) bgVideoPlayer = gameObject.AddComponent<VideoPlayer>();
+
+            bgVideoPlayer.clip = menuBackgroundVideo;
+            bgVideoPlayer.isLooping = true;
+            bgVideoPlayer.playOnAwake = true;
+            bgVideoPlayer.renderMode = VideoRenderMode.RenderTexture;
+            bgVideoPlayer.targetTexture = bgVideoRT;
+            bgVideoPlayer.audioOutputMode = VideoAudioOutputMode.None;
+            bgVideoPlayer.Play();
+        }
+
+        private void InitOutlastDustMotes()
+        {
+            int count = 36;
+            dustMotes = new Vector2[count];
+            dustSpeeds = new float[count];
+            for (int i = 0; i < count; i++)
+            {
+                dustMotes[i] = new Vector2(Random.value, Random.value);
+                dustSpeeds[i] = Random.Range(0.015f, 0.055f);
+            }
+        }
+
+        private void EnsureOutlastTextures()
+        {
+            if (camcorderWhiteTex == null)
+            {
+                camcorderWhiteTex = new Texture2D(1, 1);
+                camcorderWhiteTex.SetPixel(0, 0, Color.white);
+                camcorderWhiteTex.Apply();
+            }
+
+            // Sọc quét màn hình CRT Scanlines
+            if (scanlineTex == null)
+            {
+                scanlineTex = new Texture2D(2, 4, TextureFormat.RGBA32, false);
+                scanlineTex.wrapMode = TextureWrapMode.Repeat;
+                for (int y = 0; y < 4; y++)
+                {
+                    Color c = (y == 0) ? new Color(0f, 0f, 0f, 0.24f) : new Color(0f, 0f, 0f, 0f);
+                    scanlineTex.SetPixel(0, y, c);
+                    scanlineTex.SetPixel(1, y, c);
+                }
+                scanlineTex.Apply();
+            }
+
+            // Texture nhiễu hạt trắng đen VHS Static Noise
+            if (staticNoiseTex == null)
+            {
+                int sz = 96;
+                staticNoiseTex = new Texture2D(sz, sz, TextureFormat.RGBA32, false);
+                staticNoiseTex.wrapMode = TextureWrapMode.Repeat;
+                Color[] pix = new Color[sz * sz];
+                for (int i = 0; i < pix.Length; i++)
+                {
+                    float v = Random.value;
+                    pix[i] = new Color(v, v, v, v > 0.55f ? 0.55f : 0.15f);
+                }
+                staticNoiseTex.SetPixels(pix);
+                staticNoiseTex.Apply();
+            }
+
+            if (camcorderStyle == null)
+            {
+                camcorderStyle = new GUIStyle(GUI.skin.label);
+                camcorderStyle.fontSize = 14;
+                camcorderStyle.fontStyle = FontStyle.Bold;
+                camcorderStyle.normal.textColor = new Color(0.86f, 0.94f, 0.88f, 0.85f);
+            }
+
+            if (camcorderRedStyle == null)
+            {
+                camcorderRedStyle = new GUIStyle(camcorderStyle);
+                camcorderRedStyle.normal.textColor = new Color(1.0f, 0.22f, 0.18f, 0.95f);
+            }
+        }
+
+        private void UpdateOutlastAnimations()
+        {
+            if (Event.current.type != EventType.Repaint) return;
+
+            float dt = Time.unscaledDeltaTime;
+            outlastTime += dt;
+
+            // 1. Tự động cắt chuyển cảnh mỗi 5.5 giây kèm nhiễu VHS đột ngột như Outlast 1
+            shotTimer += dt;
+            if (shotTimer >= SHOT_DURATION)
+            {
+                shotTimer = 0f;
+                currentShotIndex = (currentShotIndex + 1) % 4;
+                glitchBurstTimer = 0.26f; // Cắt cảnh bằng nhiễu tĩnh mạnh!
+            }
+
+            // 2. Nhiễu VHS ngẫu nhiên bất chợt
+            if (glitchBurstTimer > 0f)
+            {
+                glitchBurstTimer -= dt;
+            }
+            else if (outlastTime >= nextRandomGlitchTime)
+            {
+                glitchBurstTimer = Random.Range(0.08f, 0.18f);
+                nextRandomGlitchTime = outlastTime + Random.Range(2.8f, 6.2f);
+            }
+
+            // 3. Chớp sấm sét kinh dị bất chợt
+            if (lightningFlashAlpha > 0f)
+            {
+                lightningFlashAlpha = Mathf.MoveTowards(lightningFlashAlpha, 0f, dt * 2.8f);
+            }
+            else if (outlastTime >= nextLightningTime)
+            {
+                lightningFlashAlpha = Random.Range(0.32f, 0.58f);
+                nextLightningTime = outlastTime + Random.Range(5.5f, 11.5f);
+            }
+
+            // 4. Hạt tro/mưa lơ lửng trôi ngang
+            if (dustMotes != null)
+            {
+                for (int i = 0; i < dustMotes.Length; i++)
+                {
+                    dustMotes[i].x -= dustSpeeds[i] * dt * 0.7f;
+                    dustMotes[i].y += dustSpeeds[i] * dt * 1.4f;
+                    if (dustMotes[i].x < 0f) dustMotes[i].x += 1f;
+                    if (dustMotes[i].y > 1f) dustMotes[i].y -= 1f;
+                }
+            }
+        }
+
+        private Vector3 liveStageOrigin = new Vector3(0f, 820f, 0f);
+        private bool ownsLiveMenuCam = false;
+
+        private void CleanupLiveOutlast3DStage()
+        {
+            if (liveMenuStageRoot != null)
+            {
+                Destroy(liveMenuStageRoot);
+                liveMenuStageRoot = null;
+            }
+            if (ownsLiveMenuCam && liveMenuCam != null)
+            {
+                Destroy(liveMenuCam.gameObject);
+                liveMenuCam = null;
+                ownsLiveMenuCam = false;
+            }
+            liveStageBuilt = false;
+        }
+
+        private void EnsureLiveOutlast3DStage()
+        {
+            if (liveStageBuilt) return;
+            // Nếu có VideoClip .mp4 đang phát thì không cần dựng sân khấu 3D
+            if (bgVideoPlayer != null && bgVideoRT != null && bgVideoPlayer.isPlaying) return;
+
+            liveStageBuilt = true;
+
+            bool isDedicatedMainMenu = SceneManager.GetActiveScene().name.ToLower().Contains("mainmenu");
+            liveStageOrigin = isDedicatedMainMenu ? Vector3.zero : new Vector3(0f, 820f, 0f);
+
+            // Tạo Camera 3D riêng (depth = 99) để hoạt động mượt ở CẢ MainMenu.unity LẪN Scene_A.unity!
+            if (isDedicatedMainMenu && Camera.main != null)
+            {
+                liveMenuCam = Camera.main;
+                ownsLiveMenuCam = false;
+            }
+            else
+            {
+                GameObject camObj = new GameObject("[Outlast_Live3D_MenuCamera]");
+                liveMenuCam = camObj.AddComponent<Camera>();
+                liveMenuCam.depth = 99f;
+                ownsLiveMenuCam = true;
+            }
+
+            liveMenuCam.clearFlags = CameraClearFlags.SolidColor;
+            liveMenuCam.backgroundColor = new Color(0.015f, 0.025f, 0.028f);
+            liveMenuCam.fieldOfView = 55f;
+
+            if (isDedicatedMainMenu)
+            {
+                Light[] existingLights = FindObjectsOfType<Light>();
+                for (int i = 0; i < existingLights.Length; i++)
+                {
+                    if (existingLights[i] != null && existingLights[i].type == LightType.Directional)
+                    {
+                        existingLights[i].intensity = 0.08f;
+                        existingLights[i].color = new Color(0.28f, 0.38f, 0.45f);
+                        liveLightningLight = existingLights[i];
+                    }
+                }
+                RenderSettings.ambientLight = new Color(0.04f, 0.06f, 0.055f);
+                RenderSettings.fog = true;
+                RenderSettings.fogMode = FogMode.ExponentialSquared;
+                RenderSettings.fogColor = new Color(0.018f, 0.030f, 0.026f);
+                RenderSettings.fogDensity = 0.065f;
+            }
+
+            liveMenuStageRoot = new GameObject("[Outlast_Live3D_MenuStage]");
+            liveMenuStageRoot.transform.position = liveStageOrigin;
+
+            // 1. Sàn đất ướt tối + Hành lang đá hầm ngục / rừng đêm 3D thật từ gói Mine
+            GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            ground.transform.SetParent(liveMenuStageRoot.transform, false);
+            ground.transform.localScale = new Vector3(10f, 1f, 10f);
+            Renderer gr = ground.GetComponent<Renderer>();
+            if (gr != null)
+            {
+                Material gm = new Material(Shader.Find("Standard") ?? Shader.Find("Diffuse"));
+                gm.color = new Color(0.08f, 0.09f, 0.08f);
+                gm.SetFloat("_Glossiness", 0.65f);
+                gr.sharedMaterial = gm;
+            }
+
+#if UNITY_EDITOR
+            GameObject pTunnel1 = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Base/Tunnel1.prefab");
+            GameObject pTunnel2 = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Base/Tunnel2.prefab");
+            GameObject pSupport1 = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Props/Support1.prefab");
+            GameObject pLantern = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Props/Lantern.prefab");
+            GameObject pCrate = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Props/Crate.prefab");
+            GameObject pRock1 = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Mine/Prefabs/Rocks/Rock1.prefab");
+            GameObject pZombie = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Flooded_Grounds/Character No Animation/Enemy No Animation/Zombiegirl W Kurniawan.fbx");
+            RuntimeAnimatorController zCtrl = UnityEditor.AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Flooded_Grounds/Character No Animation/Enemy No Animation/Animation zoombie/ZombieAnim.controller");
+
+            if (pTunnel1 != null)
+            {
+                GameObject t1 = Instantiate(pTunnel1);
+                t1.transform.SetParent(liveMenuStageRoot.transform, false);
+                t1.transform.localPosition = new Vector3(0f, 0f, 6f);
+            }
+            if (pTunnel2 != null)
+            {
+                GameObject t2 = Instantiate(pTunnel2);
+                t2.transform.SetParent(liveMenuStageRoot.transform, false);
+                t2.transform.localPosition = new Vector3(0f, 0f, 18f);
+            }
+            if (pSupport1 != null)
+            {
+                GameObject s1 = Instantiate(pSupport1); s1.transform.SetParent(liveMenuStageRoot.transform, false); s1.transform.localPosition = new Vector3(-1.45f, 0f, 4f);
+                GameObject s2 = Instantiate(pSupport1); s2.transform.SetParent(liveMenuStageRoot.transform, false); s2.transform.localPosition = new Vector3(1.45f, 0f, 4f); s2.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                GameObject s3 = Instantiate(pSupport1); s3.transform.SetParent(liveMenuStageRoot.transform, false); s3.transform.localPosition = new Vector3(-1.45f, 0f, 11f);
+                GameObject s4 = Instantiate(pSupport1); s4.transform.SetParent(liveMenuStageRoot.transform, false); s4.transform.localPosition = new Vector3(1.45f, 0f, 11f); s4.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            }
+            if (pCrate != null)
+            {
+                GameObject c1 = Instantiate(pCrate); c1.transform.SetParent(liveMenuStageRoot.transform, false); c1.transform.localPosition = new Vector3(-1.2f, 0f, 5.2f); c1.transform.localRotation = Quaternion.Euler(0f, 24f, 0f);
+                GameObject c2 = Instantiate(pCrate); c2.transform.SetParent(liveMenuStageRoot.transform, false); c2.transform.localPosition = new Vector3(1.3f, 0f, 9.8f); c2.transform.localRotation = Quaternion.Euler(0f, -18f, 0f);
+            }
+            if (pRock1 != null)
+            {
+                GameObject r1 = Instantiate(pRock1);
+                r1.transform.SetParent(liveMenuStageRoot.transform, false);
+                r1.transform.localPosition = new Vector3(0f, 0.2f, 23.5f);
+                r1.transform.localRotation = Quaternion.Euler(0f, 30f, 0f);
+                r1.transform.localScale = Vector3.one * 1.8f;
+            }
+            if (pLantern != null)
+            {
+                GameObject lan = Instantiate(pLantern);
+                lan.transform.SetParent(liveMenuStageRoot.transform, false);
+                lan.transform.localPosition = new Vector3(1.15f, 2.2f, 7.5f);
+                Light ll = lan.GetComponentInChildren<Light>();
+                if (ll != null)
+                {
+                    ll.enabled = true;
+                    ll.range = 14f;
+                    ll.intensity = 2.4f;
+                    ll.lightmapBakeType = LightmapBakeType.Realtime;
+                }
+            }
+
+            // 2. Bóng dáng Zombie 3D thật đang thở/lắc lư trong hành lang tối (chạy UnscaledTime nên cử động kể cả khi Scene_A đang Pause!)
+            if (pZombie != null)
+            {
+                GameObject zObj = Instantiate(pZombie);
+                zObj.name = "OutlastMenu_StalkingZombie";
+                zObj.transform.SetParent(liveMenuStageRoot.transform, false);
+                zObj.transform.localPosition = new Vector3(0.45f, 0f, 10.5f);
+                zObj.transform.localRotation = Quaternion.Euler(0f, 165f, 0f);
+                Animator za = zObj.GetComponent<Animator>();
+                if (za == null) za = zObj.AddComponent<Animator>();
+                if (zCtrl != null) za.runtimeAnimatorController = zCtrl;
+                za.updateMode = AnimatorUpdateMode.UnscaledTime;
+                za.enabled = true;
+                za.applyRootMotion = false;
+                za.SetFloat("Speed", 0f);
+                liveZombieTransform = zObj.transform;
+            }
+#endif
+
+            // 3. Đèn huỳnh quang xanh lục nhấp nháy trên trần (đặc trưng Outlast 1!)
+            GameObject flObj = new GameObject("Outlast_FlickerFluorescent");
+            flObj.transform.SetParent(liveMenuStageRoot.transform, false);
+            flObj.transform.localPosition = new Vector3(0f, 3.5f, 9.5f);
+            liveFlickerLight = flObj.AddComponent<Light>();
+            liveFlickerLight.type = LightType.Point;
+            liveFlickerLight.color = new Color(0.45f, 1.0f, 0.65f);
+            liveFlickerLight.range = 18f;
+            liveFlickerLight.intensity = 2.6f;
+
+            // 4. Đèn pháo sáng đỏ rực phía cuối hành lang tạo tương phản kinh dị
+            GameObject redObj = new GameObject("Outlast_RedEmergencyFlare");
+            redObj.transform.SetParent(liveMenuStageRoot.transform, false);
+            redObj.transform.localPosition = new Vector3(-0.8f, 0.8f, 15.5f);
+            liveRedFlareLight = redObj.AddComponent<Light>();
+            liveRedFlareLight.type = LightType.Point;
+            liveRedFlareLight.color = new Color(1.0f, 0.16f, 0.12f);
+            liveRedFlareLight.range = 16f;
+            liveRedFlareLight.intensity = 3.0f;
+
+            // 5. Hạt sương mù 3D bay cuộn (UnscaledTime để vẫn bay mượt khi Scene_A Pause!)
+            GameObject mistObj = new GameObject("Outlast_3DMistParticles");
+            mistObj.transform.SetParent(liveMenuStageRoot.transform, false);
+            mistObj.transform.localPosition = new Vector3(0f, 1.8f, 9f);
+            ParticleSystem ps = mistObj.AddComponent<ParticleSystem>();
+            var main = ps.main;
+            main.useUnscaledTime = true;
+            main.loop = true;
+            main.startLifetime = 4.5f;
+            main.startSpeed = 0.6f;
+            main.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.22f);
+            main.startColor = new Color(0.65f, 0.90f, 0.72f, 0.35f);
+            main.maxParticles = 140;
+            var em = ps.emission;
+            em.rateOverTime = 28f;
+            var sh = ps.shape;
+            sh.shapeType = ParticleSystemShapeType.Box;
+            sh.scale = new Vector3(6f, 4f, 18f);
+        }
+
+        private void UpdateLiveOutlast3DCamera()
+        {
+            if (liveMenuCam == null || liveMenuStageRoot == null) return;
+
+            float p = Mathf.Clamp01(shotTimer / SHOT_DURATION);
+            float t = outlastTime;
+
+            if (liveFlickerLight != null)
+            {
+                float noise = Mathf.PerlinNoise(t * 14f, 0.5f);
+                liveFlickerLight.intensity = (noise < 0.22f) ? 0.15f : (1.8f + noise * 1.4f);
+            }
+            if (liveRedFlareLight != null)
+            {
+                liveRedFlareLight.intensity = 2.4f + Mathf.Sin(t * 7f) * 0.6f;
+            }
+            if (liveLightningLight != null)
+            {
+                liveLightningLight.intensity = 0.08f + lightningFlashAlpha * 2.2f;
+            }
+            if (liveZombieTransform != null)
+            {
+                liveZombieTransform.localRotation = Quaternion.Euler(0f, 165f + Mathf.Sin(t * 0.6f) * 14f, 0f);
+            }
+
+            Vector3 localCamPos;
+            Vector3 localLookAt;
+            switch (currentShotIndex)
+            {
+                case 0:
+                    localCamPos = Vector3.Lerp(new Vector3(-0.3f, 1.55f, 2.2f), new Vector3(0.15f, 1.50f, 6.2f), p);
+                    localLookAt = new Vector3(0.45f, 1.35f, 11.5f);
+                    break;
+                case 1:
+                    localCamPos = Vector3.Lerp(new Vector3(-1.1f, 0.55f, 7.2f), new Vector3(-0.7f, 0.70f, 8.2f), p);
+                    localLookAt = new Vector3(0.45f, 1.45f, 10.5f);
+                    break;
+                case 2:
+                    localCamPos = Vector3.Lerp(new Vector3(0.95f, 1.65f, 8.1f), new Vector3(0.70f, 1.58f, 8.6f), p);
+                    localLookAt = new Vector3(0.45f, 1.45f, 10.6f);
+                    break;
+                default:
+                    localCamPos = Vector3.Lerp(new Vector3(0.4f, 1.85f, 13.8f), new Vector3(-0.3f, 1.65f, 15.8f), p);
+                    localLookAt = new Vector3(0.3f, 1.35f, 9.0f);
+                    break;
+            }
+
+            localCamPos.x += Mathf.Sin(t * 1.4f) * 0.06f;
+            localCamPos.y += Mathf.Cos(t * 1.9f) * 0.04f;
+
+            liveMenuCam.transform.position = liveStageOrigin + localCamPos;
+            liveMenuCam.transform.LookAt(liveStageOrigin + localLookAt);
+        }
+
+        private void DrawOutlastAnimatedBackground(float sw, float sh)
+        {
+            EnsureOutlastTextures();
+
+            // 1. Nếu người chơi có gán file Video (.mp4/.webm) -> phát trực tiếp Video toàn màn hình!
+            if (bgVideoPlayer != null && bgVideoRT != null && bgVideoPlayer.isPlaying)
+            {
+                GUI.color = Color.white;
+                GUI.DrawTexture(new Rect(0f, 0f, sw, sh), bgVideoRT, ScaleMode.ScaleAndCrop);
+                return;
+            }
+
+            // 2. Mặc định: Chạy Camera 3D TRỰC TIẾP (KHÔNG VẼ ẢNH TĨNH ĐÈ LÊN!) -> nhìn xuyên thẳng ra khung cảnh 3D động phía sau!
+            UpdateLiveOutlast3DCamera();
+
+            // Phủ lớp tint xanh Night-Vision cực nhẹ đặc trưng Outlast 1
+            GUI.color = new Color(0.05f, 0.14f, 0.08f, 0.16f);
+            GUI.DrawTexture(new Rect(0f, 0f, sw, sh), camcorderWhiteTex);
+            GUI.color = Color.white;
+        }
+
+        private void DrawOutlastAtmosphereAndCamcorderHUD(float sw, float sh)
+        {
+            Color prev = GUI.color;
+
+            // 1. Hạt mưa / bụi tro bay lơ lửng
+            if (dustMotes != null)
+            {
+                for (int i = 0; i < dustMotes.Length; i++)
+                {
+                    float mx = dustMotes[i].x * sw;
+                    float my = dustMotes[i].y * sh;
+                    float sz = (i % 3 == 0) ? 3.5f : 2.0f;
+                    GUI.color = new Color(0.85f, 0.92f, 0.88f, 0.22f);
+                    GUI.DrawTexture(new Rect(mx, my, sz, sz * 2.4f), camcorderWhiteTex);
+                }
+            }
+
+            // 2. Sọc quét màn hình CRT Scanlines
+            GUI.color = Color.white;
+            GUI.DrawTextureWithTexCoords(new Rect(0f, 0f, sw, sh), scanlineTex, new Rect(0f, outlastTime * 0.4f, 1f, sh / 4f));
+
+            // 3. Hiệu ứng Nhiễu Tĩnh VHS & Dải Glitch ngang khi chuyển cảnh
+            if (glitchBurstTimer > 0f)
+            {
+                float gAlpha = Mathf.Clamp01(glitchBurstTimer * 3.2f) * 0.45f;
+                GUI.color = new Color(0.85f, 1f, 0.9f, gAlpha);
+                GUI.DrawTextureWithTexCoords(new Rect(0f, 0f, sw, sh), staticNoiseTex,
+                    new Rect(Random.value, Random.value, sw / 180f, sh / 180f));
+
+                // 2 dải sọc ngang VHS tracking glitch
+                for (int g = 0; g < 2; g++)
+                {
+                    float gy = Random.Range(0f, sh);
+                    float gh = Random.Range(6f, 28f);
+                    GUI.color = new Color(0.9f, 1f, 0.92f, gAlpha * 0.8f);
+                    GUI.DrawTexture(new Rect(0f, gy, sw, gh), camcorderWhiteTex);
+                }
+            }
+
+            // 4. Lóe sáng Sấm Chớp kinh dị
+            if (lightningFlashAlpha > 0.01f)
+            {
+                GUI.color = new Color(0.85f, 0.92f, 1.0f, lightningFlashAlpha * 0.45f);
+                GUI.DrawTexture(new Rect(0f, 0f, sw, sh), camcorderWhiteTex);
+            }
+
+            // 5. KHUNG NGẮM MÁY QUAY CẦM TAY OUTLAST 1 (Góc trên phải + 4 góc viền)
+            GUI.color = new Color(0.82f, 0.92f, 0.85f, 0.45f);
+            float pad = 22f;
+            float arm = 26f;
+            float thick = 2f;
+            // Góc trên trái
+            GUI.DrawTexture(new Rect(pad, pad, arm, thick), camcorderWhiteTex);
+            GUI.DrawTexture(new Rect(pad, pad, thick, arm), camcorderWhiteTex);
+            // Góc trên phải
+            GUI.DrawTexture(new Rect(sw - pad - arm, pad, arm, thick), camcorderWhiteTex);
+            GUI.DrawTexture(new Rect(sw - pad - thick, pad, thick, arm), camcorderWhiteTex);
+            // Góc dưới trái
+            GUI.DrawTexture(new Rect(pad, sh - pad - thick, arm, thick), camcorderWhiteTex);
+            GUI.DrawTexture(new Rect(pad, sh - pad - arm, thick, arm), camcorderWhiteTex);
+            // Góc dưới phải
+            GUI.DrawTexture(new Rect(sw - pad - arm, sh - pad - thick, arm, thick), camcorderWhiteTex);
+            GUI.DrawTexture(new Rect(sw - pad - thick, sh - pad - arm, thick, arm), camcorderWhiteTex);
+
+            // Chữ ● REC nhấp nháy + Timecode chạy trực tiếp ở góc trên bên phải
+            GUI.color = Color.white;
+            bool blinkOn = (Mathf.FloorToInt(outlastTime * 2f) % 2 == 0);
+            string recLabel = blinkOn ? "●  REC" : "    REC";
+            GUI.Label(new Rect(sw - 185f, pad + 6f, 150f, 22f), recLabel, camcorderRedStyle);
+
+            int totalSec = Mathf.FloorToInt(outlastTime);
+            int mins = (totalSec / 60) % 60;
+            int secs = totalSec % 60;
+            int frames = Mathf.FloorToInt((outlastTime - totalSec) * 30f);
+            string timecode = string.Format("00:{0:00}:{1:00}:{2:00}", mins, secs, frames);
+            GUI.Label(new Rect(sw - 185f, pad + 26f, 150f, 22f), timecode, camcorderStyle);
+
+            // Thanh Pin & Chế độ Night Vision góc dưới phải
+            GUI.Label(new Rect(sw - 210f, sh - pad - 44f, 180f, 20f), "NIGHT VISION  •  SP", camcorderStyle);
+            GUI.Label(new Rect(sw - 210f, sh - pad - 24f, 180f, 20f), "BAT [████░] 84%", camcorderStyle);
+
+            GUI.color = prev;
         }
     }
 }
