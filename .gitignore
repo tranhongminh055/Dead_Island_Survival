@@ -70,10 +70,3 @@ crashlytics-build.properties
 # Gemini / Antigravity IDE configuration
 .gemini/
 
-
-# File cài d?t, b? cài & video n?ng
-*.msi
-*.msi.meta
-*.mp4
-*.mp4.meta
-Trailer_DeadIslandSurvival.mp4

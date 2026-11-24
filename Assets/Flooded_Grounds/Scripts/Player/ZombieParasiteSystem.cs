@@ -24,8 +24,8 @@ namespace HorrorGame.Player
         [Tooltip("Mỗi con bọ làm tăng tốc độ đói & khát thêm (%)")]
         public float hungerDrainMultiplierPerParasite = 0.30f;
         [Tooltip("Thời gian giữa các lần bọ cắn nhói (giây)")]
-        public float biteIntervalMin = 14f;
-        public float biteIntervalMax = 22f;
+        public float biteIntervalMin = 20f;
+        public float biteIntervalMax = 32f;
 
         // Trạng thái nội bộ
         private PlayerStats playerStats;
@@ -105,7 +105,14 @@ namespace HorrorGame.Player
         {
             if (parasiteCount >= maxParasites) return false;
 
-            if (Random.value <= chance)
+            // Ngày 1: Giảm một nửa tỷ lệ nhiễm ký sinh trùng để người chơi mới có thời gian làm quen
+            float effectiveChance = chance;
+            if (HorrorGame.Environment.DayNightCycle.Instance != null && HorrorGame.Environment.DayNightCycle.Instance.currentDay <= 1)
+            {
+                effectiveChance *= 0.5f;
+            }
+
+            if (Random.value <= effectiveChance)
             {
                 parasiteCount++;
                 if (parasiteCount > maxParasites) parasiteCount = maxParasites;

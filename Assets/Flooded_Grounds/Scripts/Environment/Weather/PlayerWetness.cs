@@ -20,15 +20,15 @@ namespace HorrorGame.Environment.Weather
 
         [Header("── Tốc Độ ──")]
         [Tooltip("Tốc độ bị ướt khi đứng dầm mưa (% mỗi giây)")]
-        public float wetRate = 2.0f;
+        public float wetRate = 1.2f;
         [Tooltip("Tốc độ tự khô ráo trong thời tiết nắng ráo (% mỗi giây)")]
-        public float dryRate = 2.5f;
+        public float dryRate = 3.2f;
         [Tooltip("Tốc độ khô nhanh khi đứng cạnh đống lửa (% mỗi giây)")]
-        public float campfireDryRate = 8.0f;
+        public float campfireDryRate = 9.0f;
 
         [Header("── Tác Động Sinh Tồn (Green Hell) ──")]
-        [Tooltip("Mức độ ướt bắt đầu bị nhiễm lạnh (mặc định 60%)")]
-        public float coldThreshold = 60f;
+        [Tooltip("Mức độ ướt bắt đầu bị nhiễm lạnh (mặc định 70%)")]
+        public float coldThreshold = 70f;
         [Tooltip("Tốc độ hao tổn Tinh thần khi dầm mưa bão lạnh")]
         public float wetSanityDrainRate = 0.05f;
 
