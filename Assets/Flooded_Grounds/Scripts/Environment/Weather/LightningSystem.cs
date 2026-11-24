@@ -1,6 +1,6 @@
-using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace HorrorGame.Environment.Weather
 {
@@ -407,6 +407,18 @@ namespace HorrorGame.Environment.Weather
             }
         }
 
+        private AudioClip LoadThunderClip(string clipName)
+        {
+            AudioClip clip = Resources.Load<AudioClip>("Sounds/Weather/" + clipName);
+#if UNITY_EDITOR
+            if (clip == null)
+            {
+                clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/Weather/" + clipName + ".wav");
+            }
+#endif
+            return clip;
+        }
+
         private void EnsureAudioSources()
         {
             if (thunderAudioSource == null)
@@ -417,28 +429,25 @@ namespace HorrorGame.Environment.Weather
                 thunderAudioSource.volume = 1f;
             }
 
-#if UNITY_EDITOR
-            // Tự nạp các file âm thanh sấm đã tạo trong project
-            string basePath = "Assets/Flooded_Grounds/Content/Sounds/Weather/";
+            // Tự nạp các file âm thanh sấm (ưu tiên Resources để hoạt động cả trong bản Build .exe)
             if (thunderCloseClips == null || thunderCloseClips.Length == 0)
             {
-                var c1 = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(basePath + "Thunder_Close_1.wav");
-                var c2 = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(basePath + "Thunder_Close_2.wav");
+                var c1 = LoadThunderClip("Thunder_Close_1");
+                var c2 = LoadThunderClip("Thunder_Close_2");
                 if (c1 != null && c2 != null) thunderCloseClips = new AudioClip[] { c1, c2 };
             }
             if (thunderMediumClips == null || thunderMediumClips.Length == 0)
             {
-                var m1 = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(basePath + "Thunder_Medium_1.wav");
-                var m2 = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(basePath + "Thunder_Medium_2.wav");
+                var m1 = LoadThunderClip("Thunder_Medium_1");
+                var m2 = LoadThunderClip("Thunder_Medium_2");
                 if (m1 != null && m2 != null) thunderMediumClips = new AudioClip[] { m1, m2 };
             }
             if (thunderFarClips == null || thunderFarClips.Length == 0)
             {
-                var f1 = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(basePath + "Thunder_Far_1.wav");
-                var f2 = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(basePath + "Thunder_Far_2.wav");
+                var f1 = LoadThunderClip("Thunder_Far_1");
+                var f2 = LoadThunderClip("Thunder_Far_2");
                 if (f1 != null && f2 != null) thunderFarClips = new AudioClip[] { f1, f2 };
             }
-#endif
         }
 
         private void EnsureBoltMaterial()

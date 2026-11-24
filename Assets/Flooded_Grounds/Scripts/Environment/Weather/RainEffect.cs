@@ -299,15 +299,20 @@ namespace HorrorGame.Environment.Weather
             Material mat = new Material(shader);
             mat.name = matName;
 
+            string texNoExt = System.IO.Path.GetFileNameWithoutExtension(texFileName);
+            Texture2D tex = Resources.Load<Texture2D>("Textures/Weather/" + texNoExt);
 #if UNITY_EDITOR
-            string texPath = "Assets/Flooded_Grounds/Content/Textures/Weather/" + texFileName;
-            Texture2D tex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
+            if (tex == null)
+            {
+                string texPath = "Assets/Flooded_Grounds/Content/Textures/Weather/" + texFileName;
+                tex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
+            }
+#endif
             if (tex != null)
             {
                 mat.mainTexture = tex;
                 return mat;
             }
-#endif
             // Nếu không load được texture editor, tự tạo Texture 32x32 an toàn chống lỗi màn hình hồng
             Texture2D fallbackTex = new Texture2D(32, 32, TextureFormat.RGBA32, false);
             for (int y = 0; y < 32; y++)

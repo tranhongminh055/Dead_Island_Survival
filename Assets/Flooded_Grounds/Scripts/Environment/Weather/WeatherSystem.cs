@@ -659,32 +659,36 @@ namespace HorrorGame.Environment.Weather
             EnsureAudioSources();
         }
 
+        private AudioClip LoadWeatherClip(string clipName)
+        {
+            AudioClip clip = Resources.Load<AudioClip>("Sounds/Weather/" + clipName);
+#if UNITY_EDITOR
+            if (clip == null)
+            {
+                clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Flooded_Grounds/Content/Sounds/Weather/" + clipName + ".wav");
+            }
+#endif
+            return clip;
+        }
+
         private void EnsureAudioSources()
         {
-            string soundPath = "Assets/Flooded_Grounds/Content/Sounds/Weather/";
-
             if (rainLightAudio == null)
             {
                 rainLightAudio = CreateLoopAudio("Rain_Light_Loop");
-#if UNITY_EDITOR
-                rainLightAudio.clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(soundPath + "Rain_Light.wav");
-#endif
+                rainLightAudio.clip = LoadWeatherClip("Rain_Light");
             }
 
             if (rainHeavyAudio == null)
             {
                 rainHeavyAudio = CreateLoopAudio("Rain_Heavy_Loop");
-#if UNITY_EDITOR
-                rainHeavyAudio.clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(soundPath + "Rain_Heavy.wav");
-#endif
+                rainHeavyAudio.clip = LoadWeatherClip("Rain_Heavy");
             }
 
             if (windAudio == null)
             {
                 windAudio = CreateLoopAudio("Wind_Storm_Loop");
-#if UNITY_EDITOR
-                windAudio.clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(soundPath + "Wind_Storm.wav");
-#endif
+                windAudio.clip = LoadWeatherClip("Wind_Storm");
             }
         }
 
