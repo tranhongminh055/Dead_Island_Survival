@@ -275,8 +275,9 @@ namespace HorrorGame.UI
             // Trong màn chơi (In-Game): Nhấn ESC để Tạm Dừng / Tiếp Tục
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                // Không bật Pause nếu đang trong Cutscene máy bay rơi
+                // Không bật Pause nếu đang trong Cutscene máy bay rơi hoặc đang hiện màn hình Bạn Đã Chết
                 if (HorrorGame.Cutscenes.AirplaneCrashCutscene.IsCutsceneActive) return;
+                if (PlayerDeathUI.IsShowingDeathScreen) return;
 
                 // Nếu túi đồ đang mở -> để túi đồ tự đóng trước
                 if (Inventory.InventoryManager.Instance != null && Inventory.InventoryManager.Instance.isInventoryOpen) return;
