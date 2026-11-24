@@ -13,10 +13,11 @@ namespace HorrorGame.Enemy
     {
         [Header("── Thiết Lập Thổ Dân ──")]
         public GameObject cannibalPrefab; // Prefab thổ dân riêng nếu có
-        public int maxCannibals = 10;      // Duy trì khoảng 10 thổ dân trên đảo
-        public float spawnInterval = 6f;   // Cứ 6s kiểm tra sinh thêm nếu thiếu
-        public float minSpawnDistFromPlayer = 18f; // Xuất hiện từ cự ly 18m
-        public float maxSpawnDistFromPlayer = 38f; // Vây quanh trong cự ly 38m
+        public int maxCannibals = 6;      // Tối đa 6 thổ dân cùng lúc để cân bằng & giữ FPS mượt
+        public float spawnInterval = 14f; // Nhịp spawn hợp lý
+        public float minSpawnDistFromPlayer = 26f; // Xuất hiện từ cự ly 26m (không áp sát quá đột ngột)
+        public float maxSpawnDistFromPlayer = 46f; // Vây quanh trong cự ly 46m
+        public float despawnDistance = 90f;        // Tự thu hồi nếu quá xa người chơi
 
         [Header("── Âm Thanh Tiếng Hú & Gầm ──")]
         public AudioClip warCryClip;
@@ -91,33 +92,51 @@ namespace HorrorGame.Enemy
             FindPlayer();
             ResolvePrefab();
 
-            // Kiểm tra ban ngày / ban đêm để điều chỉnh số lượng & tốc độ spawn
-            bool isNightTime = true;
+            // Kiểm tra ngày & đêm để điều chỉnh nhịp độ hợp lý (Đêm 1 không áp đảo quá gắt)
+            bool isNightTime = false;
+            int currentDay = 1;
             if (HorrorGame.Environment.DayNightCycle.Instance != null)
             {
                 isNightTime = HorrorGame.Environment.DayNightCycle.Instance.IsNight();
+                currentDay = HorrorGame.Environment.DayNightCycle.Instance.currentDay;
             }
 
-            // Ban ngày: Giảm mạnh số lượng thổ dân (tối đa 3, spawn chậm hơn)
-            // Ban đêm: Bầy đàn đông đúc hung hãn (tối đa 10, spawn nhanh)
-            int effectiveMax = isNightTime ? maxCannibals : Mathf.Min(3, maxCannibals);
-            float effectiveInterval = isNightTime ? spawnInterval : 25f;
+            // Ngày 1: Ban ngày tối đa 1 tên trinh sát xa, ban đêm tối đa 3 tên
+            // Ngày 2+: Ban ngày tối đa 2 tên, ban đêm tối đa maxCannibals (6 tên)
+            int effectiveMax = (currentDay <= 1)
+                ? (isNightTime ? 3 : 1)
+                : (isNightTime ? maxCannibals : Mathf.Min(2, maxCannibals));
+            float effectiveInterval = (currentDay <= 1)
+                ? (isNightTime ? 20f : 35f)
+                : (isNightTime ? spawnInterval : 28f);
 
-            // Sinh đợt thổ dân tuần tra ban đầu ngay sau khi vào game hoặc cutscene kết thúc
+            // Sinh đợt thổ dân tuần tra ban đầu vừa phải
             if (!initialSpawnDone)
             {
                 initialSpawnDone = true;
-                int initialCount = isNightTime ? 4 : 2;
+                int initialCount = (currentDay <= 1) ? (isNightTime ? 2 : 1) : (isNightTime ? 3 : 1);
                 for (int i = 0; i < initialCount; i++)
                 {
                     SpawnCannibal();
                 }
-                Debug.Log(string.Format("🏹 [CannibalSpawner] Đã sinh bầy Thổ Dân ban đầu ({0} tên) rình rập quanh người chơi! ({1})",
-                    initialCount, isNightTime ? "Ban Đêm" : "Ban Ngày"));
+                Debug.Log(string.Format("🏹 [CannibalSpawner] Đã sinh {0} Thổ Dân tuần tra (Ngày {1} - {2}).",
+                    initialCount, currentDay, isNightTime ? "Đêm" : "Ngày"));
             }
 
-            // Dọn dẹp danh sách những thổ dân đã chết hoặc bị hủy
+            // Dọn dẹp danh sách những thổ dân đã chết hoặc đi quá xa (> 90m)
             activeCannibals.RemoveAll(c => c == null || (c.GetComponent<CannibalAI>() != null && c.GetComponent<CannibalAI>().IsDead));
+            if (playerTransform != null)
+            {
+                for (int i = activeCannibals.Count - 1; i >= 0; i--)
+                {
+                    if (activeCannibals[i] != null && Vector3.Distance(activeCannibals[i].transform.position, playerTransform.position) > despawnDistance)
+                    {
+                        Destroy(activeCannibals[i]);
+                        activeCannibals.RemoveAt(i);
+                        break;
+                    }
+                }
+            }
 
             if (activeCannibals.Count >= effectiveMax) return;
 
@@ -126,8 +145,8 @@ namespace HorrorGame.Enemy
             {
                 timer = 0f;
                 SpawnCannibal();
-                // Ban đêm có 40% cơ hội sinh thêm 1 tên cùng lúc; ban ngày không
-                if (isNightTime && Random.value < 0.4f) SpawnCannibal();
+                if (currentDay >= 2 && isNightTime && activeCannibals.Count < effectiveMax && Random.value < 0.3f)
+                    SpawnCannibal();
             }
         }
 
@@ -156,8 +175,8 @@ namespace HorrorGame.Enemy
                 NavMeshHit hit;
                 if (NavMesh.SamplePosition(testPos, out hit, 15f, NavMesh.AllAreas))
                 {
-                    // Tránh sinh đè trực tiếp lên ngọn lửa máy bay (< 12m)
-                    if (Vector3.Distance(hit.position, ZombieSpawner.CRASH_SITE_CENTER) < 12f)
+                    // Tránh sinh quá sát khu vực xác máy bay rơi (< 26m)
+                    if (Vector3.Distance(hit.position, ZombieSpawner.CRASH_SITE_CENTER) < 26f)
                         continue;
 
                     GameObject obj = Instantiate(cannibalPrefab, hit.position, Quaternion.identity);

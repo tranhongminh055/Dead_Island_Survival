@@ -11,19 +11,20 @@ namespace HorrorGame.Optimization
 
         [Header("Aggressive FPS Boost")]
         [Tooltip("Nếu FPS rớt dưới 30, tự động giảm độ phân giải màn hình để cứu FPS")]
-        public bool enableResolutionScaling = true;
+        public bool enableResolutionScaling = false;
         [Tooltip("Giảm tối đa bao nhiêu % (ví dụ 0.5 là giảm còn một nửa độ phân giải)")]
-        public float minResolutionScale = 0.5f;
+        public float minResolutionScale = 0.65f;
 
         [Header("Quality Tweaks")]
         public bool autoLowerShadows = true;
-        public float maxShadowDistance = 30f;
+        public float maxShadowDistance = 35f;
+        public int maxPixelLights = 3;
         
         [Tooltip("Tự động ép đồ hoạ xuống mức Thấp nhất nếu máy quá yếu")]
         public bool forceLowQualityOnLowFPS = true;
 
-        private float deltaTime = 0.0f;
-        private float checkInterval = 2f; // Kiểm tra mỗi 2 giây thay vì mỗi frame
+        private float deltaTime = 0.016f;
+        private float checkInterval = 2.5f; // Kiểm tra mỗi 2.5 giây thay vì mỗi frame
         private float currentScale = 1.0f;
         private int originalWidth;
         private int originalHeight;
@@ -37,6 +38,15 @@ namespace HorrorGame.Optimization
                 QualitySettings.vSyncCount = 0;
             }
 
+            // Giới hạn Pixel Light & Shadow Cascades giúp tăng mạnh FPS vào ban đêm có mưa & nhiều đèn
+            if (QualitySettings.pixelLightCount > maxPixelLights)
+            {
+                QualitySettings.pixelLightCount = maxPixelLights;
+            }
+            if (QualitySettings.shadowCascades > 2)
+            {
+                QualitySettings.shadowCascades = 2;
+            }
             if (autoLowerShadows && QualitySettings.shadowDistance > maxShadowDistance)
             {
                 QualitySettings.shadowDistance = maxShadowDistance;
@@ -102,18 +112,18 @@ namespace HorrorGame.Optimization
 
         void OnGUI()
         {
-            float fps = 1.0f / deltaTime;
-            string text = string.Format("FPS: {0} | Tỉ lệ Phân giải: {1}%", Mathf.RoundToInt(fps), Mathf.RoundToInt(currentScale * 100));
+            float fps = deltaTime > 0.0001f ? (1.0f / deltaTime) : 60f;
+            string text = string.Format("FPS: {0}", Mathf.RoundToInt(fps));
 
             GUIStyle style = new GUIStyle();
-            Rect rect = new Rect(10, 10, 400, 50);
-            style.alignment = TextAnchor.UpperLeft;
-            style.fontSize = 24;
+            Rect rect = new Rect(Screen.width - 130, 10, 120, 28);
+            style.alignment = TextAnchor.UpperRight;
+            style.fontSize = 15;
             style.fontStyle = FontStyle.Bold;
             
             // Viền chữ để dễ nhìn
             style.normal.textColor = Color.black;
-            GUI.Label(new Rect(11, 11, 400, 50), text, style);
+            GUI.Label(new Rect(rect.x + 1, rect.y + 1, rect.width, rect.height), text, style);
             
             style.normal.textColor = fps < 30 ? Color.red : (fps < 50 ? Color.yellow : Color.green);
             GUI.Label(rect, text, style);
