@@ -31,7 +31,7 @@ public class FPSWeapon : MonoBehaviour
     public float range = 100f;
     public float fireRate = 8f;
     public int maxAmmo = 30;
-    public int reserveAmmo = 60; // Số đạn dự trữ (nạp được 2 băng tiếp theo)
+    public int reserveAmmo = 300; // Đạn dự trữ ban đầu: 30/300 viên trong túi đạn
     public float reloadTime = 2f;
 
     [Header("Tích hợp Túi Đồ (Inventory)")]
@@ -142,6 +142,9 @@ public class FPSWeapon : MonoBehaviour
             transform.localRotation = Quaternion.Euler(0, 0, 0);
         }
 
+        // Đảm bảo ban đầu súng luôn có 30/300 viên đạn (kể cả khi Inspector Scene cũ đang lưu 60)
+        if (maxAmmo != 30) maxAmmo = 30;
+        if (reserveAmmo < 300) reserveAmmo = 300;
         currentAmmo = maxAmmo;
         CreateGunVisual();
         SetupMuzzleFlashEffect();

@@ -372,26 +372,40 @@ namespace HorrorGame.UI
                 desc = "Bạn đã chọn ở lại bảo vệ thế giới. Tự do xây dựng và sinh tồn mãi mãi!";
                 navInfo = "🌲 Chế độ Sinh Tồn Tự Do";
             }
-            else if (em != null && em.Stage == EndingStoryStage.ReturnToDockWithCure)
+            else if (em != null && em.Stage == EndingStoryStage.CarryingSurvivorToDock)
             {
                 stepDisplay = 4;
-                title = "4. Quay Về Bến Tàu Gọi Cứu Hộ!";
-                desc = "Đã có Huyết Thanh! Đưa Người Sống Sót ra Trạm Bến Tàu và nhấn [E] quyết định số phận.";
-                navInfo = FormatNavHint("Trạm Bến Tàu", em.dockRescuePos);
+                title = "4. Cõng Người Chạy Ra Bến Tàu!";
+                desc = "Tại Bến Tàu ven sông: Bấm [E] lên Tàu = Thoát đảo (Ending 1) | Đập Máy Tín Hiệu = Ở lại (Ending 2).";
+                navInfo = FormatNavHint("Bến Tàu Ven Sông", em.dockShorePos);
+            }
+            else if (em != null && em.Stage == EndingStoryStage.ReturnToLabAndCarry)
+            {
+                stepDisplay = 4;
+                title = "4. Quay Lại Phòng Thí Nghiệm!";
+                desc = "Mang ống Huyết Thanh quay lại Phòng Thí Nghiệm tiêm và cõng Người Sống Sót chạy ra Bến Tàu.";
+                navInfo = FormatNavHint("Phòng Thí Nghiệm Bí Mật", em.secretLabPos);
+            }
+            else if (em != null && em.Stage == EndingStoryStage.PickupDroppedCure)
+            {
+                stepDisplay = 3;
+                title = "🧪 Nhặt Ống Huyết Thanh Giải Độc!";
+                desc = "Nữ Hoàng Ký Sinh đã rơi ra Ống Huyết Thanh phát sáng xanh trên mặt đất — hãy lại gần nhấn [E] nhặt!";
+                navInfo = "★ Tìm ống thuốc phát sáng xanh ngay chỗ Boss gục";
             }
             else if (em != null && em.Stage == EndingStoryStage.BossFightActive)
             {
                 stepDisplay = 3;
                 title = "☠ HẠ GỤC NỮ HOÀNG KÝ SINH!";
-                desc = "Tiêu diệt Trùm Cuối tại Sân Làng Bỏ Hoang để đoạt liều Huyết Thanh Giải Độc duy nhất!";
-                navInfo = "⚔ Chiến đấu sinh tử tại Làng Bỏ Hoang";
+                desc = "Tiêu diệt Trùm Cuối ngay ngoài Phòng Thí Nghiệm để nó rơi ra Ống Huyết Thanh Giải Độc!";
+                navInfo = "⚔ Chiến đấu sinh tử!";
             }
-            else if (em != null && em.Stage == EndingStoryStage.FindSurvivorInVillage)
+            else if (em != null && em.Stage == EndingStoryStage.SearchSecretLab)
             {
                 stepDisplay = 3;
-                title = "3. Cứu Người Sống Sót Ở Làng";
-                desc = "Tới Sân Làng Bỏ Hoang, nhấn [E] giải cứu hành khách chuyến bay C400 (Chuẩn bị vũ khí!).";
-                navInfo = FormatNavHint("Người Sống Sót (Làng)", em.villageSurvivorPos);
+                title = "3. Tìm Phòng Thí Nghiệm Bí Mật";
+                desc = "Khám phá sâu trong rừng phía Tây Bắc để tìm căn hầm bê tông có ánh đèn huỳnh quang xanh mờ.";
+                navInfo = "🔍 Không có định vị — Tự lần dấu trong rừng sâu!";
             }
             else if (CurrentStage == 0)
             {

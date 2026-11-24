@@ -140,14 +140,6 @@ namespace HorrorGame.UI
                 HandlePlayerDeath();
             }
 
-#if UNITY_EDITOR
-            // Phím test nhanh trong Editor: nhấn LeftCtrl + K để xem ngay màn hình Bạn Đã Chết
-            if (!isDeadTriggered && playerStats != null && Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.K))
-            {
-                playerStats.TakeDamage(9999f);
-            }
-#endif
-
             if (!isDeadTriggered) return;
 
             deathElapsed += Time.unscaledDeltaTime;
