@@ -185,6 +185,7 @@
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\ShelterRest.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\Survival\TerrainTreeChopper.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\UI\GameMenuManager.cs" />
+     <Compile Include="Assets\Flooded_Grounds\Scripts\UI\SurvivalObjectiveManager.cs" />
      <Compile Include="Assets\Flooded_Grounds\Scripts\WaterFloat.cs" />
      <Compile Include="Assets\Scripts\CinematicEffects.cs" />
      <Compile Include="Assets\Scripts\TimelineTriggerFade.cs" />

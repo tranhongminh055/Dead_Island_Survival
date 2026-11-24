@@ -8,9 +8,9 @@ namespace HorrorGame.Enemy
     {
         [Header("Spawner Settings")]
         public GameObject zombiePrefab; // Kéo thả khối Zombie Prefab vào đây
-        public int maxZombies = 80; // Số lượng tối đa trên đảo (tăng lên 80 con đông nghẹt!)
-        public float spawnInterval = 1.0f; // Cứ mỗi 1 giây sinh 1 con
-        public float spawnRadius = 60f; // Bán kính khu vực đẻ ngẫu nhiên nếu không dùng Spawn Points
+        public int maxZombies = 24; // Giới hạn tối ưu FPS (tránh tụt FPS do 80 NavMeshAgent chạy cùng lúc)
+        public float spawnInterval = 4.0f; // Nhịp spawn mượt mà, tăng dần theo ngày/đêm
+        public float spawnRadius = 55f; // Bán kính khu vực đẻ ngẫu nhiên nếu không dùng Spawn Points
 
         [Header("Spawn Points (Khắp Map)")]
         public Transform[] spawnPoints; // Danh sách các điểm đẻ Zombie (Tạo Empty Object rồi kéo vào đây)
@@ -19,14 +19,14 @@ namespace HorrorGame.Enemy
         [Header("Dynamic Player Spawner (Sinh Zombie quanh người chơi)")]
         [Tooltip("Bật chế độ sinh Zombie xung quanh người chơi để luôn chạm trán Zombie")]
         public bool spawnNearPlayer = true;
-        public float minPlayerDistance = 15f; // Xuất hiện từ cự ly 15m (ngay bìa cây)
-        public float maxPlayerDistance = 55f; // Vây quanh tới 55m
-        public float despawnDistance = 140f;  // Đi quá 140m sẽ luân chuyển lại gần người chơi
-        public int initialHordeCount = 30;    // Sinh ngay 30 con khi bắt đầu game!
+        public float minPlayerDistance = 22f; // Xuất hiện từ cự ly an toàn 22m (tránh đẻ sát lưng)
+        public float maxPlayerDistance = 52f; // Vây quanh tới 52m
+        public float despawnDistance = 85f;   // Quá 85m tự thu hồi để giữ FPS luôn mượt
+        public int initialHordeCount = 8;     // Sinh gọn 8 con ban đầu, không gây khựng khung hình
 
         [Header("Crash Site Safe Zone (Vùng an toàn quanh xác máy bay)")]
         public static readonly Vector3 CRASH_SITE_CENTER = new Vector3(537f, 17.6f, 545f);
-        public float crashSafeRadius = 10f; // Chỉ 10m ngay trên đám lửa máy bay!
+        public float crashSafeRadius = 26f; // Vùng an toàn 26m quanh xác máy bay để người chơi kịp nhặt đồ
 
         private float timer = 0f;
         private List<GameObject> activeZombies = new List<GameObject>();
@@ -37,10 +37,12 @@ namespace HorrorGame.Enemy
 
         void Awake()
         {
-            // Tối ưu giới hạn để đảo tràn ngập Zombie
-            if (crashSafeRadius > 15f) crashSafeRadius = 10f;
-            if (maxZombies < 60) maxZombies = 80;
-            if (spawnInterval > 2f) spawnInterval = 1.0f;
+            // Giữ giới hạn hợp lý để mượt FPS (không ép lên 80 con nữa)
+            if (crashSafeRadius < 22f) crashSafeRadius = 26f;
+            if (maxZombies > 28) maxZombies = 24;
+            if (initialHordeCount > 12) initialHordeCount = 8;
+            if (spawnInterval < 3f) spawnInterval = 4.0f;
+            if (despawnDistance > 95f) despawnDistance = 85f;
         }
 
         void Start()
@@ -54,6 +56,22 @@ namespace HorrorGame.Enemy
             }
 
             FindPlayer();
+
+            // Nếu zombiePrefab đang trỏ tới 1 Zombie sống trong Scene, tạo bản mẫu ẩn riêng để tránh bị hỏng Animator hoặc bị Destroy khi con gốc chết!
+            if (zombiePrefab != null && zombiePrefab.scene.IsValid())
+            {
+                GameObject safeTemplate = Instantiate(zombiePrefab);
+                safeTemplate.name = "[ZombieTemplate_Safe]";
+                safeTemplate.SetActive(false);
+                Animator tplAnim = safeTemplate.GetComponent<Animator>();
+                if (tplAnim == null) tplAnim = safeTemplate.GetComponentInChildren<Animator>();
+                if (tplAnim != null)
+                {
+                    tplAnim.enabled = true;
+                    tplAnim.applyRootMotion = false;
+                }
+                zombiePrefab = safeTemplate;
+            }
 
             // Dọn sạch Zombie quá sát xác máy bay (< 20m) đưa ra mép rừng
             ClearZombiesNearCrashSite();
@@ -113,24 +131,37 @@ namespace HorrorGame.Enemy
 
             FindPlayer();
 
-            // Sinh đợt Zombie hùng hậu ban đầu (30 con) ngay khi cutscene kết thúc để chỗ nào cũng có Zombie
+            // Tính giới hạn Zombie thông minh theo Ngày & Đêm (Đêm 1 dễ thở hơn, từ Ngày 2 căng thẳng dần)
+            int currentDay = 1;
+            bool isNight = false;
+            if (HorrorGame.Environment.DayNightCycle.Instance != null)
+            {
+                currentDay = HorrorGame.Environment.DayNightCycle.Instance.currentDay;
+                isNight = HorrorGame.Environment.DayNightCycle.Instance.IsNight();
+            }
+
+            int dynamicMax = (currentDay <= 1)
+                ? (isNight ? 15 : 10)
+                : (isNight ? maxZombies : Mathf.Min(14, maxZombies));
+            float dynamicInterval = isNight ? Mathf.Max(3.5f, spawnInterval) : Mathf.Max(6.0f, spawnInterval * 1.5f);
+
+            // Sinh đợt Zombie ban đầu vừa phải (không gây giật lag)
             if (!initialSpawnDone)
             {
                 initialSpawnDone = true;
-                int count = Mathf.Min(initialHordeCount, maxZombies);
+                int count = Mathf.Min(initialHordeCount, dynamicMax);
                 for (int i = 0; i < count; i++)
                 {
-                    // Luân phiên: một nửa quanh người chơi, một nửa rải khắp bản đồ
                     SpawnZombie(i % 2 == 0);
                 }
-                Debug.Log(string.Format("ZombieSpawner: Đã kích hoạt binh đoàn Zombie ({0} con) trên khắp hòn đảo!", count));
+                Debug.Log(string.Format("ZombieSpawner: Đã kích hoạt {0} Zombie (Ngày {1} - {2}).", count, currentDay, isNight ? "Đêm" : "Ngày"));
             }
 
             // Dọn dẹp danh sách: Xóa những con Zombie đã bị bắn chết hoặc đã bị hủy
             activeZombies.RemoveAll(item => item == null || (item.GetComponent<EnemyAI>() != null && item.GetComponent<EnemyAI>().IsDead));
 
-            // Chỉ thu hồi zombie ở quá xa (> 140m) KHI ĐÃ ĐẠT GẦN MAX để nhường slot sinh gần người chơi
-            if (playerTransform != null && activeZombies.Count >= maxZombies - 5)
+            // Luôn thu hồi zombie đi quá xa (> despawnDistance) để giữ CPU & FPS luôn mượt
+            if (playerTransform != null)
             {
                 for (int i = activeZombies.Count - 1; i >= 0; i--)
                 {
@@ -140,20 +171,17 @@ namespace HorrorGame.Enemy
                     {
                         Destroy(activeZombies[i]);
                         activeZombies.RemoveAt(i);
-                        break; // Giải phóng từ từ
+                        break; // Thu hồi từ từ mỗi frame 1 con tránh spike
                     }
                 }
             }
 
-            // Nếu đảo đã quá đông (đạt giới hạn 80 con) thì chờ
-            if (activeZombies.Count >= maxZombies) return;
+            if (activeZombies.Count >= dynamicMax) return;
 
-            // Đếm ngược thời gian đẻ (1 giây 1 con)
             timer += Time.deltaTime;
-            if (timer >= spawnInterval)
+            if (timer >= dynamicInterval)
             {
                 spawnToggle++;
-                // 2 con quanh người chơi, 1 con rải xa khắp map
                 bool nearPlayer = (spawnToggle % 3 != 0);
                 SpawnZombie(nearPlayer);
                 timer = 0f;
@@ -250,6 +278,13 @@ namespace HorrorGame.Enemy
             {
                 GameObject newZombie = Instantiate(zombiePrefab, finalPosition, Quaternion.identity);
                 newZombie.SetActive(true);
+                Animator zAnim = newZombie.GetComponent<Animator>();
+                if (zAnim == null) zAnim = newZombie.GetComponentInChildren<Animator>();
+                if (zAnim != null)
+                {
+                    zAnim.enabled = true;
+                    zAnim.applyRootMotion = false;
+                }
                 EnemyAI ai = newZombie.GetComponent<EnemyAI>();
                 if (ai != null) ai.EnsureCollider();
                 activeZombies.Add(newZombie);

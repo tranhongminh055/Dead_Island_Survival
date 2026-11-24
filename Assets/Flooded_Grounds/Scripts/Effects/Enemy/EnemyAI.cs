@@ -59,6 +59,24 @@ namespace HorrorGame.Enemy
             EnsureCollider();
             agent = GetComponent<NavMeshAgent>();
             animator = GetComponent<Animator>();
+            if (animator == null) animator = GetComponentInChildren<Animator>();
+
+            // Đảm bảo Animator luôn bật, không bị tắt từ mẫu gốc hoặc bị applyRootMotion làm trượt
+            if (animator != null)
+            {
+                animator.enabled = true;
+                animator.applyRootMotion = false;
+                animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+                if (animator.runtimeAnimatorController == null)
+                {
+#if UNITY_EDITOR
+                    animator.runtimeAnimatorController = UnityEditor.AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(
+                        "Assets/Flooded_Grounds/Character No Animation/Enemy No Animation/Animation zoombie/ZombieAnim.controller");
+#endif
+                }
+                animator.Rebind();
+            }
+
             currentHealth = maxHealth; // Hồi đầy máu khi mới sinh ra
 
             // Tự động tìm người chơi nếu quên kéo thả
@@ -199,10 +217,19 @@ namespace HorrorGame.Enemy
                     }
                 }
 
-                if (agent.remainingDistance <= 1.2f)
+                // Chỉ dừng khi thực sự đã tới đích (tránh lỗi pathPending làm remainingDistance = 0 ngay frame đầu khiến Zombie trượt lướt dáng Idle!)
+                if (!agent.pathPending && agent.remainingDistance <= 1.2f)
                 {
-                    animator.SetFloat("Speed", 0f); // Tới nơi đứng thở
+                    agent.speed = 0f;
                 }
+            }
+
+            // Đồng bộ tham số Speed của Animator theo vận tốc di chuyển thực tế của NavMeshAgent (chống triệt để lỗi lướt không có animation!)
+            if (animator != null && animator.enabled && animator.runtimeAnimatorController != null)
+            {
+                float currentSpeed = (agent != null && agent.enabled) ? agent.velocity.magnitude : 0f;
+                float animSpeed = canReachPlayer ? 0f : Mathf.Clamp01(currentSpeed / Mathf.Max(walkSpeed, 0.5f));
+                animator.SetFloat("Speed", animSpeed, 0.12f, Time.deltaTime);
             }
         }
 
